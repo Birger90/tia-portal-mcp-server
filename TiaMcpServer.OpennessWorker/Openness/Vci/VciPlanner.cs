@@ -86,6 +86,11 @@ public static class VciPlanner
                 plan.Unverifiable = "No safe supported export format for leaf: " + name;
                 return plan;
             }
+            if (VciSafetyExport.Refusal(format.Format, leaf.IsPlc, leaf.Path.Select(segment => segment.NodeType), VciLeafLanguage.Read(leaf.Object), name) is { } safetyRefusal)
+            {
+                plan.Unverifiable = safetyRefusal;
+                return plan;
+            }
             if (format.IsFallback) plan.FormatFallbacks++;
             var key = VciMirroredPath.Build(write.RelativeDirectory, leaf.Path, leaf.IsPcStation);
             var problem = VciMirroredPath.FirstProblem(plan.WorkspaceRootPath!, key, format.Format);

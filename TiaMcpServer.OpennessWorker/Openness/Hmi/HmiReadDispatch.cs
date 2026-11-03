@@ -23,6 +23,7 @@ public static class HmiReadDispatch
         return method switch
         {
             "hmi_list_hmi_devices" => HmiSoftwareInfoReader.ListDevices(project),
+            HmiClassicMethods.ListObjects => HmiClassicObjects.List(project, query),
             "hmi_get_runtime_settings" => HmiSoftwareInfoReader.ReadRuntimeSettings(Software()),
             "hmi_list_script_modules" => HmiSoftwareInfoReader.ListScriptModules(Software()),
             "hmi_list_text_and_graphic_lists" => HmiSoftwareInfoReader.ListTextAndGraphicLists(Software()),
@@ -48,6 +49,8 @@ public static class HmiReadDispatch
             "hmi_list_faceplate_instances" => HmiScreenReader.ListFaceplateInstances(
                 Software(), query.ScreenName, paging, project),
             "hmi_get_screen_navigation" => HmiScreenReader.GetScreenNavigation(Software()),
+            HmiScreenEventMethods.ListEvents => HmiScreenEvents.ListEvents(Software(), query),
+            HmiScreenEventMethods.ListDynamizations => HmiScreenEvents.ListDynamizations(Software(), query),
             "hmi_validate" => HmiValidationReader.Validate(
                 Software(), query.Category ?? throw MissingField("category"), query.Name, paging, project),
             _ => throw new WorkerOperationException(

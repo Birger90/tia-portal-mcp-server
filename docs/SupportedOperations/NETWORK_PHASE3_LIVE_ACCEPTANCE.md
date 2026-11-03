@@ -1,5 +1,7 @@
 # Network Phase 3 Live Acceptance
 
+**Language:** English · [Deutsch](NETWORK_PHASE3_LIVE_ACCEPTANCE.de.md)
+
 Status: **Design review required** after the 2026-08-05 run against the prepared, disposable TIA
 Portal V21 acceptance fixture at source revision
 `702103a5e5223c23db7e0918cdaf12ffd3de38f1`.

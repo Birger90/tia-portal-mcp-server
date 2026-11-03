@@ -179,6 +179,13 @@ internal sealed class WriteRun<TItem, TEffect, TVerification, TResponse>
             {
                 return Validation(itemError);
             }
+
+            // A confirming domain shows the operationId to the human; it must not be able to add
+            // prompt lines or reorder the text around it (the prompt escapes it as well).
+            if (_domain.ConfirmsEveryCall && ConfirmationText.ContainsUnsafeCharacters(item.OperationId))
+            {
+                return Validation(WriteExecution.UnsafeOperationIdMessage);
+            }
         }
 
         var validation = _domain.Validate(Items, _gate.AccessMode);
@@ -187,8 +194,18 @@ internal sealed class WriteRun<TItem, TEffect, TVerification, TResponse>
             return validation.Error ?? Validation("The write request is invalid.");
         }
 
+        // A domain may know whether a call confirms only from its validated items (library_write: calls that contain a
+        // global-library lifecycle item), so the same rule is applied again once Validate has run.
+        if (_domain.ConfirmsEveryCall && HasUnsafeOperationId())
+        {
+            return Validation(WriteExecution.UnsafeOperationIdMessage);
+        }
+
         return null;
     }
+
+    private bool HasUnsafeOperationId()
+        => Items.Any(item => item is not null && ConfirmationText.ContainsUnsafeCharacters(item.OperationId));
 
     /// <summary>
     /// Runs the leased stages. An exception after the lease started is audited (a mutation may
@@ -246,6 +263,13 @@ internal sealed class WriteRun<TItem, TEffect, TVerification, TResponse>
         if (ConfirmationMode == ConfirmationMode.AskUser
             && (_domain.ConfirmsEveryCall || decision.Kind == GuardDecisionKind.NeedsUser))
         {
+            // The last check before any prompt, whatever made the call ask (every-call confirmation or an acknowledge
+            // guard): no prompt is shown for operationIds that could add lines or reorder the text around them.
+            if (HasUnsafeOperationId())
+            {
+                return Failure(WritePhases.Error, Validation(WriteExecution.UnsafeOperationIdMessage));
+            }
+
             var refusal = await ConfirmAndRecheckAsync(plan, fired).ConfigureAwait(false);
             if (refusal is not null)
             {
@@ -267,9 +291,12 @@ internal sealed class WriteRun<TItem, TEffect, TVerification, TResponse>
         // Freeze before awaiting the client: a domain may hold mutable nested plan objects.
         var plannedDocument = ConsequenceDocument(planned.Items);
         var guardDocument = CanonicalJson.Serialize(fired);
-        var message = _domain.DescribeForConfirmation(Items, planned.Items) + "\n" + string.Join("\n", _guards
+        // Guards first, one escaped line each, then the domain's description of the real effect, whose
+        // caller-supplied values the domain quotes; no caller text can come before or hide either.
+        var message = string.Join("\n", _guards
             .Where(guard => guard.Severity == WriteGuardSeverities.Acknowledge)
-            .Select(guard => guard.Message));
+            .Select(guard => ConfirmationText.Line(guard.Message))
+            .Append(ConfirmationText.Block(_domain.DescribeForConfirmation(Items, planned.Items))));
         _auditConfirmation = new("user", UserConfirmationOutcomes.Failed);
         UserConfirmationResult reply;
         try
@@ -400,8 +427,15 @@ internal sealed class WriteRun<TItem, TEffect, TVerification, TResponse>
         _cancellationToken.ThrowIfCancellationRequested();
         _mutated[index] = true;
         var result = await _domain.MutateAsync(item).ConfigureAwait(false);
+        // K60: a failure the host produced before anything was sent for the item (e.g. K55's "Nothing was imported for this
+        // item") provably changed nothing, so its partial-write warning must not say it may have.
+        if (ProvablyNotSent(result)) _mutated[index] = false;
         return WithEngineeringError(_domain.Project(item, result), result);
     }
+
+    /// <summary>A failed result that was never dispatched to a worker and was not a rejected post-operation response.</summary>
+    internal static bool ProvablyNotSent(WorkerCallResult result)
+        => !result.Success && !result.IsPostOperationFailure && result.DispatchState == WorkerDispatchState.NotSent;
 
     /// <summary>
     /// The one place a Siemens exception reaches a write item's failure, for every domain: the worker
@@ -446,7 +480,8 @@ internal sealed class WriteRun<TItem, TEffect, TVerification, TResponse>
             item => string.Equals(item.Status, OperationBatchStatus.Failed, StringComparison.Ordinal));
         var message = items.Count < 2 || index < 0 ? null
             : _mutated[index] ? WriteExecution.PartialWriteMessage
-            : index > 0 ? WriteExecution.PartialWriteNotMutatedMessage
+            // Without an earlier item that was sent, nothing in the call changed TIA state: no partial-write warning.
+            : _mutated.Take(index).Any(sent => sent) ? WriteExecution.PartialWriteNotMutatedMessage
             : null;
         if (message is null)
         {

@@ -537,6 +537,40 @@ public sealed class WriteExecutionTests
             GuardById(doc, WriteGuardCatalog.PartialWriteGuardId).GetProperty("message").GetString());
     }
 
+    /// <summary>
+    /// K60: an item that failed before anything was sent for it (e.g. K55's "Nothing was imported for this item") does not
+    /// say it may have changed TIA state; it says the earlier items stay applied.
+    /// </summary>
+    [Fact]
+    public async Task FailureBeforeAnythingWasSent_SaysOnlyThatEarlierItemsStayApplied()
+    {
+        _domain.NotSent.Add("b");
+
+        var (result, doc) = await RunAsync(new[] { Item("a"), Item("b", failWith: WorkerFailureCategories.WorkerOperationFailed), Item("c") });
+
+        AssertOutcome(result, doc, WritePhases.Applied, isError: false, category: null);
+        var warnings = Strings(doc.GetProperty("batch").GetProperty("operations")[1].GetProperty("warnings"));
+        Assert.Contains(WriteExecution.PartialWriteNotMutatedMessage, warnings);
+        Assert.DoesNotContain(WriteExecution.PartialWriteMessage, warnings);
+        Assert.Equal(
+            WriteExecution.PartialWriteNotMutatedMessage,
+            GuardById(doc, WriteGuardCatalog.PartialWriteGuardId).GetProperty("message").GetString());
+    }
+
+    [Fact]
+    public async Task FirstItemFailingBeforeAnythingWasSent_HasNoPartialWriteWarning()
+    {
+        _domain.NotSent.Add("a");
+
+        var (result, doc) = await RunAsync(new[] { Item("a", failWith: WorkerFailureCategories.WorkerOperationFailed), Item("b") });
+
+        AssertOutcome(result, doc, WritePhases.Applied, isError: false, category: null);
+        var warnings = Strings(doc.GetProperty("batch").GetProperty("operations")[0].GetProperty("warnings"));
+        Assert.DoesNotContain(WriteExecution.PartialWriteMessage, warnings);
+        Assert.DoesNotContain(WriteExecution.PartialWriteNotMutatedMessage, warnings);
+        Assert.DoesNotContain(doc.GetProperty("guards").EnumerateArray(), g => g.GetProperty("id").GetString() == WriteGuardCatalog.PartialWriteGuardId);
+    }
+
     [Fact]
     public async Task EveryMutation_AndTheAudit_RunInsideTheLease()
     {

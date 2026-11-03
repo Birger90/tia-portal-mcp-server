@@ -1,5 +1,4 @@
 using System.Text.RegularExpressions;
-using TiaMcpServer.Tests.TestSupport;
 using Xunit;
 
 namespace TiaMcpServer.Tests.Project;
@@ -14,10 +13,10 @@ namespace TiaMcpServer.Tests.Project;
 public class ProjectMetadataWorkerContractTests
 {
     private static string ReaderSource => File.ReadAllText(
-        RepositoryFiles.Path("TiaMcpServer.OpennessWorker", "Openness", "Project", "ProjectMetadataReader.cs"));
+        FindRepositoryFile("TiaMcpServer.OpennessWorker", "Openness", "Project", "ProjectMetadataReader.cs"));
 
     private static string LifecycleServiceSource => File.ReadAllText(
-        RepositoryFiles.Path("TiaMcpServer.OpennessWorker", "Openness", "Project", "ProjectLifecycleService.cs"));
+        FindRepositoryFile("TiaMcpServer.OpennessWorker", "Openness", "Project", "ProjectLifecycleService.cs"));
 
     [Fact]
     public void Reader_IsAReadOnlyServiceThatNeverMutatesProjectState()
@@ -61,8 +60,8 @@ public class ProjectMetadataWorkerContractTests
         // warning for an unavailable-but-non-throwing value too, so writes must at least match
         // the number of approved, narrow catch blocks.
         Assert.True(
-            RepositoryFiles.CountOccurrences(source, "Console.Error.WriteLine")
-                >= RepositoryFiles.CountOccurrences(source, "catch (EngineeringException"));
+            CountOccurrences(source, "Console.Error.WriteLine")
+                >= CountOccurrences(source, "catch (EngineeringException"));
 
         // And warnings must never be confused with hardcoded defaults: an unavailable V21
         // compilation setting must never be assigned a literal false.
@@ -165,7 +164,7 @@ public class ProjectMetadataWorkerContractTests
         // The metadata reader is invoked in exactly one place (ReadStatusWithMetadata, reachable
         // only from GetStatusReadOnly): the basic-status read and the lifecycle probe cannot
         // perform the extended metadata read.
-        Assert.Equal(1, RepositoryFiles.CountOccurrences(source, "ProjectMetadataReader.Read"));
+        Assert.Equal(1, CountOccurrences(source, "ProjectMetadataReader.Read"));
 
         // The basic-status read must return plain ReadStatus, never the metadata-bearing variant.
         var basicStatusBody = source.Substring(
@@ -194,11 +193,11 @@ public class ProjectMetadataWorkerContractTests
     public void GuardedLifecycle_StatusReadsUseBasicStatusWithoutExtendedMetadata()
     {
         var domain = File.ReadAllText(
-            RepositoryFiles.Path("TiaMcpServer", "ProjectLifecycle", "LifecycleWriteDomain.cs"));
+            FindRepositoryFile("TiaMcpServer", "ProjectLifecycle", "LifecycleWriteDomain.cs"));
         var binding = File.ReadAllText(
-            RepositoryFiles.Path("TiaMcpServer", "ProjectLifecycle", "LifecycleBindingStrategy.cs"));
+            FindRepositoryFile("TiaMcpServer", "ProjectLifecycle", "LifecycleBindingStrategy.cs"));
         var tools = File.ReadAllText(
-            RepositoryFiles.Path("TiaMcpServer", "Tools", "ProjectWriteTools.cs"));
+            FindRepositoryFile("TiaMcpServer", "Tools", "ProjectWriteTools.cs"));
 
         // Domain guard planning and verification use basic status. The strategy retains the
         // client's existing source-grounding boundary without adding another metadata reader.
@@ -208,5 +207,31 @@ public class ProjectMetadataWorkerContractTests
         Assert.DoesNotContain("ProjectMetadataReader", domain + binding + tools, StringComparison.Ordinal);
         Assert.DoesNotContain("GetProjectStatusAsync(", tools, StringComparison.Ordinal);
         Assert.DoesNotContain("SafetyRead", domain + binding + tools, StringComparison.Ordinal);
+    }
+
+    private static int CountOccurrences(string source, string value)
+    {
+        var count = 0;
+        var startIndex = 0;
+        while ((startIndex = source.IndexOf(value, startIndex, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            startIndex += value.Length;
+        }
+
+        return count;
+    }
+
+    private static string FindRepositoryFile(params string[] segments)
+    {
+        for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
+        {
+            if (File.Exists(Path.Combine(directory.FullName, "TiaMcpServer.slnx")))
+            {
+                return Path.Combine(new[] { directory.FullName }.Concat(segments).ToArray());
+            }
+        }
+
+        throw new InvalidOperationException("Could not locate the repository root.");
     }
 }

@@ -14,7 +14,7 @@ public sealed class NetworkVerifiedWriteFixtureTests
     public async Task VerifyAsync_BindsTheExactIdentityReportedForTheTargetPath()
     {
         var binding = new ProjectSessionBinding(null);
-        using var client = FakeWorkerClients.Create(binding: binding);
+        using var client = CreateClient(binding);
 
         await NetworkVerifiedWriteFixture.VerifyAsync(
             client,
@@ -40,7 +40,7 @@ public sealed class NetworkVerifiedWriteFixtureTests
     public async Task VerifyAsync_RejectsAWorkerReportedDifferentProjectWithoutBinding()
     {
         var binding = new ProjectSessionBinding(null);
-        using var client = FakeWorkerClients.Create(binding: binding);
+        using var client = CreateClient(binding);
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
             () => NetworkVerifiedWriteFixture.VerifyAsync(
@@ -54,4 +54,10 @@ public sealed class NetworkVerifiedWriteFixtureTests
         Assert.Null(snapshot.ProjectPath);
     }
 
+    private static OpennessWorkerClient CreateClient(ProjectSessionBinding binding)
+        => new(
+            binding,
+            logger: null,
+            workerExecutablePath: FakeWorkerLocator.Locate(),
+            accessPolicy: new OperationAccessPolicy(McpAccessMode.ReadWrite));
 }

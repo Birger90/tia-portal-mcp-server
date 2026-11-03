@@ -7,12 +7,12 @@ namespace TiaMcpServer.Worker;
 /// <summary>Rejects untrusted block-import evidence that exceeds the closed I2 contract.</summary>
 public static class BlockImportOutcomeValidator
 {
-    private const int MaxPlcs = 8;
-    private const int MaxMessages = 20;
-    private const int MaxNotes = 8;
-    private const int MaxFieldChars = 256;
-    private const int MaxDiagnosticChars = 1_024;
-    private const int MaxSerializedChars = 12_000;
+    private const int MaxPlcs = BlockImportOutcomeLimits.MaxPlcs;
+    private const int MaxMessages = BlockImportOutcomeLimits.MaxMessages;
+    private const int MaxNotes = BlockImportOutcomeLimits.MaxNotes;
+    private const int MaxFieldChars = BlockImportOutcomeLimits.MaxFieldChars;
+    private const int MaxDiagnosticChars = BlockImportOutcomeLimits.MaxDiagnosticChars;
+    private const int MaxSerializedChars = BlockImportOutcomeLimits.MaxSerializedChars;
 
     public static bool Validate(BlockImportOutcomeInfo? outcome, string? normalizedFormatOrNull)
     {
@@ -54,7 +54,7 @@ public static class BlockImportOutcomeValidator
             return false;
         }
 
-        if (normalizedFormatOrNull == SourceFormatNames.Xml)
+        if (normalizedFormatOrNull is SourceFormatNames.Xml or SourceFormatNames.Sd)
         {
             if (outcome.TemporarySourceState != "not_applicable")
                 return false;

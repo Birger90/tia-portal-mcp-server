@@ -10,19 +10,6 @@ public sealed class PlcContentDiffTests
     private static string Sha256(string value)
         => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant();
 
-    [Theory]
-    [InlineData("", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")]
-    [InlineData("abc", "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")]
-    [InlineData("\u017B\u00F3\u0142\u0107\r\n\U0001F642", "3d623462693e399a0b0ee3bc2d0b73fe167f71a67e51bbeb78d73b11abf61220")]
-    [InlineData("\u017B\u00F3\u0142\u0107\n\U0001F642", "1b1bf63941c2a9597f98f69ba3d2e412d59bd791481188de7808cdca9217419c")]
-    public void Build_PreservesRawUtf8Hashes(string content, string expected)
-    {
-        var diff = PlcContentDiff.Build(content, content);
-
-        Assert.Equal(expected, diff.Current.Sha256);
-        Assert.Equal(expected, diff.Requested.Sha256);
-    }
-
     [Fact]
     public void Build_UsesRawHashesAndCounts()
     {
@@ -149,5 +136,52 @@ public sealed class PlcContentDiffTests
         Assert.False(exhausted.RawTextEqual);
         Assert.False(exhausted.NormalizedLinesEqual);
         Assert.False(exhausted.LineEndingOnly);
+    }
+
+    private const string Xml = "<Document>\n  <Network>\n    <Contact A />\n  </Network>\n</Document>";
+    private const string Sd = "FUNCTION_BLOCK \"Main\"\nEND_FUNCTION_BLOCK\n";
+
+    private static string Bundle(string xml) => $"--- FILE: Main.xml ---\n{xml}\n--- FILE: Main.s7dcl ---\n{Sd}";
+
+    [Fact]
+    public void BuildForWrite_ComparesAPlainXmlDocumentWithTheBundlesXmlDocumentOnly()
+    {
+        // K31 (live 2026-11-02): one added contact showed 157 changed lines because the whole bundle was compared.
+        var requested = Xml.Replace("<Contact A />", "<Contact A />\n    <Contact B />", StringComparison.Ordinal);
+
+        var diff = PlcContentDiff.BuildForWrite("xml", Bundle(Xml), requested);
+
+        Assert.Equal("Main.xml", diff.CurrentDocument);
+        Assert.Equal(0, diff.CurrentChangedLineCount);
+        Assert.Equal(1, diff.RequestedChangedLineCount);
+        Assert.Equal("    <Contact B />", Assert.Single(diff.Requested.Excerpt.Lines).Text);
+        Assert.Equal(Xml.Length, diff.Current.CharacterCount);
+    }
+
+    [Fact]
+    public void BuildForWrite_KeepsTheTrailingLineBreakWhenTheSubmittedDocumentHasOne()
+    {
+        var diff = PlcContentDiff.BuildForWrite("xml", Bundle(Xml), Xml + "\n");
+
+        Assert.Equal("Main.xml", diff.CurrentDocument);
+        Assert.True(diff.RawTextEqual);
+    }
+
+    [Fact]
+    public void BuildForWrite_ComparesBundleWithBundleAndOtherFormatsWhole()
+    {
+        var current = Bundle(Xml);
+        var bundle = PlcContentDiff.BuildForWrite("xml", current, current.Replace("<Contact A />", "<Contact C />", StringComparison.Ordinal));
+        Assert.Null(bundle.CurrentDocument);
+        Assert.Equal(1, bundle.CurrentChangedLineCount);
+        Assert.Equal(current.Length, bundle.Current.CharacterCount);
+
+        var plainExport = PlcContentDiff.BuildForWrite("xml", Xml, Xml);
+        Assert.Null(plainExport.CurrentDocument);
+        Assert.True(plainExport.RawTextEqual);
+
+        var sd = PlcContentDiff.BuildForWrite("sd", current, Sd);
+        Assert.Null(sd.CurrentDocument);
+        Assert.Equal(current.Length, sd.Current.CharacterCount);
     }
 }

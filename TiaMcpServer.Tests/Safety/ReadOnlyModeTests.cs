@@ -9,6 +9,7 @@ using TiaMcpServer.Network;
 using TiaMcpServer.OpennessWorker.Worker;
 using TiaMcpServer.Safety;
 using TiaMcpServer.Tests.TestSupport;
+using TiaMcpServer.Tests.TestUtilities;
 using TiaMcpServer.Tests.Worker;
 using TiaMcpServer.Tools;
 using TiaMcpServer.Worker;
@@ -33,7 +34,7 @@ public class ReadOnlyModeTests
         var actual = OperationPolicyCatalog.AllOperationNames
             .Where(n => n.StartsWith("hmi_", StringComparison.Ordinal))
             .ToHashSet(StringComparer.Ordinal);
-        Assert.Equal(29, expected.Count);
+        Assert.Equal(63, expected.Count);
         Assert.True(expected.SetEquals(actual));
         foreach (var op in TiaMcpServer.Hmi.HmiWriteCatalog.OperationNames)
             Assert.Equal(OperationCapability.ProjectMutation,
@@ -185,7 +186,7 @@ public class ReadOnlyModeTests
         "get_project_status", "get_basic_project_status", "list_tia_portal_processes",
         "list_server_connections", "list_server_groups", "list_server_projects",
         "list_local_sessions", "get_lock_state", "select_portal_project",
-        "open_project", "create_project"
+        "open_project", "create_project", "retrieve_project"
     }.Select(operation => new object[] { operation });
 
     [Theory]
@@ -198,7 +199,10 @@ public class ReadOnlyModeTests
     [Fact]
     public void ExpectedSessionIdentityPolicy_RequiresEveryRegisteredContentMethod()
     {
+        // PLCSIM worker methods never reach the Openness worker and carry no project identity.
         var optional = IdentityOptionalOperations.Select(row => (string)row[0])
+            .Concat(TiaMcpServer.Contracts.PlcSim.PlcSimMethods.All)
+            .Concat(TiaMcpServer.Contracts.PlcWebApi.PlcWebApiMethods.All)
             .ToHashSet(StringComparer.Ordinal);
         foreach (var operation in OperationPolicyCatalog.AllOperationNames.Where(op => !optional.Contains(op)))
             Assert.True(OperationPolicyCatalog.RequiresExpectedSessionIdentity(operation), operation);
@@ -432,7 +436,10 @@ public class ReadOnlyModeTests
     public async Task OpennessWorkerClient_ReadOnly_DeniesRebindProbeWithVerifiedRuntimeBinding()
     {
         var binding = new ProjectSessionBinding(null);
-        using var client = FakeWorkerClients.Create(McpAccessMode.ReadOnly, binding: binding);
+        using var client = new OpennessWorkerClient(
+            binding,
+            workerExecutablePath: FakeWorkerLocator.Locate(),
+            accessPolicy: new OperationAccessPolicy(McpAccessMode.ReadOnly));
         await FakeWorkerBinding.BindVerifiedAsync(client, binding, "echo");
         var bindingBefore = binding.CaptureSnapshot();
         var sourceProjectPath = Assert.IsType<string>(bindingBefore.ProjectPath);
@@ -565,11 +572,11 @@ public class ReadOnlyModeTests
     #region Tool Discovery Tests
 
     [Fact]
-    public void ReadOnlyMode_HasExactlyEightTools()
+    public void ReadOnlyMode_HasExactlyTenTools()
     {
         var networkReadType = typeof(NetworkOperationRequest).Assembly.GetType("TiaMcpServer.Network.NetworkReadTools");
         Assert.NotNull(networkReadType);
-        var toolNames = new[] { typeof(ProjectBindingTools), typeof(ProjectReadTools), networkReadType!, typeof(TiaMcpServer.Plc.PlcReadTools), typeof(TiaMcpServer.Hmi.HmiReadTools), typeof(TiaMcpServer.CrossReferences.CrossReferenceReadTools), typeof(TiaMcpServer.Vci.VciReadTools) }
+        var toolNames = new[] { typeof(ProjectBindingTools), typeof(ProjectReadTools), networkReadType!, typeof(TiaMcpServer.Plc.PlcReadTools), typeof(TiaMcpServer.Hmi.HmiReadTools), typeof(TiaMcpServer.CrossReferences.CrossReferenceReadTools), typeof(TiaMcpServer.Vci.VciReadTools), typeof(TiaMcpServer.PlcSim.PlcSimReadTools), typeof(TiaMcpServer.PlcWebApi.PlcWebApiReadTools) }
             .SelectMany(type => type.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance))
             .Select(method => method.GetCustomAttribute<McpServerToolAttribute>())
             .Where(attribute => attribute is not null)
@@ -578,12 +585,12 @@ public class ReadOnlyModeTests
             .ToArray();
 
         Assert.Equal(
-            new[] { "bind_project", "browse_project_tree", "get_project_status", "hmi_read", "network_read", "plc_read", "read_cross_references", "vci_read" },
+            new[] { "bind_project", "browse_project_tree", "get_project_status", "hmi_read", "network_read", "plc_online_read", "plc_read", "plcsim_read", "read_cross_references", "vci_read" },
             toolNames);
     }
 
     [Fact]
-    public void FullSurface_HasExactlyNineteenDistinctTools()
+    public void FullSurface_HasExactlyTwentyFiveDistinctTools()
     {
         var toolNames = typeof(ProjectWriteTools).Assembly
             .GetTypes()
@@ -600,8 +607,8 @@ public class ReadOnlyModeTests
             {
                 "archive_project", "bind_project", "browse_project_tree", "close_project",
                 "compile_check", "create_project", "get_project_status", "hmi_read", "hmi_write",
-                "network_read", "network_write", "open_project", "plc_read", "plc_write", "read_cross_references",
-                "save_project", "save_project_as", "vci_read", "vci_write"
+                "library_read", "library_write", "network_read", "network_write", "open_project", "plc_download", "plc_online_read", "plc_online_write", "plc_read", "plc_station_upload", "plc_tia_online", "plc_write", "plcsim_read", "plcsim_test",
+                "plcsim_write", "read_cross_references", "retrieve_project", "save_project", "save_project_as", "vci_read", "vci_write"
             },
             toolNames);
     }
@@ -644,7 +651,7 @@ public class ReadOnlyModeTests
             .ToArray();
 
         Assert.Equal(
-            new[] { "archive_project", "close_project", "create_project", "open_project", "save_project", "save_project_as" },
+            new[] { "archive_project", "close_project", "create_project", "open_project", "retrieve_project", "save_project", "save_project_as" },
             writeToolNames);
     }
 

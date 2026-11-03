@@ -12,8 +12,8 @@ public static class VciGuardDefinitions
     public static IReadOnlyList<WriteGuardDefinition> Definitions { get; } = WriteGuardCatalog.NonInteractive(new[]
     {
         new WriteGuardDefinition(NameNotRepresentable, WriteGuardSeverities.Block, "A mirrored name or path cannot be represented on disk."),
-        new WriteGuardDefinition(WorkspaceExists, WriteGuardSeverities.Block, "An existing workspace uses the requested root."),
-        new WriteGuardDefinition(StateUnverifiable, WriteGuardSeverities.Block, "A safe export format or export directory could not be established."),
+        new WriteGuardDefinition(WorkspaceExists, WriteGuardSeverities.Info, "An existing workspace uses the requested root; TIA Portal decides."),
+        new WriteGuardDefinition(StateUnverifiable, WriteGuardSeverities.Info, "A safe export format or export directory could not be established; the item runs and TIA Portal decides."),
         new WriteGuardDefinition(FilesRemain, WriteGuardSeverities.Info, "Deleting a workspace or mapping leaves its files on disk."),
         new WriteGuardDefinition(ImportUnvalidated, WriteGuardSeverities.Info, "Imported content is not validated; run compile_check."),
     }, "VCI");

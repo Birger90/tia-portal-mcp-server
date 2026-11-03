@@ -18,7 +18,7 @@ public sealed class NetworkGuardedWriteDomainTests
         var response = await fixture.RunAsync(true, NetworkGuardedWriteFixture.Delete());
         Assert.Equal("preview", response.Phase);
         Assert.True(response.Success);
-        Assert.Contains(response.Guards, g => g.Id == "network_state_unverifiable" && g.Severity == "block");
+        Assert.Contains(response.Guards, g => g.Id == "network_state_unverifiable" && g.Severity == "info");
         Assert.Null(response.Batch);
         var state = await NetworkWritePlanner.ReadCurrentStateAsync(fixture.Client);
         Assert.Single(state.State!.Subnets);
@@ -43,13 +43,16 @@ public sealed class NetworkGuardedWriteDomainTests
     [Theory]
     [InlineData(McpAccessMode.ReadWrite)]
     [InlineData(McpAccessMode.Full)]
-    public async Task IncompleteInventory_BlocksBothModes(McpAccessMode mode)
+    public async Task IncompleteInventory_RunsWithAnInfoGuardInBothModes(McpAccessMode mode)
     {
+        // Owner decision: never stricter than TIA Portal; unreadable consequence evidence informs, TIA Portal decides.
         using var audit = new TempAuditDirectory();
+        using var requests = new FakeWorkerRequestLog(audit.Path);
         using var fixture = await NetworkGuardedWriteFixture.CreateAsync(audit, "network-guarded-incomplete", mode);
         var response = await fixture.RunAsync(false, NetworkGuardedWriteFixture.Delete());
-        Assert.Equal("blocked", response.Phase);
-        Assert.Null(response.Batch);
+        Assert.Equal("applied", response.Phase);
+        Assert.Contains(response.Guards, g => g.Id == "network_state_unverifiable" && g.Severity == "info");
+        Assert.Contains("delete_subnet", requests.Methods());
     }
     public static IEnumerable<object[]> RelationshipCases()
     {
@@ -70,20 +73,23 @@ public sealed class NetworkGuardedWriteDomainTests
         var operation = NetworkGuardedWriteFixture.Delete();
         var response = await fixture.RunAsync(dryRun, operation);
         var missingIdentity = kind == "selector";
-        Assert.Equal(missingIdentity ? "error" : dryRun ? "preview" : "blocked", response.Phase);
-        Assert.Null(response.Batch);
+        var applied = !missingIdentity && !dryRun;
+        Assert.Equal(missingIdentity ? "error" : dryRun ? "preview" : "applied", response.Phase);
+        if (!applied) Assert.Null(response.Batch);
         if (missingIdentity) Assert.Equal("target_not_found", response.Error!.Category);
         else
         {
-            Assert.Contains(response.Guards, guard => guard.Id == "network_state_unverifiable" && guard.Severity == "block");
+            // The guard is kept as information; TIA Portal decides (owner decision: never stricter than TIA Portal).
+            Assert.Contains(response.Guards, guard => guard.Id == "network_state_unverifiable" && guard.Severity == "info");
             Assert.False(response.Effects[0].Effect!.ConnectionsComplete);
         }
         Assert.DoesNotContain("configure_network_device", requests.Methods());
-        Assert.DoesNotContain("delete_subnet", requests.Methods());
+        Assert.Equal(applied, requests.Methods().Contains("delete_subnet"));
         using var record = System.Text.Json.JsonDocument.Parse(Assert.Single(NetworkGuardedWriteMcpTests.AuditLines(audit.Path)));
-        Assert.Equal("none", record.RootElement.GetProperty("confirmation").GetProperty("by").GetString());
+        Assert.Equal(applied && mode == McpAccessMode.Full ? "policy" : "none", record.RootElement.GetProperty("confirmation").GetProperty("by").GetString());
         Assert.All(record.RootElement.GetProperty("guards").EnumerateArray(), guard =>
             Assert.Equal(System.Text.Json.JsonValueKind.Null, guard.GetProperty("satisfiedBy").ValueKind));
+        if (applied) return;
         var read = await NetworkWritePlanner.ReadCurrentStateAsync(fixture.Client);
         Assert.NotEmpty(read.State!.Subnets[0].ConnectionEvidence!.Messages);
         Assert.Empty(read.State.Messages);

@@ -13,6 +13,19 @@ public class TiaPortalSession : IDisposable
     private readonly bool _allowTiaConfirmations;
     private readonly string _workerSessionId = Guid.NewGuid().ToString("N");
     private readonly object _portalHandleSync = new();
+    private readonly object _confirmationSync = new();
+    private ConfirmationScope? _confirmationScope;
+    private readonly List<string> _endedLateConfirmations = new();
+    private readonly List<string> _unscopedConfirmationTexts = new();
+    private int _unscopedConfirmations;
+    private readonly object _notificationSync = new();
+    private bool _requestRunning;
+    private readonly List<PortalNotificationInfo> _requestNotifications = new();
+    private readonly List<string> _lateNotificationTexts = new();
+    private int _lateNotifications;
+    // Not a ConfirmationResult: a Siemens value-type field makes loading this type load Siemens.Engineering, and the
+    // worker's static session is created before AssemblyResolver.Register runs (the worker then crashed at startup).
+    private bool _unscopedAnswerYes;
     private TiaPortal? _tiaPortal;
     private EventHandler<EventArgs>? _portalDisposedHandler;
     private TiaPortal? _unreleasedTemporaryTarget;
@@ -844,10 +857,35 @@ public class TiaPortalSession : IDisposable
     {
         var contexts = new List<OpenProjectContextCandidate>();
         foreach (var project in portal.Projects)
+        {
+            // A secondary (read-only reference) project is never a binding candidate (issue #20), and neither is a project whose
+            // IsPrimary cannot be read (security review U3, fail safe): only IsPrimary == true is a candidate.
+            var primary = ReadIsPrimary(project);
+            if (!Contracts.Library.LibraryPolicy.IsBindingCandidate(primary))
+            {
+                if (primary is null)
+                    Console.Error.WriteLine("An open project's ProjectBase.IsPrimary could not be read; it is not offered for binding (it may be a secondary project).");
+                continue;
+            }
+
             contexts.Add(new OpenProjectContextCandidate(ActiveProjectContext.ForStandalone(project, false)));
+        }
         foreach (var owner in portal.LocalSessions)
             contexts.Add(new OpenProjectContextCandidate(LocalSessionContextResolver.Resolve(owner, false)));
         return contexts;
+    }
+
+    /// <summary><c>ProjectBase.IsPrimary</c> (V21; runtime lookup, not on the stubs); null when absent or unreadable.</summary>
+    private static bool? ReadIsPrimary(Project project)
+    {
+        try
+        {
+            return project.GetType().GetProperty("IsPrimary")?.GetValue(project) as bool?;
+        }
+        catch (System.Reflection.TargetInvocationException exception) when (exception.InnerException is EngineeringException)
+        {
+            return null;
+        }
     }
 
     private void AdoptProject(Project project, bool openedByWorker, string? expectedProjectPath)
@@ -916,6 +954,8 @@ public class TiaPortalSession : IDisposable
         if (rootChanged)
         {
             IncrementGeneration();
+            // Known zero counts only for a root this worker just opened (V21 textual-interface pitfall).
+            global::TiaMcpServer.OpennessWorker.Openness.Block.BlockExportLedger.Shared.Reset(context?.Owner.OpenedByWorker == true);
         }
     }
 
@@ -951,16 +991,278 @@ public class TiaPortalSession : IDisposable
     private void IncrementGeneration()
         => Interlocked.Increment(ref _sessionGeneration);
 
-    private static void OnNotification(object? sender, NotificationEventArgs e)
+    private void OnNotification(object? sender, NotificationEventArgs e)
     {
-        Console.Error.WriteLine($"TIA Notification: {e.Text}");
+        // K75: a modal information message (e.g. "Export erfolgreich abgeschlossen.") blocked the Openness call until a human
+        // clicked OK. Every notification is handled (IsHandled = true) in every access mode: it asks nothing, it only informs.
+        PortalNotificationInfo info;
+        try
+        {
+            info = PortalNotificationHandling.Handle(e);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Handling a TIA Portal notification failed: {ex.GetType().Name}");
+            return;
+        }
+
+        lock (_notificationSync)
+        {
+            if (_requestRunning)
+            {
+                if (_requestNotifications.Count < PortalNotificationHandling.MaxRecorded) _requestNotifications.Add(info);
+                // stderr is the request's warning buffer while a request runs.
+                Console.Error.WriteLine(PortalNotificationHandling.RequestWarning(info));
+                return;
+            }
+
+            _lateNotifications++;
+            if (_lateNotificationTexts.Count < MaxReportedConfirmations) _lateNotificationTexts.Add(PortalNotificationHandling.Describe(info));
+            Console.Error.WriteLine($"TIA Portal notification outside any MCP call: {PortalNotificationHandling.Describe(info)}; "
+                + (info.Handled ? "handled (IsHandled = true)." : "IsHandled could not be set."));
+        }
+    }
+
+    /// <summary>
+    /// Starts recording the notifications of the request that is starting (K75) and returns one warning line for the notifications
+    /// handled since the previous request ended (none: empty), like late confirmations. Thread-safe.
+    /// </summary>
+    internal IReadOnlyList<string> BeginRequestNotifications()
+    {
+        lock (_notificationSync)
+        {
+            _requestRunning = true;
+            _requestNotifications.Clear();
+            if (_lateNotifications == 0) return Array.Empty<string>();
+            var line = $"{_lateNotifications} TIA Portal notification(s) arrived while no MCP call was running and were handled "
+                + $"(IsHandled = true; {string.Join("; ", _lateNotificationTexts)}{(_lateNotifications > _lateNotificationTexts.Count ? "; ..." : string.Empty)}). "
+                + "If you did not cause them, they may come from what the user did in TIA Portal's own window.";
+            _lateNotifications = 0;
+            _lateNotificationTexts.Clear();
+            return new[] { line };
+        }
+    }
+
+    /// <summary>The notifications handled since the current request started (at most <see cref="PortalNotificationHandling.MaxRecorded"/>).</summary>
+    internal IReadOnlyList<PortalNotificationInfo> RequestNotifications()
+    {
+        lock (_notificationSync) return _requestNotifications.ToList();
+    }
+
+    /// <summary>Ends the request's recording; later notifications are reported to the next request.</summary>
+    internal void EndRequestNotifications()
+    {
+        lock (_notificationSync) _requestRunning = false;
     }
 
     private void OnConfirmation(object? sender, ConfirmationEventArgs e)
     {
-        e.Result = _allowTiaConfirmations
-            ? ConfirmationResult.Yes
-            : ConfirmationResult.No;
+        // The scope observer runs under the lock, so disposing the scope waits for an in-flight
+        // recording: once Dispose returns, every confirmation answered in the scope has been recorded.
+        lock (_confirmationSync)
+        {
+            var scope = _confirmationScope;
+            if (scope is not null)
+            {
+                // Answer first, so the dialog gets the scope's answer even if recording it fails.
+                e.Result = scope.Answer;
+                if (scope.Lingering)
+                {
+                    // After the call's evidence was collected: keep the call's answer (never the session-wide Yes
+                    // under decline), record it as late, and log it now (between requests stderr reaches the host log).
+                    var lateText = DescribeConfirmation(e);
+                    scope.RecordLate(lateText);
+                    Console.Error.WriteLine($"Late TIA Portal confirmation after {scope.Owner ?? "the previous call"} returned: "
+                        + $"{lateText} answered {scope.Answer} by that call's policy.");
+                    return;
+                }
+
+                try
+                {
+                    scope.Observe(e, scope.Answer);
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"Recording a scoped TIA confirmation failed: {ex.GetType().Name}");
+                }
+
+                return;
+            }
+
+            // No call has a scope open: the session-wide policy answers. TIA may raise such a dialog for something
+            // the user does in its own window (K42; not verified whether V21 routes those to an attached client),
+            // so it is answered as before but never silently: logged now and reported to the next request.
+            var answer = _allowTiaConfirmations
+                ? ConfirmationResult.Yes
+                : ConfirmationResult.No;
+            e.Result = answer;
+            var text = DescribeConfirmation(e);
+            _unscopedConfirmations++;
+            _unscopedAnswerYes = answer == ConfirmationResult.Yes;
+            if (_unscopedConfirmationTexts.Count < MaxReportedConfirmations) _unscopedConfirmationTexts.Add(text);
+            Console.Error.WriteLine($"TIA Portal confirmation outside any MCP call: {text} answered {answer} by the session-wide policy.");
+        }
+    }
+
+    private const int MaxReportedConfirmations = 10;
+
+    /// <summary>
+    /// The dialog text of a TIA Portal confirmation, read by reflection from a public readable
+    /// <c>Text</c> string property. The Openness system manual (05/2021) lists <c>Text</c> among the attributes of
+    /// confirmations; the member is not declared in the V21 reference stubs and is unverified for V21, so this is
+    /// null when it is absent or unreadable.
+    /// </summary>
+    internal static string? ReadConfirmationText(object eventArgs)
+    {
+        try
+        {
+            var property = eventArgs.GetType().GetProperty("Text", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+            return property is { CanRead: true } && property.PropertyType == typeof(string) && property.GetIndexParameters().Length == 0
+                ? property.GetValue(eventArgs, null) as string
+                : null;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// The event type and, when readable, the dialog text (<see cref="ReadConfirmationText"/>), shortened for a warning line.
+    /// </summary>
+    internal static string DescribeConfirmation(object e)
+    {
+        var type = e.GetType().FullName ?? "(unknown)";
+        var text = ReadConfirmationText(e);
+        if (string.IsNullOrWhiteSpace(text)) return type;
+        var flat = string.Join(" ", text!.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        if (flat.Length > 200) flat = flat.Substring(0, 200) + "...";
+        return $"{type} \"{flat}\"";
+    }
+
+    /// <summary>
+    /// Until the returned scope is disposed, every TIA Portal <c>Confirmation</c> is answered
+    /// <c>No</c> in every access mode (instead of the session-wide policy) and passed to
+    /// <paramref name="observe"/> afterwards. <c>plc_download</c>'s default policy.
+    /// </summary>
+    internal IDisposable DeclineConfirmations(Action<ConfirmationEventArgs> observe)
+    {
+        if (observe is null) throw new ArgumentNullException(nameof(observe));
+        return AnswerConfirmations(accept: false, (args, _) => observe(args));
+    }
+
+    /// <summary>
+    /// Until the returned scope is disposed, every TIA Portal <c>Confirmation</c> gets one answer
+    /// (instead of the session-wide policy) and is then passed to <paramref name="observe"/> with
+    /// that answer. The answer is <c>Yes</c> only when <paramref name="accept"/> is true and this
+    /// worker's access mode allows TIA confirmations (never in read-only); otherwise <c>No</c>. Used by
+    /// <c>plc_download</c>, <c>plc_tia_online</c>, <c>plc_station_upload</c> (<c>portalConfirmations</c>) and
+    /// <c>compare_to_online</c> (always No). Scopes do not nest.
+    /// Disposing does not restore the session-wide policy at once: the scope lingers with the same answer
+    /// (so a dialog V21 raises after an early return of the call is never accepted under decline), records
+    /// such dialogs as late instead of observing them, and ends at <see cref="EndLingeringConfirmations"/>,
+    /// which the worker calls when the next request starts; a new scope also ends a lingering one. Disposing
+    /// waits for an in-flight observation, so the evidence collected before it is complete.
+    /// </summary>
+    internal IDisposable AnswerConfirmations(bool accept, Action<ConfirmationEventArgs, ConfirmationResult> observe, string? owner = null)
+    {
+        if (observe is null) throw new ArgumentNullException(nameof(observe));
+        var scope = new ConfirmationScope(this,
+            accept && WorkerOperationAuthorization.AllowsTiaConfirmations(AccessMode) ? ConfirmationResult.Yes : ConfirmationResult.No,
+            observe, owner);
+        lock (_confirmationSync)
+        {
+            if (_confirmationScope is { Lingering: false })
+                throw new InvalidOperationException("A TIA confirmation-answering scope is already open.");
+            if (_confirmationScope is { } lingering && lingering.LateSummary() is { } summary)
+                _endedLateConfirmations.Add(summary);
+            _confirmationScope = scope;
+        }
+
+        return scope;
+    }
+
+    /// <summary>
+    /// Ends a lingering confirmation scope (the session-wide policy applies again) and returns one warning
+    /// line per scope that answered late dialogs, plus one line for dialogs the session-wide policy answered
+    /// since the last request (no scope open), for the response of the request that is starting.
+    /// Thread-safe; idempotent. The worker calls it before every request, so a scope never outlives the
+    /// request after its own.
+    /// </summary>
+    internal IReadOnlyList<string> EndLingeringConfirmations()
+    {
+        lock (_confirmationSync)
+        {
+            var lines = _endedLateConfirmations.ToList();
+            _endedLateConfirmations.Clear();
+            if (_confirmationScope is { Lingering: true } lingering)
+            {
+                if (lingering.LateSummary() is { } summary) lines.Add(summary);
+                _confirmationScope = null;
+            }
+
+            if (_unscopedConfirmations > 0)
+            {
+                lines.Add($"{_unscopedConfirmations} TIA Portal confirmation dialog(s) arrived while no MCP call was answering dialogs "
+                    + $"and were answered {(_unscopedAnswerYes ? "Yes" : "No")} by the session-wide policy ({string.Join(", ", _unscopedConfirmationTexts)}"
+                    + $"{(_unscopedConfirmations > _unscopedConfirmationTexts.Count ? ", ..." : string.Empty)}). "
+                    + "If you did not cause them, they may come from what the user did in TIA Portal's own window; check the project.");
+                _unscopedConfirmations = 0;
+                _unscopedConfirmationTexts.Clear();
+            }
+
+            return lines;
+        }
+    }
+
+    private sealed class ConfirmationScope : IDisposable
+    {
+        private const int MaxLateTypes = MaxReportedConfirmations;
+
+        private readonly TiaPortalSession _session;
+        private readonly List<string> _lateTypes = new();
+        private int _late;
+
+        public ConfirmationScope(TiaPortalSession session, ConfirmationResult answer, Action<ConfirmationEventArgs, ConfirmationResult> observe,
+            string? owner)
+        {
+            _session = session;
+            Answer = answer;
+            Observe = observe;
+            Owner = owner;
+        }
+
+        public ConfirmationResult Answer { get; }
+
+        public Action<ConfirmationEventArgs, ConfirmationResult> Observe { get; }
+
+        public string? Owner { get; }
+
+        /// <summary>Set (under the session's lock) when the call disposed the scope; it then answers and records late dialogs.</summary>
+        public bool Lingering { get; private set; }
+
+        /// <summary>Called under the session's lock.</summary>
+        public void RecordLate(string? type)
+        {
+            _late++;
+            if (_lateTypes.Count < MaxLateTypes) _lateTypes.Add(string.IsNullOrWhiteSpace(type) ? "(unknown)" : type!);
+        }
+
+        /// <summary>Called under the session's lock; null when no late dialog was answered.</summary>
+        public string? LateSummary()
+            => _late == 0 ? null
+                : $"{_late} TIA Portal confirmation dialog(s) were raised after {Owner ?? "the previous call"} returned and were answered {Answer} "
+                    + $"by its portalConfirmations policy ({string.Join(", ", _lateTypes)}{(_late > _lateTypes.Count ? ", ..." : string.Empty)}); "
+                    + "they are not in that call's evidence. Inspect the PLC and the project.";
+
+        public void Dispose()
+        {
+            lock (_session._confirmationSync)
+            {
+                if (ReferenceEquals(_session._confirmationScope, this))
+                    Lingering = true;
+            }
+        }
     }
 
     private void SubscribeToPortal(TiaPortal portal)

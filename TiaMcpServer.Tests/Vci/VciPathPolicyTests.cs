@@ -72,8 +72,10 @@ public sealed class VciPathPolicyTests : IDisposable
     }
 
     [Theory]
-    [InlineData("\\\\server\\share\\run")]
+    // UNC shares are allowed since 2026-11-01 (owner decision); device paths are not.
     [InlineData("\\\\?\\C:\\run")]
+    [InlineData("\\\\.\\C:\\run")]
+    [InlineData("\\\\server\\share:stream\\run")]
     [InlineData("C:\\run:stream")]
     public void ValidateRoot_RejectsUnsupportedWindowsPathSyntax(string candidate)
     {

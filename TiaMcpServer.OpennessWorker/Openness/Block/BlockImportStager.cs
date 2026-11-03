@@ -33,7 +33,8 @@ internal static class BlockImportStager
                 throw ValidationFailure("Block import staging destination already exists.");
             }
 
-            File.WriteAllText(stagedPath, document.Content, Encoding.UTF8);
+            // UTF-8 with exactly one BOM: a content that already starts with U+FEFF (an sd export keeps it) is not doubled.
+            File.WriteAllBytes(stagedPath, Contracts.Plc.SimaticSd.SimaticSdFileText.Encode(document.Content));
             if (!File.Exists(stagedPath))
             {
                 throw new IOException("Block import staging did not create the expected document.");

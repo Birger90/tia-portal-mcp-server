@@ -1,5 +1,7 @@
 # SIMATIC Drives and Startdrive Operations
 
+**Language:** English · [Deutsch](SIMATIC_DRIVES_OPERATIONS_SUMMARY.de.md)
+
 ## Support status
 
 The current MCP contract does not include a drive-specific operation. Generic hardware browsing, hardware reads, equipment-catalog search, network-device provisioning, and compile checks can operate on a project containing a drive, but they do not expose the drive object model.

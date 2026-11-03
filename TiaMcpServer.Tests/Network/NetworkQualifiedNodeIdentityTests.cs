@@ -159,9 +159,10 @@ public sealed class NetworkQualifiedNodeIdentityTests
         using var audit = new TempAuditDirectory(); using var log = new FakeWorkerRequestLog(audit.Path);
         using var f = await NetworkGuardedWriteFixture.CreateAsync(audit, "network-qualified-legacy", mode);
         var result = await f.RunAsync(dryRun, NetworkGuardedWriteFixture.Delete());
-        Assert.Equal(dryRun ? "preview" : "blocked", result.Phase);
-        Assert.Contains(result.Guards, guard => guard.Id == "network_state_unverifiable" && guard.Severity == "block");
-        Assert.DoesNotContain("delete_subnet", log.Methods());
+        // Unverifiable identity evidence informs and TIA Portal decides (owner decision: never stricter than TIA Portal).
+        Assert.Equal(dryRun ? "preview" : "applied", result.Phase);
+        Assert.Contains(result.Guards, guard => guard.Id == "network_state_unverifiable" && guard.Severity == "info");
+        Assert.Equal(!dryRun, log.Methods().Contains("delete_subnet"));
     }
     [Theory][InlineData("subnet")][InlineData("node")][InlineData("device")][InlineData("owner")][InlineData("root")]
     public async Task LateUnreadableCandidate_IsNotReadBackAfterDeletion(string kind)

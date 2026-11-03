@@ -41,7 +41,7 @@ public sealed class HmiWritePlanner(OpennessWorkerClient client)
         try
         {
             var devices = await Read<HmiDeviceListInfo>("list_hmi_devices", new());
-            foreach (var item in items) _resolved[item.OperationId] = ResolveHmi(devices, item.HmiName);
+            foreach (var item in items) _resolved[item.OperationId] = ResolveHmi(devices, item.HmiName, HmiWriteCatalog.ClassicOperations.Contains(item.Operation));
             var contexts = new Dictionary<string, Context>(Names);
             foreach (var group in items.GroupBy(i => _resolved[i.OperationId], Names))
                 contexts[group.Key] = new(await Load(group.Key, group.ToArray(), devices.IsComplete));
@@ -118,11 +118,16 @@ public sealed class HmiWritePlanner(OpennessWorkerClient client)
     private static IReadOnlyList<T> Merge<T>(IReadOnlyList<T> known, IEnumerable<T> rows, Func<T, string> key)
         => known.Concat(rows.Where(row => !known.Any(k => Names.Equals(key(k), key(row))))).ToArray();
     private static PlanResult<HmiWriteEffect> Failed(WriteToolError error) => new(WritePlan<HmiWriteEffect>.Fail(error.Category, error.Message), new Dictionary<string, IReadOnlyList<FiredGuard>>());
-    private static string ResolveHmi(HmiDeviceListInfo devices, string? name)
+    /// <summary>The classic operations (issue #28) need a Classic WinCC HMI, every other write a Unified one.</summary>
+    private static string ResolveHmi(HmiDeviceListInfo devices, string? name, bool classic)
     {
-        var matches = devices.Devices.Where(d => name is null ? d.Kind == "unified" : Names.Equals(name, d.SoftwareName) || Names.Equals(name, d.DeviceName)).ToArray();
-        if (matches.Length != 1) throw new ReadFailure(matches.Length == 0 ? WorkerFailureCategories.TargetNotFound : WorkerFailureCategories.TargetAmbiguous, "The HMI selector must resolve exactly one Unified HMI.");
-        if (matches[0].Kind != "unified") throw new ReadFailure(WorkerFailureCategories.TargetKindUnsupported, "HMI writes require Unified software.");
+        var kind = classic ? "classic" : "unified";
+        var matches = devices.Devices.Where(d => name is null ? d.Kind == kind : Names.Equals(name, d.SoftwareName) || Names.Equals(name, d.DeviceName)).ToArray();
+        if (matches.Length != 1) throw new ReadFailure(matches.Length == 0 ? WorkerFailureCategories.TargetNotFound : WorkerFailureCategories.TargetAmbiguous,
+            classic ? "The HMI selector must resolve exactly one Classic (WinCC) HMI." : "The HMI selector must resolve exactly one Unified HMI.");
+        if (matches[0].Kind != kind) throw new ReadFailure(WorkerFailureCategories.TargetKindUnsupported, classic
+            ? "The classic operations require a Classic (WinCC) HMI; use the Unified operations for a WinCC Unified HMI."
+            : "HMI writes require Unified software; a Classic (WinCC) HMI is written with export_classic_objects, import_classic_objects, delete_classic_object, create_classic_folder and delete_classic_folder.");
         return matches[0].SoftwareName;
     }
 

@@ -21,7 +21,7 @@ public sealed record NetworkOperationSpec(
 /// Whitelists the dedicated network operations and performs all structural validation before a
 /// worker call. This type is pure and Siemens-free.
 /// </summary>
-public static class NetworkOperationCatalog
+public static partial class NetworkOperationCatalog
 {
     public const int MaxPageSize = 200;
     public const int MaxAttributeNames = 200;
@@ -53,12 +53,30 @@ public static class NetworkOperationCatalog
         ("includeTagMatches", operation => operation.IncludeTagMatches is not null),
         ("target", operation => operation.Target is not null),
         ("changes", operation => operation.Changes is not null),
+        ("ioSystem", operation => operation.IoSystem is not null),
         ("objectKinds", operation => operation.ObjectKinds is not null),
         ("pageSize", operation => operation.PageSize is not null),
         ("cursor", operation => operation.Cursor is not null),
         ("attributeNames", operation => operation.AttributeNames is not null),
         ("subnet", operation => operation.Subnet is not null),
         ("subnetChanges", operation => operation.SubnetChanges is not null),
+        ("destination", operation => operation.Destination is not null),
+        ("positionNumber", operation => operation.PositionNumber is not null),
+        ("attributes", operation => operation.Attributes is not null),
+        ("attributeErrorPolicy", operation => operation.AttributeErrorPolicy is not null),
+        ("attributeWriteMode", operation => operation.AttributeWriteMode is not null),
+        ("address", operation => operation.Address is not null),
+        ("addressChanges", operation => operation.AddressChanges is not null),
+        ("filePath", operation => operation.FilePath is not null),
+        ("overwrite", operation => operation.Overwrite is not null),
+        ("csvDelimiter", operation => operation.CsvDelimiter is not null),
+        ("rawCells", operation => operation.RawCells is not null),
+        ("key", operation => operation.Key is not null),
+        ("value", operation => operation.Value is not null),
+        ("partner", operation => operation.Partner is not null),
+        ("transferArea", operation => operation.TransferArea is not null),
+        ("logFilePath", operation => operation.LogFilePath is not null),
+        ("importOption", operation => operation.ImportOption is not null),
     };
 
     /// <summary>All target fields that are inapplicable to configure_network_device (Phase 3 additions only).</summary>
@@ -76,7 +94,6 @@ public static class NetworkOperationCatalog
 
     public static IReadOnlyCollection<NetworkOperationSpec> All { get; } = Specs.Values.ToArray();
 
-    // Field-forwarding tests use the catalog directly so new fields cannot escape their coverage.
     public static bool TryGetSpec(string operation, out NetworkOperationSpec? spec)
         => Specs.TryGetValue(operation, out spec);
 
@@ -217,6 +234,16 @@ public static class NetworkOperationCatalog
             {
                 ValidateDeleteSubnet(operation, errors);
             }
+
+            if (spec.Name == NetworkIoSystemMethods.CreateIoSystem)
+            {
+                ValidateCreateIoSystem(operation, errors);
+            }
+
+            if (HardwareModuleSpecs.ContainsKey(spec.Name))
+            {
+                ValidateHardwareModule(operation, errors);
+            }
         }
 
         return errors.Count == 0
@@ -236,6 +263,16 @@ public static class NetworkOperationCatalog
         "attributeNames" => operation.AttributeNames is not null,
         "subnet" => operation.Subnet is not null,
         "subnetChanges" => operation.SubnetChanges is not null,
+        "positionNumber" => operation.PositionNumber is not null,
+        "attributes" => operation.Attributes is not null,
+        "address" => operation.Address is not null,
+        "addressChanges" => operation.AddressChanges is not null,
+        "filePath" => !string.IsNullOrWhiteSpace(operation.FilePath),
+        "key" => !string.IsNullOrWhiteSpace(operation.Key),
+        "value" => operation.Value is not null,
+        "partner" => operation.Partner is not null,
+        "transferArea" => operation.TransferArea is not null,
+        "importOption" => !string.IsNullOrWhiteSpace(operation.ImportOption),
         _ => false,
     };
 
@@ -802,6 +839,27 @@ public static class NetworkOperationCatalog
         }
     }
 
+    /// <summary>
+    /// The rules that make a create_io_system request name exactly one existing node (kind 'node', exact deviceName and nodeId,
+    /// the node selector shape read_hardware_config reports) and, when 'ioSystem' is given, a nonblank name. Whether the node is an
+    /// IO controller or connected to a subnet is TIA Portal's decision, not this validator's.
+    /// </summary>
+    private static void ValidateCreateIoSystem(NetworkOperationRequest operation, List<string> errors)
+    {
+        var prefix = $"Operation '{operation.Operation}' (operationId '{operation.OperationId}'):";
+        if (operation.IoSystem is { } definition && string.IsNullOrWhiteSpace(definition.Name))
+            errors.Add($"{prefix} 'ioSystem.name' is required and must be nonblank when 'ioSystem' is supplied; omit 'ioSystem' to let TIA Portal choose the name.");
+        if (operation.Target is not { } target) return;
+        if (!string.Equals(target.Kind, NetworkObjectKinds.Node, StringComparison.Ordinal))
+        {
+            errors.Add($"{prefix} 'target.kind' must be '{NetworkObjectKinds.Node}' for {operation.Operation} (received '{target.Kind}'); "
+                + "name the CPU's PROFINET node as read_hardware_config reports it.");
+            return;
+        }
+
+        ValidateSelectorShape(operation.Operation, operation.OperationId, target, errors);
+    }
+
     /// <summary>The rules that make a delete_subnet request name exactly one existing subnet.</summary>
     private static void ValidateDeleteSubnet(NetworkOperationRequest operation, List<string> errors)
         => ValidateSubnetTargetSelector(operation, errors);
@@ -897,7 +955,8 @@ public static class NetworkOperationCatalog
             new NetworkOperationSpec("create_subnet", NetworkOperationCategory.Write, new[] { "subnet" }, None),
             new NetworkOperationSpec("update_subnet", NetworkOperationCategory.Write, new[] { "target", "subnetChanges" }, None),
             new NetworkOperationSpec("delete_subnet", NetworkOperationCategory.Write, new[] { "target" }, None),
-        };
+            new NetworkOperationSpec(NetworkIoSystemMethods.CreateIoSystem, NetworkOperationCategory.Write, new[] { "target" }, new[] { "ioSystem" }),
+        }.Concat(HardwareModuleSpecs.Values);
 
         return specs.ToDictionary(spec => spec.Name, StringComparer.Ordinal);
     }

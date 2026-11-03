@@ -21,11 +21,15 @@ public class PortalSelectionPayloadContractsTests
 
         using var processJson = JsonDocument.Parse(WorkerJson.SerializePayload(new TiaPortalProcessInfo()));
         Assert.Equal(JsonValueKind.Null, processJson.RootElement.GetProperty("projectPath").ValueKind);
+        Assert.Equal(JsonValueKind.Null, processJson.RootElement.GetProperty("otherClientCount").ValueKind);
 
         using var selectionJson = JsonDocument.Parse(WorkerJson.SerializePayload(new PortalProjectSelectionInfo()));
         Assert.Equal(JsonValueKind.Null, selectionJson.RootElement.GetProperty("previousProcessId").ValueKind);
         Assert.Equal(JsonValueKind.Null, selectionJson.RootElement.GetProperty("previousProjectPath").ValueKind);
         Assert.Equal(JsonValueKind.Null, selectionJson.RootElement.GetProperty("previousProjectIsModified").ValueKind);
+        Assert.False(WorkerJson.OmitsNullMembers(typeof(TiaPortalProcessListInfo)));
+        Assert.False(WorkerJson.OmitsNullMembers(typeof(TiaPortalProcessInfo)));
+        Assert.False(WorkerJson.OmitsNullMembers(typeof(PortalProjectSelectionInfo)));
         Assert.NotNull(CanonicalJson.DeserializeWorkerPayload<TiaPortalProcessListInfo>(listJson.RootElement.GetRawText()));
         Assert.NotNull(CanonicalJson.DeserializeWorkerPayload<TiaPortalProcessInfo>(processJson.RootElement.GetRawText()));
         Assert.NotNull(CanonicalJson.DeserializeWorkerPayload<PortalProjectSelectionInfo>(selectionJson.RootElement.GetRawText()));
@@ -38,6 +42,7 @@ public class PortalSelectionPayloadContractsTests
     [InlineData("process", "projectPath")]
     [InlineData("process", "hasUserInterface")]
     [InlineData("process", "attachedByThisWorker")]
+    [InlineData("process", "otherClientCount")]
     [InlineData("selection", "previousProcessId")]
     [InlineData("selection", "previousProjectPath")]
     [InlineData("selection", "previousProjectWasWorkerOpened")]
@@ -48,7 +53,7 @@ public class PortalSelectionPayloadContractsTests
         var json = JsonNode.Parse(contract switch
         {
             "list" => """{"attachedProcessId":null,"processes":[]}""",
-            "process" => """{"processId":4242,"projectPath":null,"hasUserInterface":true,"attachedByThisWorker":false}""",
+            "process" => """{"processId":4242,"projectPath":null,"hasUserInterface":true,"attachedByThisWorker":false,"otherClientCount":null}""",
             "selection" => """{"previousProcessId":null,"previousProjectPath":null,"previousProjectWasWorkerOpened":false,"previousProjectIsModified":null,"reattached":false}""",
             _ => throw new ArgumentOutOfRangeException(nameof(contract))
         })!.AsObject();

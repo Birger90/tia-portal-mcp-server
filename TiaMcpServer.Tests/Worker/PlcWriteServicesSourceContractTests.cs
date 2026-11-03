@@ -1,4 +1,3 @@
-using TiaMcpServer.Tests.TestSupport;
 using Xunit;
 
 namespace TiaMcpServer.Tests.Worker;
@@ -6,7 +5,16 @@ namespace TiaMcpServer.Tests.Worker;
 public sealed class PlcWriteServicesSourceContractTests
 {
     private static string ReadOpenness(string file)
-        => File.ReadAllText(RepositoryFiles.Path("TiaMcpServer.OpennessWorker", "Openness", file));
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "TiaMcpServer.slnx")))
+        {
+            directory = directory.Parent;
+        }
+
+        Assert.NotNull(directory);
+        return File.ReadAllText(Path.Combine(directory!.FullName, "TiaMcpServer.OpennessWorker", "Openness", file));
+    }
 
     [Theory]
     [InlineData("Plc/TagMutationService.cs")]

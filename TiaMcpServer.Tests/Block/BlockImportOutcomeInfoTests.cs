@@ -370,11 +370,16 @@ public class BlockImportOutcomeInfoTests
     }
 
     [Fact]
-    public void Validate_RejectsCombinedDiagnosticCharactersAbove1024()
+    public void Validate_RejectsCombinedDiagnosticCharactersAboveTheSharedBudget()
     {
+        // 20 messages of 150 + 150 characters: exactly the 6,000-character budget, then one more character.
         var report = new CompileCheckReport();
-        report.Plcs.Add(new PlcCompileInfo { Messages = Enumerable.Range(0, 5)
-            .Select(_ => new CompileMessageInfo { Description = new string('x', 205) }).ToList() });
+        report.Plcs.Add(new PlcCompileInfo { Messages = Enumerable.Range(0, 20)
+            .Select(_ => new CompileMessageInfo { Description = new string('x', 150), Path = new string('p', 150) }).ToList() });
+        Assert.Equal(BlockImportOutcomeLimits.MaxDiagnosticChars, report.Plcs[0].Messages.Sum(m => m.Description.Length + m.Path.Length));
+        Assert.True(BlockImportOutcomeValidator.Validate(
+            Completed() with { CompileStage = "succeeded", CompileReport = report }, SourceFormatNames.Xml));
+        report.Plcs[0].Messages[0].Path += "p";
         Assert.False(BlockImportOutcomeValidator.Validate(
             Completed() with { CompileStage = "succeeded", CompileReport = report }, SourceFormatNames.Xml));
     }

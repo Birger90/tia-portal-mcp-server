@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    S7-PLCSIM Advanced worker. It never references a Siemens assembly at compile time: the PLCSIM
+    Advanced .NET API (Siemens.Simatic.Simulation.Runtime.Api.x64.dll) is loaded at runtime with
+    Assembly.LoadFile from the directory resolved by PlcSimApiLocator, and every member is bound by
+    reflection against the declared PlcSimApiSurface catalog. x64 because the API DLL is x64-only.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <GenerateRuntimeConfigurationFiles>false</GenerateRuntimeConfigurationFiles>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Text.Json" Version="10.0.14" />
+    <PackageReference Include="System.ValueTuple" Version="4.6.2" />
+    <ProjectReference Include="..\TiaMcpServer.Contracts\TiaMcpServer.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="$(NuGetPackageRoot)system.valuetuple\4.6.2\lib\net47\System.ValueTuple.dll"
+          Link="System.ValueTuple.dll"
+          CopyToOutputDirectory="Always" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The same access-mode parsing and pre-dispatch authorization as the Openness worker. -->
+    <Compile Include="..\TiaMcpServer.OpennessWorker\Worker\WorkerOperationAuthorization.cs"
+      Link="Worker\WorkerOperationAuthorization.cs" />
+    <!-- net48 polyfill for init accessors and records. -->
+    <Compile Include="..\TiaMcpServer.OpennessWorker\Shared\IsExternalInit.cs" Link="Shared\IsExternalInit.cs" />
+  </ItemGroup>
+</Project>

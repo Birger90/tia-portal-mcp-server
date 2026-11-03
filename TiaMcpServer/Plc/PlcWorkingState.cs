@@ -4,6 +4,7 @@ using TiaMcpServer.Safety.Pipeline;
 using static TiaMcpServer.Plc.PlcGuardDefinitions;
 using TiaMcpServer.Contracts.Block;
 using TiaMcpServer.Contracts.Plc;
+using TiaMcpServer.Contracts.Plc.Safety;
 using TiaMcpServer.Contracts.Project;
 using TiaMcpServer.Contracts.Worker;
 
@@ -15,7 +16,7 @@ namespace TiaMcpServer.Plc;
 /// (missing or ambiguous is an error); creates are never checked against existing state, Portal
 /// rejects them. Incomplete or unreadable evidence only fires <see cref="PlcGuardDefinitions.StateUnverifiable"/>.
 /// </summary>
-internal sealed class PlcWorkingState
+internal sealed partial class PlcWorkingState
 {
     private sealed record Table(string Folder, string Name, List<TagInfo> Tags, List<UserConstantInfo> Constants);
 
@@ -78,7 +79,12 @@ internal sealed class PlcWorkingState
     /// needs the OB inventory for <see cref="PlcGuardDefinitions.ObSingletonExists"/>. Nothing else reads it.
     /// </summary>
     public static bool NeedsTree(PlcOperationRequest item)
-        => item.Operation is "delete_block" or "delete_block_group" || item.Operation == "create_block" && IsOb(item);
+        => item.Operation is "delete_block" or "delete_block_group"
+            or PlcBlockEditMethods.RenameBlock or PlcBlockEditMethods.RenumberBlock or PlcBlockEditMethods.CopyBlock or PlcBlockEditMethods.MoveBlock
+            || item.Operation == "create_block" && IsOb(item)
+            || item.Operation == PlcBlockEditMethods.RenameObjects
+            || item.Operation == Contracts.Plc.SimaticSd.SimaticSdMethods.CreateBlockFromDocument
+            || NeedsSourceFolderTree(item);
 
     public PlcResolution Resolve(PlcOperationRequest item)
     {
@@ -125,6 +131,21 @@ internal sealed class PlcWorkingState
     /// <summary>The requested identity of an item whose target could not be verified.</summary>
     public static PlcWriteEffect Unresolved(PlcOperationRequest item, string plcName, string? deviceName)
     {
+        if ((UnresolvedWatchTarget(item, plcName, deviceName) ?? UnresolvedSourceFolderTarget(item, plcName, deviceName)
+                ?? UnresolvedAlarmTarget(item, plcName, deviceName)) is { } watchTarget)
+            return new PlcWriteEffect(item.Operation, watchTarget, Array.Empty<PlcFieldChange>(), null, null, null, null);
+        if (PlcSafetyMethods.IsWrite(item.Operation))
+            return new PlcWriteEffect(item.Operation, new PlcTargetIdentity(PlcSafetyMethods.IsRuntimeGroupWrite(item.Operation) ? PlcSafetyPlanning.RuntimeGroupKind : PlcSafetyPlanning.AdministrationKind,
+                plcName, deviceName, null, null, item.RuntimeGroupName, null, null), Array.Empty<PlcFieldChange>(), null, null, null, null);
+        if (UnresolvedEditingTarget(item, plcName, deviceName) is { } editingTarget)
+            return new PlcWriteEffect(item.Operation, editingTarget, Array.Empty<PlcFieldChange>(), null, null, null, null);
+        if (UnresolvedTechnologyTarget(item, plcName, deviceName) is { } technologyTarget)
+            return new PlcWriteEffect(item.Operation, technologyTarget, Array.Empty<PlcFieldChange>(), null, null, null, null);
+        if (UnresolvedSecurityTarget(item, plcName, deviceName) is { } securityTarget)
+            return new PlcWriteEffect(item.Operation, securityTarget, Array.Empty<PlcFieldChange>(), null, null, null, null);
+        if (item.Operation == PlcSimaticSdOperation && SimaticSdBlockDocumentName(item) is { } documentBlock)
+            return new PlcWriteEffect(item.Operation, new PlcTargetIdentity(PlcNameRules.Block, plcName, deviceName, null, null, documentBlock,
+                $"{item.TargetGroupPath?.TrimEnd('/')}/{documentBlock}", null), Array.Empty<PlcFieldChange>(), null, null, null, null);
         var tableOperation = item.Operation.Contains("tag_table", StringComparison.Ordinal);
         var target = item switch
         {
@@ -176,6 +197,14 @@ internal sealed class PlcWorkingState
                 tags.Remove(RequireTag(item, RequireTable(item)));
                 Touch(CpuKey(item.Name!), item);
                 break;
+            case PlcTagMoveMethods.MoveTag:
+                var from = RequireTable(item);
+                var moving = RequireTag(item, from);
+                var to = RequireTargetTable(item);
+                from.Tags.Remove(moving);
+                to.Tags.Add(moving);
+                Touch(CpuKey(moving.Name), item);
+                break;
             case "create_user_constant":
                 RequireTable(item).Constants.Add(new UserConstantInfo { Name = item.Name!, DataType = item.DataType!, Value = item.Value });
                 Touch(CpuKey(item.Name!), item);
@@ -210,17 +239,98 @@ internal sealed class PlcWorkingState
                 parent.Groups.Add(new Group(target.BlockName, $"{parent.Path}/{target.BlockName}", parent,
                     parent.Selector.Append(Segment(ProjectTreeNodeTypes.BlockFolder, target.BlockName)).ToArray(), false));
                 break;
+            case PlcBlockEditMethods.AddInterfaceMember:
+            case PlcBlockEditMethods.UpdateInterfaceMember:
+            case PlcBlockEditMethods.DeleteInterfaceMember:
+            case PlcBlockEditMethods.UpdateDbMember:
+            case PlcBlockEditMethods.SetNetworkText:
+            case PlcBlockEditMethods.ReplaceNetworkText:
+            case PlcBlockEditMethods.RenameMembers:
+            case Contracts.Plc.SimaticSd.SimaticSdMethods.InsertNetwork:
+            case Contracts.Plc.SimaticSd.SimaticSdMethods.ReplaceNetwork:
+            case Contracts.Plc.SimaticSd.SimaticSdMethods.DeleteNetwork:
+                // A later item on the same block or type is re-planned against the real state.
+                if (item.TypePath is { } typePath) Touch(TypeKey(PlcTypeAddress.Parse(typePath).TypeName), item);
+                else Touch(CpuKey(BlockAddress.Parse(item.BlockPath!).BlockName), item);
+                break;
+            case PlcBlockEditMethods.CreateInstanceDb:
+                var instance = BlockAddress.Parse(item.BlockPath!);
+                Touch(CpuKey(instance.BlockName), item);
+                if (_hasTree)
+                    CreationParent(item, instance).Blocks.Add(new Block(instance.BlockName, ProjectTreeNodeTypes.InstanceDb, "DB", false, item.Number));
+                break;
+            case PlcBlockEditMethods.RenameBlock:
+            {
+                var (owner, renamed) = FindBlock(item, BlockAddress.Parse(item.BlockPath!));
+                owner.Blocks[owner.Blocks.IndexOf(renamed)] = renamed with { Name = item.NewName! };
+                Touch(CpuKey(renamed.Name), item);
+                Touch(CpuKey(item.NewName!), item);
+                break;
+            }
+            case PlcBlockEditMethods.RenumberBlock:
+            {
+                var (owner, renumbered) = FindBlock(item, BlockAddress.Parse(item.BlockPath!));
+                owner.Blocks[owner.Blocks.IndexOf(renumbered)] = renumbered with { Number = item.AutoNumber == true ? null : item.Number };
+                Touch(CpuKey(renumbered.Name), item);
+                break;
+            }
+            case PlcBlockEditMethods.CopyBlock:
+            {
+                var (owner, original) = FindBlock(item, BlockAddress.Parse(item.BlockPath!));
+                Touch(CpuKey(item.NewName!), item);
+                var into = item.TargetGroupPath is null ? owner : FindGroupByPath(TargetGroupPath(item.TargetGroupPath));
+                into?.Blocks.Add(original with { Name = item.NewName!, Number = item.Number });
+                break;
+            }
+            case PlcBlockEditMethods.MoveBlock:
+            {
+                var (owner, movedBlock) = FindBlock(item, BlockAddress.Parse(item.BlockPath!));
+                Touch(CpuKey(movedBlock.Name), item);
+                if (FindGroupByPath(TargetGroupPath(item.TargetGroupPath!)) is { } into)
+                {
+                    owner.Blocks.Remove(movedBlock);
+                    into.Blocks.Add(movedBlock);
+                }
+
+                break;
+            }
+            case PlcBlockEditMethods.MoveTagTable:
+            {
+                var table = RequireTable(item);
+                _tables[_tables.IndexOf(table)] = table with { Folder = NormalizeFolder(item.TargetFolderPath) };
+                Touch(TableKey(table.Name), item);
+                foreach (var name in table.Tags.Select(t => t.Name).Concat(table.Constants.Select(c => c.Name))) Touch(CpuKey(name), item);
+                break;
+            }
             case "delete_block_group":
                 var doomed = DeletionGroup(item, BlockAddress.Parse(item.BlockPath!));
                 doomed.Parent!.Groups.Remove(doomed);
                 foreach (var g in Descendants(doomed).Prepend(doomed)) Touch(GroupKey(g.Path), item);
                 foreach (var b in DescendantBlocks(doomed)) Touch(CpuKey(b.Block.Name), item);
                 break;
+            default:
+                if (IsAlarmOperation(item.Operation))
+                {
+                    ApplyAlarm(item);
+                }
+                else
+                {
+                    ApplyWatch(item);
+                    ApplySourceFolder(item);
+                    ApplyTechnology(item);
+                    ApplyEditing(item);
+                    ApplySimaticSd(item);
+                }
+
+                break;
         }
     }
 
-    /// <summary>The latest earlier item that created, deleted or renamed the target or a container it needs.</summary>
-    public string? LastTouchedBy(PlcTargetIdentity target)
+    /// <summary>
+    /// The latest earlier item that created, deleted or renamed the target or a container it needs;
+    /// a move_tag also needs its target table, which an earlier item may have created.
+    /// </summary>
+    public string? LastTouchedBy(PlcTargetIdentity target, PlcOperationRequest? item = null)
     {
         IEnumerable<string> keys = target.Kind switch
         {
@@ -228,8 +338,11 @@ internal sealed class PlcWorkingState
             PlcNameRules.TagTable => new[] { TableKey(target.TableName!) },
             PlcNameRules.Block => GroupKeys(ParentPath(target.BlockPath!)).Append(CpuKey(target.Name!)),
             PlcNameRules.BlockGroup => GroupKeys(target.BlockPath!),
-            _ => Array.Empty<string>(),
+            "Type" => new[] { TypeKey(target.Name!) },
+            _ => WatchKeys(target).Concat(SourceFolderKeys(target)).Concat(AlarmKeys(target)).Concat(TechnologyKeys(target, item)).Concat(EditingKeys(target, item)),
         };
+        if (item?.Operation == PlcTagMoveMethods.MoveTag && item.TargetTableName is { } targetTable) keys = keys.Append(TableKey(targetTable));
+        keys = keys.Concat(ContainerDependencyKeys(target, item));
         return keys.Where(_touches.ContainsKey).Select(k => _touches[k]).OrderByDescending(t => t.Sequence)
             .Select(t => t.OperationId).FirstOrDefault();
     }
@@ -258,7 +371,7 @@ internal sealed class PlcWorkingState
                 var kind = item.Operation == "create_tag" ? PlcNameRules.Tag : PlcNameRules.UserConstant;
                 return Effect(item, MemberTarget(kind, table, item.Name!),
                     Change("name", null, item.Name).Concat(Change("dataType", null, item.DataType)).Concat(Change("logicalAddress", null, item.LogicalAddress))
-                        .Concat(Change("value", null, item.Value)).ToArray(), TablePath(table));
+                        .Concat(Change("value", null, item.Value)).Concat(Change($"comment[{item.CommentCulture}]", null, item.Comment)).ToArray(), TablePath(table));
             }
             case "update_tag":
             {
@@ -270,7 +383,8 @@ internal sealed class PlcWorkingState
                         .Concat(Change("logicalAddress", tag.LogicalAddress, item.LogicalAddress))
                         .Concat(Change("externalAccessible", Flag(tag.ExternalAccessible), Flag(item.ExternalAccessible)))
                         .Concat(Change("externalVisible", Flag(tag.ExternalVisible), Flag(item.ExternalVisible)))
-                        .Concat(Change("externalWritable", Flag(tag.ExternalWritable), Flag(item.ExternalWritable))).ToArray(), null);
+                        .Concat(Change("externalWritable", Flag(tag.ExternalWritable), Flag(item.ExternalWritable)))
+                        .Concat(Change($"comment[{item.CommentCulture}]", null, item.Comment)).ToArray(), null);
             }
             case "delete_tag":
             {
@@ -278,6 +392,22 @@ internal sealed class PlcWorkingState
                 var tag = RequireTag(item, table);
                 return Effect(item, MemberTarget(PlcNameRules.Tag, table, tag.Name), Array.Empty<PlcFieldChange>(), null,
                     new(1, 0, Array.Empty<string>(), Array.Empty<string>(), null, null));
+            }
+            case PlcTagMoveMethods.MoveTag:
+            {
+                var table = RequireTable(item);
+                var tag = RequireTag(item, table);
+                var target = RequireTargetTable(item);
+                if (ReferenceEquals(table, target))
+                    throw new ResolutionException(WorkerFailureCategories.ValidationError,
+                        $"Operation '{item.OperationId}': tag '{tag.Name}' is already in tag table '{target.Name}' ('{target.Folder}').");
+                guards.Add(Fire(MoveTagRecreates, item, $"Moving tag '{tag.Name}' from '{TablePath(table)}' to '{TablePath(target)}' re-creates it: "
+                    + "DataTypeName, LogicalAddress, the three external-access flags and the multilingual comment (each language the new tag has a text item for) are copied, "
+                    + "other attributes are not; the source is deleted after the copy is created "
+                    + "and the copy then takes the original name. Run compile_check afterwards so blocks re-bind the symbol."));
+                return Effect(item, MemberTarget(PlcNameRules.Tag, table, tag.Name),
+                    Change("tableName", table.Name, target.Name).Concat(Change("folderPath", table.Folder, target.Folder == table.Folder ? null : target.Folder)).ToArray(),
+                    TablePath(target));
             }
             case "update_user_constant":
             case "delete_user_constant":
@@ -341,12 +471,86 @@ internal sealed class PlcWorkingState
                 return Effect(item, new(PlcNameRules.BlockGroup, _plc, _device, null, null, group.Name, group.Path, null), Array.Empty<PlcFieldChange>(), null,
                     new(0, 0, blocks, groups, null, null));
             }
+            case PlcBlockEditMethods.AddInterfaceMember:
+            case PlcBlockEditMethods.UpdateInterfaceMember:
+            case PlcBlockEditMethods.DeleteInterfaceMember:
+            case PlcBlockEditMethods.UpdateDbMember:
+            case PlcBlockEditMethods.SetNetworkText:
+            case PlcBlockEditMethods.ReplaceNetworkText:
+            case PlcBlockEditMethods.RenameMembers:
+            case Contracts.Plc.SimaticSd.SimaticSdMethods.InsertNetwork:
+            case Contracts.Plc.SimaticSd.SimaticSdMethods.ReplaceNetwork:
+            case Contracts.Plc.SimaticSd.SimaticSdMethods.DeleteNetwork:
+            {
+                // The planner reads the document or values and fills in the changes.
+                if (item.TypePath is { } typePath)
+                {
+                    var type = PlcTypeAddress.Parse(typePath);
+                    return Effect(item, new("Type", _plc, _device, null, null, type.TypeName, null, typePath), Array.Empty<PlcFieldChange>(), null);
+                }
+
+                var address = BlockAddress.Parse(item.BlockPath!);
+                var path = address.IsDeterministic ? PlannedPath(address) : $"{_plc}/{address.BlockName}";
+                return Effect(item, new(PlcNameRules.Block, _plc, _device, null, null, address.BlockName, path, null), Array.Empty<PlcFieldChange>(), null);
+            }
+            case PlcBlockEditMethods.CreateInstanceDb:
+            {
+                var address = BlockAddress.Parse(item.BlockPath!);
+                var path = PlannedPath(address);
+                return Effect(item, new(PlcNameRules.Block, _plc, _device, null, null, address.BlockName, path, null),
+                    Change("blockType", null, "InstanceDB").Concat(Change("instanceOfName", null, item.InstanceOfName))
+                        .Concat(Change("number", null, NumberText(item.Number))).ToArray(),
+                    ParentPath(path));
+            }
+            case PlcBlockEditMethods.RenameBlock:
+            case PlcBlockEditMethods.RenumberBlock:
+            case PlcBlockEditMethods.CopyBlock:
+            case PlcBlockEditMethods.MoveBlock:
+            {
+                var (group, block) = FindBlock(item, BlockAddress.Parse(item.BlockPath!), guards);
+                var path = $"{group.Path}/{block.Name}";
+                var target = new PlcTargetIdentity(PlcNameRules.Block, _plc, _device, null, null, block.Name, path, null);
+                switch (item.Operation)
+                {
+                    case PlcBlockEditMethods.RenameBlock:
+                        return Effect(item, target, Change("name", block.Name, item.NewName), null);
+                    case PlcBlockEditMethods.RenumberBlock:
+                        return Effect(item, target, new[] { new PlcFieldChange("number", NumberText(block.Number), item.AutoNumber == true ? "auto" : NumberText(item.Number)) }, null);
+                    case PlcBlockEditMethods.CopyBlock:
+                    {
+                        var into = item.TargetGroupPath is null ? group.Path : TargetGroupPath(item.TargetGroupPath);
+                        guards.Add(Fire(BlockRoundTrip, item, $"copy_block imports the SimaticML export of '{path}' as '{into}/{item.NewName}': a new block with its own identity and no library-type link."));
+                        return Effect(item, target, Change("copy", null, $"{into}/{item.NewName}").Concat(Change("number", null, NumberText(item.Number))).ToArray(), into);
+                    }
+                    default:
+                    {
+                        var into = TargetGroupPath(item.TargetGroupPath!);
+                        guards.Add(Fire(BlockRoundTrip, item, $"move_block exports '{path}', deletes it and imports the export into '{into}': the block gets a new object identity, a library-type link is not carried over, and instance DBs and callers resolve it again by name at the next compile. A failed import re-imports it into '{group.Path}'."));
+                        return Effect(item, target, Change("blockPath", path, $"{into}/{block.Name}"), into);
+                    }
+                }
+            }
+            case PlcBlockEditMethods.MoveTagTable:
+            {
+                var table = RequireTable(item);
+                var into = NormalizeFolder(item.TargetFolderPath);
+                guards.Add(Fire(MovesTagTable, item, $"move_tag_table exports '{TablePath(table)}' ({table.Tags.Count} tags, {table.Constants.Count} user constants), deletes it and imports the export into '{into}'; a failed import re-imports it into '{table.Folder}'."));
+                return Effect(item, TableTarget(table), Change("folderPath", table.Folder, into), into);
+            }
             case "update_type_content":
             {
                 var address = PlcTypeAddress.Parse(item.TypePath!);
                 return Effect(item, new("Type", _plc, _device, null, null, address.TypeName, null, item.TypePath), Array.Empty<PlcFieldChange>(), null);
             }
             default:
+                if (IsWatchOperation(item.Operation)) return ResolveWatch(item, guards);
+                if (HandlesSourceFolder(item.Operation)) return ResolveSourceFolder(item, guards);
+                if (IsAlarmOperation(item.Operation)) return ResolveAlarm(item, guards);
+                if (IsTechnologyOperation(item.Operation)) return ResolveTechnology(item, guards);
+                if (IsSecurityOperation(item.Operation)) return ResolveSecurity(item, guards);
+                if (IsSafetyOperation(item.Operation)) return ResolveSafety(item);
+                if (IsEditingOperation(item.Operation)) return ResolveEditing(item, guards);
+                if (IsSimaticSdOperation(item.Operation)) return ResolveSimaticSd(item, guards);
                 throw new ResolutionException(WorkerFailureCategories.ValidationError, $"Unsupported PLC write operation '{item.Operation}'.");
         }
     }
@@ -356,6 +560,13 @@ internal sealed class PlcWorkingState
         var folder = NormalizeFolder(item.FolderPath);
         return _tables.FirstOrDefault(t => Names.Equals(t.Folder, folder) && Names.Equals(t.Name, item.TableName))
             ?? throw NotFound(item, $"tag table '{item.TableName}' was not found in '{folder}' of PLC '{_plc}'.", !_inventoryComplete);
+    }
+
+    private Table RequireTargetTable(PlcOperationRequest item)
+    {
+        var folder = NormalizeFolder(item.TargetFolderPath);
+        return _tables.FirstOrDefault(t => Names.Equals(t.Folder, folder) && Names.Equals(t.Name, item.TargetTableName))
+            ?? throw NotFound(item, $"target tag table '{item.TargetTableName}' was not found in '{folder}' of PLC '{_plc}'.", !_inventoryComplete);
     }
 
     private TagInfo RequireTag(PlcOperationRequest item, Table table)
@@ -524,6 +735,27 @@ internal sealed class PlcWorkingState
     private static string TablePath(Table table) => table.Folder == "/" ? "/" + table.Name : $"{table.Folder}/{table.Name}";
 
     private static string CpuKey(string name) => "cpu:" + name.ToUpperInvariant();
+
+    private static string TypeKey(string name) => "type:" + name.ToUpperInvariant();
+
+    private static string? NumberText(int? number) => number?.ToString(CultureInfo.InvariantCulture);
+
+    /// <summary>The canonical path of a deterministic target group of this PLC, e.g. PLC_1/Blocks/Line.</summary>
+    /// <exception cref="ArgumentException">The path is not a deterministic group path of this PLC.</exception>
+    private string TargetGroupPath(string groupPath)
+    {
+        var address = BlockAddress.Parse(groupPath.TrimEnd('/') + "/_");
+        if (!address.IsDeterministic)
+            throw new ArgumentException($"targetGroupPath '{groupPath}' must be a deterministic group path such as '{_plc}/Blocks' or '{_plc}/Blocks/Folder'.");
+        if (!Names.Equals(address.PlcName, _plc) && !Names.Equals(address.PlcName, _device))
+            throw new ArgumentException($"targetGroupPath '{groupPath}' names another PLC than '{_plc}'; copy and move stay within one PLC.");
+        var planned = PlannedPath(address);
+        return planned.Substring(0, planned.Length - 2);
+    }
+
+    private Group? FindGroupByPath(string path)
+        => _unitRoots.Values.Prepend(_root).SelectMany(root => Descendants(root).Prepend(root))
+            .FirstOrDefault(group => Names.Equals(group.Path, path));
 
     private static string TableKey(string name) => "table:" + name.ToUpperInvariant();
 

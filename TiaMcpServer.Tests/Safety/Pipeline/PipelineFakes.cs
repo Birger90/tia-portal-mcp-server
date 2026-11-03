@@ -11,7 +11,8 @@ namespace TiaMcpServer.Tests.Safety.Pipeline;
 /// <summary>
 /// One scripted write item. <see cref="DependsOn"/> makes the plan depend on an earlier item;
 /// <see cref="Guards"/> fire in the planning pass, <see cref="LateGuards"/> in the re-plan;
-/// <see cref="FailWith"/> makes the mutation fail with that category.
+/// <see cref="FailWith"/> makes the mutation fail with that category; <see cref="TargetText"/> replaces the
+/// target derived from the operationId (it appears in guard messages and the effect).
 /// </summary>
 public sealed record FakeWriteItem(
     string OperationId,
@@ -19,9 +20,10 @@ public sealed record FakeWriteItem(
     string? DependsOn = null,
     IReadOnlyList<string>? Guards = null,
     IReadOnlyList<string>? LateGuards = null,
-    string? FailWith = null) : IOperationBatchItem
+    string? FailWith = null,
+    string? TargetText = null) : IOperationBatchItem
 {
-    public string Target => $"target-{OperationId}";
+    public string Target => TargetText ?? $"target-{OperationId}";
 }
 
 public sealed record FakeEffect(string Target, string Change);
@@ -69,6 +71,9 @@ public sealed class FakeWriteDomain : IWriteDomain<FakeWriteItem, FakeEffect, Fa
 
     public bool ConfirmsEveryCall { get; set; }
 
+    /// <summary>Validate turns <see cref="ConfirmsEveryCall"/> on, like a domain that decides from its validated items.</summary>
+    public bool ConfirmsAfterValidate { get; set; }
+
     public string DescribeForConfirmation(IReadOnlyList<FakeWriteItem> items, IReadOnlyList<ItemPlan<FakeEffect>> plans)
         => $"Confirm '{ToolName}': " + string.Join(", ", plans.Where(plan => plan.Effect is not null)
             .Select(plan => $"{plan.Effect!.Change} {plan.Effect.Target}"));
@@ -111,6 +116,7 @@ public sealed class FakeWriteDomain : IWriteDomain<FakeWriteItem, FakeEffect, Fa
     public WriteValidation Validate(IReadOnlyList<FakeWriteItem> items, McpAccessMode accessMode)
     {
         RecordCall("validate");
+        if (ConfirmsAfterValidate) ConfirmsEveryCall = true;
         return Validation;
     }
 
@@ -184,8 +190,13 @@ public sealed class FakeWriteDomain : IWriteDomain<FakeWriteItem, FakeEffect, Fa
 
         return Task.FromResult(item.FailWith is null
             ? WorkerCallResult.Ok("{\"done\":true}")
-            : WorkerCallResult.Fail(item.FailWith, $"{item.OperationId} failed.") with { EngineeringError = FailureEngineeringError });
+            : NotSent.Contains(item.OperationId)
+                ? WorkerCallResult.Fail(item.FailWith, $"{item.OperationId} failed; nothing was sent.") with { DispatchState = WorkerDispatchState.NotSent }
+                : WorkerCallResult.Fail(item.FailWith, $"{item.OperationId} failed.") with { EngineeringError = FailureEngineeringError });
     }
+
+    /// <summary>Items whose scripted failure the host produced before sending anything (K60).</summary>
+    public HashSet<string> NotSent { get; } = new(StringComparer.Ordinal);
 
     /// <summary>Siemens evidence the worker attached to a scripted failure; the domain's own projection ignores it.</summary>
     public EngineeringErrorInfo? FailureEngineeringError { get; set; }

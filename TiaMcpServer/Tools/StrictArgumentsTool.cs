@@ -32,6 +32,29 @@ internal static class PlcWriteToolRegistration
             node["enum"] = values;
         }
 
+        // The fail-safe password source: an environment variable NAME, { env } or { credential } (PasswordSourceArgument).
+        if (context.PropertyInfo is { Name: "passwordVariable" or "newPasswordVariable" } password
+            && password.DeclaringType == typeof(PlcOperationRequest)
+            && schema is JsonObject passwordNode)
+        {
+            var description = passwordNode["description"]?.DeepClone();
+            passwordNode.Clear();
+            if (description is not null) passwordNode["description"] = description;
+            foreach (var (key, value) in PlcDownload.PasswordSourceArgument.Schema(nullable: true)) passwordNode[key] = value?.DeepClone();
+        }
+
+        // The CPU access level passwords: an object of level name -> password source (like plc_download passwords).
+        if (context.PropertyInfo is { Name: "accessLevelPasswords" or "passwords" } levels
+            && levels.DeclaringType == typeof(PlcOperationRequest)
+            && schema is JsonObject levelsNode)
+        {
+            var description = levelsNode["description"]?.DeepClone();
+            levelsNode.Clear();
+            if (description is not null) levelsNode["description"] = description;
+            levelsNode["type"] = new JsonArray("object", "null");
+            levelsNode["additionalProperties"] = PlcDownload.PasswordSourceArgument.Schema(nullable: false);
+        }
+
         return schema;
     }
 }
@@ -69,6 +92,15 @@ internal static class ClosedToolRegistration
 }
 
 /// <summary>
+/// Marks an optional, nullable tool parameter whose explicit JSON <c>null</c> is an argument-shape
+/// error: omitting it keeps the method default, but a supplied <c>null</c> is refused exactly like a
+/// <c>null</c> for a non-nullable parameter (<see cref="StrictArgumentsTool"/>). Used where omission
+/// selects a default target, so an explicit <c>null</c> must not silently select it.
+/// </summary>
+[AttributeUsage(AttributeTargets.Parameter)]
+internal sealed class RejectExplicitNullAttribute : Attribute;
+
+/// <summary>
 /// Rejects argument-shape errors before SDK binding, so the call never enters the tool: unknown root keys (derived
 /// from the input schema), retired item members, missing required keys, forbidden nulls, and arguments that do not
 /// deserialize into their bound parameter type with the SDK's own serializer options. Rejections never echo values.
@@ -104,7 +136,8 @@ internal sealed class StrictArgumentsTool : DelegatingMcpServerTool
         var nullability = new NullabilityInfoContext();
         _nonNullableParameters = method.GetParameters()
             .Where(parameter => parameter.Name is not null && _rootKeys.Contains(parameter.Name)
-                && nullability.Create(parameter).WriteState == NullabilityState.NotNull)
+                && (nullability.Create(parameter).WriteState == NullabilityState.NotNull
+                    || parameter.IsDefined(typeof(RejectExplicitNullAttribute), inherit: false)))
             .Select(parameter => parameter.Name!)
             .ToHashSet(StringComparer.Ordinal);
         var tool = JsonSerializer.SerializeToNode(inner.ProtocolTool, McpJsonUtilities.DefaultOptions)!;

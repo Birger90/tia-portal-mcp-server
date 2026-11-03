@@ -1,0 +1,242 @@
+﻿{
+    S7_Optimized := "TRUE";
+    S7_PreferredLanguage := "LAD";
+    S7_Version := "0.1"
+}
+FUNCTION_BLOCK "MCP_SD_Matrix"
+    VAR_INPUT
+        In_A : Bool;
+        In_B : Bool;
+        In_C : Bool;
+        In_Stop : Bool;
+        Val_1 : Int;
+        Val_2 : Int;
+    END_VAR
+    VAR_OUTPUT
+        Q_Series : Bool;
+        Q_Parallel : Bool;
+        Q_Nested : Bool;
+        Q_SetReset : Bool;
+        Q_Pulse : Bool;
+        Q_FallPulse : Bool;
+        Q_Not : Bool;
+        Q_Gt : Bool;
+        Q_Eq : Bool;
+        Q_Ton : Bool;
+        Q_Tof : Bool;
+        Q_FbdAnd : Bool;
+        Q_FbdOr : Bool;
+        Q_FbdXor : Bool;
+        Moved : Int;
+        Sum : Int;
+        Scl_Sum : Int;
+    END_VAR
+    VAR
+        tonInst : TON_TIME;
+        tofInst : TOF_TIME;
+        edgeRise : Bool;
+        edgeFall : Bool;
+    END_VAR
+
+    {
+        S7_Language := "LAD";
+        S7_NetworkTitle := "MLC_N1"
+    }
+    NETWORK
+        RUNG wire#powerrail
+            Contact( #In_A )
+            I_Contact( #In_Stop )
+            Coil( #Q_Series )
+        END_RUNG
+    END_NETWORK
+    {
+        S7_Language := "LAD";
+        S7_NetworkTitle := "MLC_N2"
+    }
+    NETWORK
+        RUNG wire#powerrail
+            Contact( #In_A )
+            wire#w1
+            Coil( #Q_Parallel )
+        END_RUNG
+        RUNG wire#powerrail
+            Contact( #In_B )
+        END_RUNG wire#w1
+    END_NETWORK
+    {
+        S7_Language := "LAD";
+        S7_NetworkTitle := "MLC_N3"
+    }
+    NETWORK
+        RUNG wire#powerrail
+            Contact( #In_A )
+            wire#w1
+            Contact( #In_B )
+            wire#w2
+            Coil( #Q_Nested )
+        END_RUNG
+        RUNG wire#w1
+            Contact( #In_C )
+        END_RUNG wire#w2
+    END_NETWORK
+    {
+        S7_Language := "LAD";
+        S7_NetworkTitle := "MLC_N4"
+    }
+    NETWORK
+        RUNG wire#powerrail
+            Contact( #In_A )
+            S_Coil( #Q_SetReset )
+        END_RUNG
+        RUNG wire#powerrail
+            Contact( #In_Stop )
+            R_Coil( #Q_SetReset )
+        END_RUNG
+    END_NETWORK
+    {
+        S7_Language := "LAD";
+        S7_NetworkTitle := "MLC_N5"
+    }
+    NETWORK
+        RUNG wire#powerrail
+            Contact( #In_B )
+            P_Trig( #edgeRise )
+            Coil( #Q_Pulse )
+        END_RUNG
+    END_NETWORK
+    {
+        S7_Language := "LAD";
+        S7_NetworkTitle := "MLC_N6"
+    }
+    NETWORK
+        RUNG wire#powerrail
+            Contact( #In_B )
+            N_Trig( #edgeFall )
+            Coil( #Q_FallPulse )
+        END_RUNG
+    END_NETWORK
+    {
+        S7_Language := "LAD";
+        S7_NetworkTitle := "MLC_N7"
+    }
+    NETWORK
+        RUNG wire#powerrail
+            Contact( #In_C )
+            Not()
+            Coil( #Q_Not )
+        END_RUNG
+    END_NETWORK
+    {
+        S7_Language := "LAD";
+        S7_NetworkTitle := "MLC_N8"
+    }
+    NETWORK
+        RUNG wire#powerrail
+            { S7_Templates := "SrcType := Int" }
+            GT_Contact(
+                in1 := #Val_1,
+                in2 := #Val_2
+            )
+            Coil( #Q_Gt )
+        END_RUNG
+        RUNG wire#powerrail
+            { S7_Templates := "SrcType := Int" }
+            EQ_Contact(
+                in1 := #Val_1,
+                in2 := 0
+            )
+            Coil( #Q_Eq )
+        END_RUNG
+    END_NETWORK
+    {
+        S7_Language := "LAD";
+        S7_NetworkTitle := "MLC_N9"
+    }
+    NETWORK
+        RUNG wire#powerrail
+            Contact( #In_A )
+            Move(
+                in := #Val_1,
+                out1 => #Moved
+            )
+        END_RUNG
+        RUNG wire#powerrail
+            { S7_Templates := "SrcType := Int" }
+            Add(
+                in1 := #Val_1,
+                in2 := #Val_2,
+                out => #Sum
+            )
+        END_RUNG
+    END_NETWORK
+    {
+        S7_Language := "LAD";
+        S7_NetworkTitle := "MLC_N10"
+    }
+    NETWORK
+        RUNG wire#powerrail
+            Contact( #In_A )
+            { S7_Templates := "time_type := Time" }
+            #tonInst.TON(
+                pt := T#500ms,
+                et =>
+            )
+            Coil( #Q_Ton )
+        END_RUNG
+    END_NETWORK
+    {
+        S7_Language := "LAD";
+        S7_NetworkTitle := "MLC_N11"
+    }
+    NETWORK
+        RUNG wire#powerrail
+            Contact( #In_B )
+            { S7_Templates := "time_type := Time" }
+            #tofInst.TOF(
+                pt := T#1s,
+                et =>
+            )
+            Coil( #Q_Tof )
+        END_RUNG
+    END_NETWORK
+    {
+        S7_Language := "FBD";
+        S7_NetworkTitle := "MLC_N12"
+    }
+    NETWORK
+        RUNG #In_A
+            A( in2 := NOT #In_Stop )
+            Coil( #Q_FbdAnd )
+        END_RUNG
+    END_NETWORK
+    {
+        S7_Language := "FBD";
+        S7_NetworkTitle := "MLC_N13"
+    }
+    NETWORK
+        RUNG #In_A
+            O(
+                in2 := #In_B,
+                in3 := #In_C
+            )
+            Coil( #Q_FbdOr )
+        END_RUNG
+    END_NETWORK
+    {
+        S7_Language := "FBD";
+        S7_NetworkTitle := "MLC_N14"
+    }
+    NETWORK
+        RUNG #In_A
+            X( in2 := #In_B )
+            Coil( #Q_FbdXor )
+        END_RUNG
+    END_NETWORK
+    {
+        S7_Language := "SCL";
+        S7_NetworkTitle := "MLC_N15"
+    }
+    NETWORK
+        #Scl_Sum := #Val_1 + #Val_2;
+    END_NETWORK
+END_FUNCTION_BLOCK

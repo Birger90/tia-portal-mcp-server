@@ -5,6 +5,7 @@ using TiaMcpServer.Contracts.Safety;
 using TiaMcpServer.Contracts.Worker;
 using TiaMcpServer.Safety;
 using TiaMcpServer.Tests.TestSupport;
+using TiaMcpServer.Tests.TestUtilities;
 using TiaMcpServer.Tools;
 using TiaMcpServer.Worker;
 using Xunit;
@@ -73,8 +74,8 @@ public sealed class WriteSafetyLeaseConcurrencyTests
 
             var firstResult = await firstApply.WaitAsync(TimeSpan.FromSeconds(10));
             var secondResult = await secondApply.WaitAsync(TimeSpan.FromSeconds(10));
-            var first = CanonicalToolDocument.Read(firstResult);
-            var second = CanonicalToolDocument.Read(secondResult);
+            var first = LifecycleTestCalls.Document(firstResult);
+            var second = LifecycleTestCalls.Document(secondResult);
             LifecycleTestCalls.Succeeded(first);
             LifecycleTestCalls.Succeeded(second);
 

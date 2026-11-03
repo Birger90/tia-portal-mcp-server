@@ -2,6 +2,7 @@ using TiaMcpServer.Json;
 using TiaMcpServer.OperationBatches;
 using TiaMcpServer.Safety.Pipeline;
 using TiaMcpServer.Worker;
+using TiaMcpServer.Contracts.Network;
 using TiaMcpServer.Contracts.Safety;
 using TiaMcpServer.Contracts.Worker;
 
@@ -50,6 +51,10 @@ public sealed class NetworkWriteDomain(OpennessWorkerClient client) : IWriteDoma
             else if (effect?.Operation == "delete_subnet" && effect.AffectedNodes.Count > 0)
                 guards.Add(new(NetworkGuardDefinitions.ConnectedDelete, items[i].OperationId,
                     $"Deleting the selected subnet removes connections for {effect.AffectedNodes.Count} nodes; devices and nodes remain. Inspect the operation's effect for exact identities."));
+            else if (HardwareModuleWritePlanner.Handles(items[i].Operation))
+                guards.AddRange(HardwareModuleWritePlanner.Guards(items[i], effect));
+            else if (effect?.Operation == NetworkIoSystemMethods.CreateIoSystem)
+                guards.AddRange(NetworkIoSystemGuards.Evaluate(items[i].OperationId, effect));
         }
         return guards;
     }
@@ -60,7 +65,9 @@ public sealed class NetworkWriteDomain(OpennessWorkerClient client) : IWriteDoma
     public StructuredOperationItem Project(NetworkOperationRequest item, WorkerCallResult result)
         => NetworkPayloadContract.Project(_prepared.GetValueOrDefault(item.OperationId) ?? item, result);
     public async Task<WriteVerification?> VerifyAsync(StructuredOperationBatch batch)
-        => await new TrustedWriteVerifier<NetworkOperationRequest>(_items, new NetworkVerificationPolicy(_effects)).VerifyAsync(
+        => await new TrustedWriteVerifier<NetworkOperationRequest>(_items, new NetworkVerificationPolicy(_effects,
+                batch.Operations.Where(o => o.Result is not null && _attempted.Contains(o.OperationId))
+                    .ToDictionary(o => o.OperationId, o => o.Result!.Value, StringComparer.Ordinal))).VerifyAsync(
             StructuredOperationBatch.FromItems(batch.Operations.Where(item => _attempted.Contains(item.OperationId)).ToArray())).ConfigureAwait(false);
     public bool VerificationSucceeded(WriteVerification? verification) => verification?.Success == true;
     public NetworkGuardedWriteResponse Compose(WriteReport<NetworkWriteEffect, WriteVerification> report) => NetworkWritePayloadBudget.Apply(new(

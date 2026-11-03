@@ -48,6 +48,26 @@ public class WorkerResponse
     public VciWriteOutcomeInfo? VciWriteOutcome { get; set; }
 
     /// <summary>
+    /// Online-action failure evidence carried as payload text so the host decodes it with the strict
+    /// required-member reader: the worker-serialized <c>PlcDownloadResultInfo</c> of a failed plc_download
+    /// after the download was invoked, <c>PlcOnlineActionResultInfo</c> of a failed plc_go_online after
+    /// GoOnline was invoked, or <c>PlcStationUploadResultInfo</c> of a failed plc_station_upload after
+    /// StationUpload was invoked (configurations seen, abort record), or <c>PlcBlockEditFailureInfo</c> of a failed
+    /// move_block, move_tag_table or copy_block (original state, recovery file). Each host domain decodes its own type.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? PlcDownloadOutcome { get; set; }
+
+    /// <summary>
+    /// PLCSIM worker only: true when this process observed a failure that only a new process can
+    /// retry (a failed, .NET-cached type initializer of the S7-PLCSIM Advanced API), on success or
+    /// failure responses alike, including when the failure is reported at item, tag or step level.
+    /// The host then recycles the worker. Omitted otherwise.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? WorkerRestartRequired { get; set; }
+
+    /// <summary>
     /// Non-fatal degradation notes captured from the worker's Console.Error while THIS
     /// request was being handled (e.g. "Skipping device X: access denied"). Null when none.
     /// </summary>

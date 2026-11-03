@@ -181,7 +181,9 @@ public sealed class ProjectTreeBrowseCoordinatorTests
         using var portals = new FakeWorkerPortals(new FakeWorkerPortals.Entry(42, path));
         using var uiOpen = FakeWorkerUiOpenProject.ForWorkerRelativePath(scenario);
         var binding = new ProjectSessionBinding(path);
-        using var worker = FakeWorkerClients.Create(McpAccessMode.ReadOnly, binding: binding);
+        using var worker = new OpennessWorkerClient(binding, logger: null,
+            workerExecutablePath: FakeWorkerLocator.Locate(),
+            accessPolicy: new OperationAccessPolicy(McpAccessMode.ReadOnly));
         using var fixture = Fixture(worker, scenario);
         Assert.Equal(ProjectBindingSnapshot.ConfiguredUnverifiedState, binding.CaptureSnapshot().State);
 
@@ -477,7 +479,10 @@ public sealed class ProjectTreeBrowseCoordinatorTests
     public async Task ContinuationUsesCachedSnapshotAfterPersistentWorkerIsDisposed()
     {
         var binding = new ProjectSessionBinding(null);
-        using var worker = FakeWorkerClients.Create(binding: binding);
+        using var worker = new OpennessWorkerClient(
+            binding,
+            logger: null,
+            workerExecutablePath: FakeWorkerLocator.Locate());
         await FakeWorkerBinding.BindVerifiedAsync(worker, binding, "project-tree-v3-one-shot");
         using var fixture = Fixture(worker, scenario: "project-tree-v3-one-shot");
 

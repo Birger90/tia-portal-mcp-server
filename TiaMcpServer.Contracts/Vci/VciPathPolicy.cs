@@ -34,9 +34,12 @@ public static class VciPathPolicy
         if (HasInvalidRootCharacters(rootPath!)) return VciPathCheck.Reject("workspace_root_invalid");
         if (rootPath.Split(Separators).Contains("..")) return VciPathCheck.Reject("workspace_root_traversal");
         var colon = rootPath.IndexOf(':');
-        if (HasUncOrDevicePrefix(rootPath) || (colon >= 0 && (colon != 1 || rootPath.IndexOf(':', colon + 1) >= 0)))
+        // UNC shares are allowed since 2026-11-01 (owner decision); device paths (\\?\, \\.\) bypass normalization and stay refused.
+        var unc = Files.LocalFilePaths.IsUncShare(rootPath);
+        if (Files.LocalFilePaths.IsDevicePath(rootPath) || HasUncOrDevicePrefix(rootPath) && !unc
+            || (colon >= 0 && (unc || colon != 1 || rootPath.IndexOf(':', colon + 1) >= 0)))
             return VciPathCheck.Reject("workspace_root_unsupported_path_syntax");
-        if (!IsLocalAbsolute(rootPath)) return VciPathCheck.Reject("workspace_root_must_be_absolute");
+        if (!unc && !IsLocalAbsolute(rootPath)) return VciPathCheck.Reject("workspace_root_must_be_absolute");
 
         string candidate;
         try { candidate = Path.GetFullPath(rootPath); }

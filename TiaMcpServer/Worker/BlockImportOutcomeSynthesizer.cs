@@ -18,7 +18,7 @@ internal static class BlockImportOutcomeSynthesizer
                 FinalReadStage = "not_started",
                 TemporarySourceState = normalizedFormatOrNull switch
                 {
-                    SourceFormatNames.Xml => "not_applicable",
+                    SourceFormatNames.Xml or SourceFormatNames.Sd => "not_applicable",
                     SourceFormatNames.Source => "not_created",
                     _ => "unknown"
                 }
@@ -30,7 +30,7 @@ internal static class BlockImportOutcomeSynthesizer
                 TargetMutationCommitted = null,
                 CompileStage = "unavailable",
                 FinalReadStage = "unavailable",
-                TemporarySourceState = normalizedFormatOrNull == SourceFormatNames.Xml
+                TemporarySourceState = normalizedFormatOrNull is SourceFormatNames.Xml or SourceFormatNames.Sd
                     ? "not_applicable"
                     : "unknown"
             };

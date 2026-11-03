@@ -1,7 +1,7 @@
-using ModelContextProtocol.Client;
-using ModelContextProtocol.Protocol;
 using System.Diagnostics;
 using System.Security.Cryptography;
+using ModelContextProtocol.Client;
+using ModelContextProtocol.Protocol;
 using TiaMcpServer.Contracts.Project;
 using TiaMcpServer.Tests.TestSupport;
 using Xunit;
@@ -114,7 +114,7 @@ public sealed class LocalSessionStartupProcessTests
         Directory.CreateDirectory(directory);
         var fakeExe = FakeWorkerLocator.Locate();
         var fakeDirectory = Path.GetDirectoryName(fakeExe)!;
-        var repository = RepositoryFiles.Root;
+        var repository = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
         // Match the test assembly's own configuration (bin/<Configuration>/net10.0); CI builds Release.
         var configuration = Path.GetFileName(Path.GetDirectoryName(
             Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory)))!;
@@ -127,7 +127,11 @@ public sealed class LocalSessionStartupProcessTests
 
         foreach (var source in Directory.GetFiles(hostDirectory))
         {
-            Assert.False(Path.GetFileName(source).StartsWith("Siemens.", StringComparison.OrdinalIgnoreCase));
+            // The only Siemens assembly the host may carry is the MIT Web API client (plc_online_*),
+            // the same exception scripts/verify-doctor-package.ps1 allows in the package.
+            Assert.False(Path.GetFileName(source).StartsWith("Siemens.", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(Path.GetFileName(source), "Siemens.Simatic.S7.Webserver.API.dll", StringComparison.Ordinal),
+                "Unexpected Siemens file in the host output: " + Path.GetFileName(source));
             File.Copy(source, Path.Combine(directory, Path.GetFileName(source)));
         }
         // The host dependency manifest resolves Windows-specific logging assemblies

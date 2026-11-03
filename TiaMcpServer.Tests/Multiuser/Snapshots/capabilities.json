@@ -57,6 +57,26 @@
       "applicability": "projectContent"
     },
     {
+      "operation": "list_watch_and_force_tables",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "read_watch_table",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "read_force_table",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "get_watch_table_content",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "get_force_table_content",
+      "applicability": "projectContent"
+    },
+    {
       "operation": "plc_write",
       "applicability": "projectContent"
     },
@@ -110,6 +130,126 @@
     },
     {
       "operation": "hmi_delete_alarm",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_create_screen",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_delete_screen",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_rename_screens",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_create_screen_item",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_delete_screen_item",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_set_screen_item_property",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_set_dynamization_tag",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_replace_in_scripts",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_rename_tags",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_export_text_lists",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_import_text_lists",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_export_classic_objects",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_import_classic_objects",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_delete_classic_object",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_create_classic_folder",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_delete_classic_folder",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_set_event_script",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_delete_event_script",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_set_dynamization_script",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_set_dynamization_flashing",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_delete_dynamization",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_create_audit_class",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_delete_audit_class",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_set_audit_class_property",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_set_runtime_setting",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_create_plant_view",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_delete_plant_view",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_create_plant_view_node",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_delete_plant_view_node",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_set_plant_object_interface_property",
       "applicability": "projectContent"
     },
     {
@@ -189,6 +329,38 @@
       "applicability": "projectContent"
     },
     {
+      "operation": "create_io_system",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "create_watch_table",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "delete_watch_table",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "create_watch_table_group",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "delete_watch_table_group",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "update_watch_table_content",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "update_force_table_content",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "update_program",
+      "applicability": "projectContent"
+    },
+    {
       "operation": "create_project",
       "applicability": "standaloneOnly"
     },
@@ -205,11 +377,87 @@
       "applicability": "standaloneOnly"
     },
     {
+      "operation": "retrieve_project",
+      "applicability": "standaloneOnly"
+    },
+    {
       "operation": "vci_read",
       "applicability": "standaloneOnly"
     },
     {
       "operation": "vci_write",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "plc_download",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "list_download_targets",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "compare_to_online",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "compare_software",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "get_online_state",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "list_station_upload_interfaces",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "plc_tia_online",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "plc_station_upload",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "compare_hardware",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "compare_hardware_to_online",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "library_read",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "library_write",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "scan_accessible_devices",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "export_alarm_classes",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "import_alarm_classes",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "export_system_diagnostics_settings",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "import_system_diagnostics_settings",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "set_project_compilation_settings",
       "applicability": "standaloneOnly"
     }
   ],
@@ -271,6 +519,26 @@
       "applicability": "projectContent"
     },
     {
+      "operation": "list_watch_and_force_tables",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "read_watch_table",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "read_force_table",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "get_watch_table_content",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "get_force_table_content",
+      "applicability": "projectContent"
+    },
+    {
       "operation": "plc_write",
       "applicability": "projectContent"
     },
@@ -324,6 +592,126 @@
     },
     {
       "operation": "hmi_delete_alarm",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_create_screen",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_delete_screen",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_rename_screens",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_create_screen_item",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_delete_screen_item",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_set_screen_item_property",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_set_dynamization_tag",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_replace_in_scripts",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_rename_tags",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_export_text_lists",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_import_text_lists",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_export_classic_objects",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_import_classic_objects",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_delete_classic_object",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_create_classic_folder",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_delete_classic_folder",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_set_event_script",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_delete_event_script",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_set_dynamization_script",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_set_dynamization_flashing",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_delete_dynamization",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_create_audit_class",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_delete_audit_class",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_set_audit_class_property",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_set_runtime_setting",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_create_plant_view",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_delete_plant_view",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_create_plant_view_node",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_delete_plant_view_node",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_set_plant_object_interface_property",
       "applicability": "projectContent"
     },
     {
@@ -403,6 +791,38 @@
       "applicability": "projectContent"
     },
     {
+      "operation": "create_io_system",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "create_watch_table",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "delete_watch_table",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "create_watch_table_group",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "delete_watch_table_group",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "update_watch_table_content",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "update_force_table_content",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "update_program",
+      "applicability": "projectContent"
+    },
+    {
       "operation": "create_project",
       "applicability": "standaloneOnly"
     },
@@ -419,11 +839,87 @@
       "applicability": "standaloneOnly"
     },
     {
+      "operation": "retrieve_project",
+      "applicability": "standaloneOnly"
+    },
+    {
       "operation": "vci_read",
       "applicability": "standaloneOnly"
     },
     {
       "operation": "vci_write",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "plc_download",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "list_download_targets",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "compare_to_online",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "compare_software",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "get_online_state",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "list_station_upload_interfaces",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "plc_tia_online",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "plc_station_upload",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "compare_hardware",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "compare_hardware_to_online",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "library_read",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "library_write",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "scan_accessible_devices",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "export_alarm_classes",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "import_alarm_classes",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "export_system_diagnostics_settings",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "import_system_diagnostics_settings",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "set_project_compilation_settings",
       "applicability": "standaloneOnly"
     }
   ],
@@ -485,6 +981,26 @@
       "applicability": "notYetDelivered"
     },
     {
+      "operation": "list_watch_and_force_tables",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "read_watch_table",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "read_force_table",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "get_watch_table_content",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "get_force_table_content",
+      "applicability": "notYetDelivered"
+    },
+    {
       "operation": "plc_write",
       "applicability": "notYetDelivered"
     },
@@ -538,6 +1054,126 @@
     },
     {
       "operation": "hmi_delete_alarm",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_create_screen",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_delete_screen",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_rename_screens",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_create_screen_item",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_delete_screen_item",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_set_screen_item_property",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_set_dynamization_tag",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_replace_in_scripts",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_rename_tags",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_export_text_lists",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_import_text_lists",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_export_classic_objects",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_import_classic_objects",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_delete_classic_object",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_create_classic_folder",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_delete_classic_folder",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_set_event_script",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_delete_event_script",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_set_dynamization_script",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_set_dynamization_flashing",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_delete_dynamization",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_create_audit_class",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_delete_audit_class",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_set_audit_class_property",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_set_runtime_setting",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_create_plant_view",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_delete_plant_view",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_create_plant_view_node",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_delete_plant_view_node",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_set_plant_object_interface_property",
       "applicability": "notYetDelivered"
     },
     {
@@ -617,6 +1253,38 @@
       "applicability": "notYetDelivered"
     },
     {
+      "operation": "create_io_system",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "create_watch_table",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "delete_watch_table",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "create_watch_table_group",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "delete_watch_table_group",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "update_watch_table_content",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "update_force_table_content",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "update_program",
+      "applicability": "notYetDelivered"
+    },
+    {
       "operation": "create_project",
       "applicability": "standaloneOnly"
     },
@@ -633,11 +1301,87 @@
       "applicability": "standaloneOnly"
     },
     {
+      "operation": "retrieve_project",
+      "applicability": "standaloneOnly"
+    },
+    {
       "operation": "vci_read",
       "applicability": "standaloneOnly"
     },
     {
       "operation": "vci_write",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "plc_download",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "list_download_targets",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "compare_to_online",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "compare_software",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "get_online_state",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "list_station_upload_interfaces",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "plc_tia_online",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "plc_station_upload",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "compare_hardware",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "compare_hardware_to_online",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "library_read",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "library_write",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "scan_accessible_devices",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "export_alarm_classes",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "import_alarm_classes",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "export_system_diagnostics_settings",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "import_system_diagnostics_settings",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "set_project_compilation_settings",
       "applicability": "standaloneOnly"
     }
   ]

@@ -18,6 +18,7 @@ namespace Siemens.Engineering.SW.Blocks
     }
     public abstract class DataBlock : global::Siemens.Engineering.SW.Blocks.PlcBlock, global::Siemens.Engineering.IEngineeringObject, global::Siemens.Engineering.IEngineeringInstance
     {
+        public global::Siemens.Engineering.SW.Blocks.Interface.PlcBlockInterface Interface { get => throw new global::System.NotSupportedException(); }
         object global::Siemens.Engineering.IEngineeringObject.GetAttribute(string name) => throw new global::System.NotSupportedException();
         void global::Siemens.Engineering.IEngineeringObject.SetAttribute(string name, object value) => throw new global::System.NotSupportedException();
         global::System.Collections.Generic.IList<global::Siemens.Engineering.EngineeringAttributeInfo> global::Siemens.Engineering.IEngineeringObject.GetAttributeInfos() => throw new global::System.NotSupportedException();
@@ -25,6 +26,7 @@ namespace Siemens.Engineering.SW.Blocks
     }
     public abstract class FB : global::Siemens.Engineering.SW.Blocks.CodeBlock, global::Siemens.Engineering.IEngineeringObject, global::Siemens.Engineering.IEngineeringInstance
     {
+        public global::Siemens.Engineering.SW.Blocks.SupervisionComposition Supervisions { get => throw new global::System.NotSupportedException(); }
         object global::Siemens.Engineering.IEngineeringObject.GetAttribute(string name) => throw new global::System.NotSupportedException();
         void global::Siemens.Engineering.IEngineeringObject.SetAttribute(string name, object value) => throw new global::System.NotSupportedException();
         global::System.Collections.Generic.IList<global::Siemens.Engineering.EngineeringAttributeInfo> global::Siemens.Engineering.IEngineeringObject.GetAttributeInfos() => throw new global::System.NotSupportedException();
@@ -64,6 +66,7 @@ namespace Siemens.Engineering.SW.Blocks
         public string HeaderFamily { get => throw new global::System.NotSupportedException(); }
         public string HeaderName { get => throw new global::System.NotSupportedException(); }
         public global::System.Version HeaderVersion { get => throw new global::System.NotSupportedException(); }
+        public bool IsKnowHowProtected { get => throw new global::System.NotSupportedException(); }
         public string Name { get => throw new global::System.NotSupportedException(); }
         public int Number { get => throw new global::System.NotSupportedException(); }
         public global::Siemens.Engineering.SW.Blocks.ProgrammingLanguage ProgrammingLanguage { get => throw new global::System.NotSupportedException(); }
@@ -80,6 +83,7 @@ namespace Siemens.Engineering.SW.Blocks
     {
         public global::System.Collections.Generic.IList<global::Siemens.Engineering.SW.Blocks.PlcBlock> Import(global::System.IO.FileInfo path, global::Siemens.Engineering.ImportOptions importOptions) => throw new global::System.NotSupportedException();
         public global::Siemens.Engineering.SW.DocumentImportResultForBlocks ImportFromDocuments(global::System.IO.DirectoryInfo directoryInfo, string fileNameWithoutExtension, global::Siemens.Engineering.SW.ImportDocumentOptions importDocumentOptions) => throw new global::System.NotSupportedException();
+        public global::Siemens.Engineering.SW.Blocks.InstanceDB CreateInstanceDB(string name, bool isAutoNumber, int number, string instanceOfName) => throw new global::System.NotSupportedException();
         public global::Siemens.Engineering.SW.Blocks.PlcBlock Find(string name) => throw new global::System.NotSupportedException();
         public global::System.Collections.Generic.IEnumerator<global::Siemens.Engineering.SW.Blocks.PlcBlock> GetEnumerator() => throw new global::System.NotSupportedException();
         global::Siemens.Engineering.IEngineeringObject global::Siemens.Engineering.IEngineeringComposition.Create(global::System.Type type, global::System.Collections.Generic.IEnumerable<global::System.Collections.Generic.KeyValuePair<string, object>> parameters) => throw new global::System.NotSupportedException();
@@ -141,5 +145,44 @@ namespace Siemens.Engineering.SW.Blocks
     }
     public enum ProgrammingLanguage : int
     {
+    }
+    public abstract class Supervision
+    {
+    }
+    public abstract class SupervisionComposition : global::Siemens.Engineering.IEngineeringInstance, global::System.Collections.Generic.IEnumerable<global::Siemens.Engineering.SW.Blocks.Supervision>
+    {
+        public int Count { get => throw new global::System.NotSupportedException(); }
+        global::Siemens.Engineering.IEngineeringObject global::Siemens.Engineering.IEngineeringInstance.Parent => throw new global::System.NotSupportedException();
+        public global::System.Collections.Generic.IEnumerator<global::Siemens.Engineering.SW.Blocks.Supervision> GetEnumerator() => throw new global::System.NotSupportedException();
+        global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator() => throw new global::System.NotSupportedException();
+    }
+}
+
+namespace Siemens.Engineering.SW.Blocks.Interface
+{
+    public abstract class Member : global::Siemens.Engineering.IEngineeringObject, global::Siemens.Engineering.IEngineeringInstance
+    {
+        public string Name { get => throw new global::System.NotSupportedException(); }
+        object global::Siemens.Engineering.IEngineeringObject.GetAttribute(string name) => throw new global::System.NotSupportedException();
+        void global::Siemens.Engineering.IEngineeringObject.SetAttribute(string name, object value) => throw new global::System.NotSupportedException();
+        global::System.Collections.Generic.IList<global::Siemens.Engineering.EngineeringAttributeInfo> global::Siemens.Engineering.IEngineeringObject.GetAttributeInfos() => throw new global::System.NotSupportedException();
+        global::Siemens.Engineering.IEngineeringObject global::Siemens.Engineering.IEngineeringInstance.Parent => throw new global::System.NotSupportedException();
+    }
+    public abstract class MemberComposition : global::Siemens.Engineering.IEngineeringComposition, global::Siemens.Engineering.IEngineeringInstance, global::System.Collections.Generic.IEnumerable<global::Siemens.Engineering.SW.Blocks.Interface.Member>
+    {
+        public global::Siemens.Engineering.SW.Blocks.Interface.Member Find(string name) => throw new global::System.NotSupportedException();
+        public global::System.Collections.Generic.IEnumerator<global::Siemens.Engineering.SW.Blocks.Interface.Member> GetEnumerator() => throw new global::System.NotSupportedException();
+        global::Siemens.Engineering.IEngineeringObject global::Siemens.Engineering.IEngineeringComposition.Create(global::System.Type type, global::System.Collections.Generic.IEnumerable<global::System.Collections.Generic.KeyValuePair<string, object>> parameters) => throw new global::System.NotSupportedException();
+        global::Siemens.Engineering.IEngineeringObject global::Siemens.Engineering.IEngineeringInstance.Parent => throw new global::System.NotSupportedException();
+        global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator() => throw new global::System.NotSupportedException();
+    }
+    public abstract class PlcBlockInterface : global::Siemens.Engineering.IEngineeringObject, global::Siemens.Engineering.IEngineeringInstance, global::Siemens.Engineering.IEngineeringServiceProvider
+    {
+        public global::Siemens.Engineering.SW.Blocks.Interface.MemberComposition Members { get => throw new global::System.NotSupportedException(); }
+        object global::Siemens.Engineering.IEngineeringObject.GetAttribute(string name) => throw new global::System.NotSupportedException();
+        void global::Siemens.Engineering.IEngineeringObject.SetAttribute(string name, object value) => throw new global::System.NotSupportedException();
+        global::System.Collections.Generic.IList<global::Siemens.Engineering.EngineeringAttributeInfo> global::Siemens.Engineering.IEngineeringObject.GetAttributeInfos() => throw new global::System.NotSupportedException();
+        global::Siemens.Engineering.IEngineeringObject global::Siemens.Engineering.IEngineeringInstance.Parent => throw new global::System.NotSupportedException();
+        T global::Siemens.Engineering.IEngineeringServiceProvider.GetService<T>() => throw new global::System.NotSupportedException();
     }
 }

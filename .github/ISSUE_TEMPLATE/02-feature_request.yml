@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Check the [roadmap](https://github.com/Czarnak/tia-portal-mcp/blob/main/ROADMAP.md) and the open issues first. For an idea that is still open-ended, [Discussions](https://github.com/Czarnak/tia-portal-mcp/discussions) is a better place to start.
+        Check the [roadmap](https://github.com/Birger90/tia-portal-mcp-server/blob/main/ROADMAP.md) and the open issues first.
 
   - type: checkboxes
     id: preflight

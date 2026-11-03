@@ -1,18 +1,28 @@
 namespace TiaMcpServer.Tests.TestSupport;
 
 /// <summary>
-/// Locates the built FakeWorker in the running test assembly's configuration.
+/// Locates the built TiaMcpServer.FakeWorker.exe by walking up from the test assembly's output
+/// directory. Shared by every test that drives OpennessWorkerClient against the fake worker.
 /// </summary>
 internal static class FakeWorkerLocator
 {
     public static string Locate()
     {
-        var configuration = new DirectoryInfo(AppContext.BaseDirectory).Parent!.Name;
-        var candidate = RepositoryFiles.Path(
-            "TiaMcpServer.FakeWorker", "bin", configuration, "net10.0",
-            "TiaMcpServer.FakeWorker.exe");
-        if (File.Exists(candidate))
-            return candidate;
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        var configuration = directory.Parent!.Name;
+        while (directory is not null)
+        {
+            var candidate = Path.Combine(
+                directory.FullName,
+                "TiaMcpServer.FakeWorker", "bin", configuration, "net10.0",
+                "TiaMcpServer.FakeWorker.exe");
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+
+            directory = directory.Parent!;
+        }
 
         throw new FileNotFoundException("TiaMcpServer.FakeWorker.exe not found; build the solution first.");
     }

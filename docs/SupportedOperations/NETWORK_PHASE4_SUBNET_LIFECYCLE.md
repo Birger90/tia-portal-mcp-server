@@ -1,5 +1,7 @@
 # Network Operations Phase 4: Subnet Lifecycle
 
+**Language:** English · [Deutsch](NETWORK_PHASE4_SUBNET_LIFECYCLE.de.md)
+
 Current `network_write` contract: **2.0**, offline qualified with scoped installed-candidate
 TIA Portal V21 acceptance. The [2026-10-29 report](../superpowers/acceptance/reports/2026-10-29-network-write-native-rejections-live-verification.md)
 records all 17 expected outcomes, timing and restoration. Dated Phase 4 runs below retain their
@@ -25,7 +27,7 @@ network operations and the current guarded canonical contract. Historical Phase4
 ## Supported operations
 
 Phase 4 adds exactly three write operations to the existing `network_write` tool. No new MCP tool
-was added. The current surface is 8 tools in read-only and 19 in each writable mode. `network_write` is available in read-write and full.
+was added. The current surface is 11 tools in read-only and 29 in each writable mode. `network_write` is available in read-write and full.
 
 | Operation | Purpose | Required request fields |
 |---|---|---|
@@ -144,7 +146,7 @@ add, and does not claim to add:
 
 - **is supported with complete consequence evidence** -- affected nodes/relationships are inventoried
   in the initial planning snapshot. A node connected earlier in the same call is not added to that list.
-  Connected deletion is informational; incomplete inventory blocks every mode and is never empty evidence;
+  Connected deletion is informational; incomplete inventory is never empty evidence and informs (`network_state_unverifiable`, info since 2026-11-01; TIA Portal decides);
 - **does not delete devices** -- the worker's `SubnetLifecycleService.Delete` calls only
   `Subnet.Delete()`. Contract 2.0 has no device-count assertion or preservation read-back;
 - **may clear network-related device attributes as a logical TIA effect** -- removing a subnet's

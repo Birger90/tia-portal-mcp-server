@@ -60,9 +60,13 @@ public sealed record PlcOperationVerification(string OperationId, bool Success, 
 public sealed record PlcWriteVerification(bool Success, IReadOnlyList<PlcOperationVerification> Operations,
     StructuredOperationOmission? Omission)
 {
-    /// <summary>ContentHash = Actual for "contentHash" entries, null otherwise.</summary>
-    public static PlcWriteVerification From(WriteVerification shared)
+    /// <summary>
+    /// ContentHash = Actual for "contentHash" entries; the granular block checks (interfaceMember,
+    /// block) report the hash of their re-read in <paramref name="contentHashes"/>; null otherwise.
+    /// </summary>
+    public static PlcWriteVerification From(WriteVerification shared, IReadOnlyDictionary<string, string>? contentHashes = null)
         => new(shared.Success, shared.Operations.Select(o => new PlcOperationVerification(
             o.OperationId, o.Success, o.Check, o.Expected, o.Actual,
-            o.Check == "contentHash" ? o.Actual : null, o.Message)).ToArray(), shared.Omission);
+            o.Check == "contentHash" ? o.Actual
+                : o.Check is "superseded" or "trusted" ? null : contentHashes?.GetValueOrDefault(o.OperationId), o.Message)).ToArray(), shared.Omission);
 }

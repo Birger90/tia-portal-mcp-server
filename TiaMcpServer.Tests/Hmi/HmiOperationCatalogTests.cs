@@ -34,13 +34,14 @@ public class HmiOperationCatalogTests
     {
         var methods = HmiOperationCatalog.OperationNames.Select(HmiOperationCatalog.WorkerMethod);
         Assert.True(methods.ToHashSet(StringComparer.Ordinal).SetEquals(HmiReadMethods.All));
-        Assert.Equal(20, HmiReadMethods.All.Count);
+        // The 20 Unified reads, list_classic_objects (issue #28) and the two Unified scripting reads (issue #29).
+        Assert.Equal(24, HmiReadMethods.All.Count);
     }
 
     [Fact]
     public void SharedReadAndWriteLists_AreDisjoint()
     {
-        Assert.Equal(29, HmiReadMethods.All.Concat(HmiWriteMethods.All).Distinct(StringComparer.Ordinal).Count());
+        Assert.Equal(63, HmiReadMethods.All.Concat(HmiWriteMethods.All).Distinct(StringComparer.Ordinal).Count());
     }
 
     // Wire field name -> setter. The same names the catalog and the tool schema use.
@@ -59,6 +60,9 @@ public class HmiOperationCatalogTests
         ["screenName"] = r => r.ScreenName = "Screen",
         ["category"] = r => r.Category = "tags",
         ["name"] = r => r.Name = "Obj",
+        ["classicKind"] = r => r.ClassicKind = "tags",
+        ["itemName"] = r => r.ItemName = "Button_1",
+        ["plantViewName"] = r => r.PlantViewName = "Plant",
     };
 
     // Spec §2.3: operation -> (required, optional).
@@ -84,6 +88,10 @@ public class HmiOperationCatalogTests
         ["list_text_and_graphic_lists"] = (new string[0], new[] { "hmiName" }),
         ["list_project_languages"] = (new string[0], new string[0]),
         ["validate"] = (new[] { "category" }, new[] { "hmiName", "name", "offset", "limit" }),
+        ["list_classic_objects"] = (new[] { "classicKind" }, new[] { "hmiName", "groupPath", "tableName" }),
+        ["list_screen_item_events"] = (new[] { "screenName" }, new[] { "hmiName", "itemName" }),
+        ["list_screen_item_dynamizations"] = (new[] { "screenName" }, new[] { "hmiName", "itemName" }),
+        ["list_plant_views"] = (new string[0], new[] { "hmiName", "plantViewName" }),
     };
 
     private static HmiOperationRequest Build(string operation, IEnumerable<string> fields)

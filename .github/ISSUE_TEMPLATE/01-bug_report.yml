@@ -9,7 +9,7 @@ body:
 
         **Keep project data out of this issue.** Tool requests, responses, `doctor` output, and audit records can contain block logic, tag names, IP addresses, and project paths. Reproduce on a disposable project where you can, and redact anything confidential before pasting.
 
-        **Security vulnerabilities do not belong here.** Report them privately as described in [SECURITY.md](https://github.com/Czarnak/tia-portal-mcp/blob/main/SECURITY.md).
+        **Security vulnerabilities do not belong here.** Report them privately as described in [SECURITY.md](https://github.com/Birger90/tia-portal-mcp-server/blob/main/SECURITY.md).
 
   - type: checkboxes
     id: preflight
@@ -18,7 +18,7 @@ body:
       options:
         - label: I searched the existing issues and this is not a duplicate.
           required: true
-        - label: I checked the [troubleshooting guide](https://github.com/Czarnak/tia-portal-mcp/blob/main/docs/guides/troubleshooting.md).
+        - label: I checked the [troubleshooting guide](https://github.com/Birger90/tia-portal-mcp-server/blob/main/docs/guides/troubleshooting.md).
           required: true
         - label: I ran `tia-mcp doctor` and either it reports no failures or I included its output below.
           required: true

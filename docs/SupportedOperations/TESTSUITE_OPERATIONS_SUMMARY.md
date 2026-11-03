@@ -1,5 +1,7 @@
 # TIA Portal TestSuite Operations
 
+**Language:** English · [Deutsch](TESTSUITE_OPERATIONS_SUMMARY.de.md)
+
 ## Support status
 
 The current MCP contract does not include TestSuite-specific operations.

@@ -25,6 +25,56 @@ public static class CompileChecker
         return report;
     }
 
+    /// <summary>
+    /// compile_check with its <c>scope</c> (<see cref="CompileScopes"/>): <c>software</c> (or null) is <see cref="Compile(ProjectBase, string?, string?)"/>;
+    /// <c>hardware</c> compiles, for every PLC (or the PLCs <paramref name="plcName"/> names), the hardware configuration
+    /// through the <c>ICompilable</c> service of the CPU device item that hosts its software.
+    /// </summary>
+    public static CompileCheckReport Compile(ProjectBase project, string? plcName, string? blockPath, string? scope)
+    {
+        if (CompileScopes.Error(scope, blockPath) is { } error)
+            throw new WorkerOperationException(WorkerFailureCategories.ValidationError, error);
+        if (scope != CompileScopes.Hardware) return Compile(project, plcName, blockPath);
+        var report = CompilePlcHardware(project, plcName);
+        CompileReportProjection.BoundSerializedReport(report);
+        return report;
+    }
+
+    private static CompileCheckReport CompilePlcHardware(ProjectBase project, string? plcName)
+    {
+        var report = new CompileCheckReport { Scope = CompileScopes.HardwareReportScope, OverallState = "Success" };
+        var budget = new CompileReportProjection.Budget();
+        var discoveryFailures = new List<string>();
+        var plcs = PlcSoftwareLocator.FindEveryPlc(project, plcName, discoveryFailures).ToList();
+        if (discoveryFailures.Count > 0)
+            throw new WorkerOperationException(WorkerFailureCategories.WorkerOperationFailed, discoveryFailures[0] + " Nothing was compiled.");
+        if (plcs.Count == 0)
+            throw new WorkerOperationException(WorkerFailureCategories.TargetNotFound,
+                $"No PLC software{(plcName is null ? string.Empty : $" named '{plcName}'")} was found in the project.");
+
+        foreach (var plc in plcs)
+        {
+            if (plc.HostDeviceItem is null)
+            {
+                var unknown = BuildPlcCompileInfo(plc, null, budget, out _);
+                unknown.DiagnosticNotes.Add("The CPU device item hosting this PLC software is unknown; its hardware was not compiled.");
+                report.Plcs.Add(unknown);
+                continue;
+            }
+
+            report.Plcs.Add(CompileTarget(plc, plc.HostDeviceItem, budget, out _, out _));
+        }
+
+        foreach (var plc in report.Plcs)
+        {
+            report.TotalErrorCount += plc.ErrorCount;
+            report.TotalWarningCount += plc.WarningCount;
+            report.OverallState = WorstState(report.OverallState, plc.State);
+        }
+
+        return report;
+    }
+
     internal static CompileObservationInput CompileObserved(
         ProjectBase project,
         string? plcName,

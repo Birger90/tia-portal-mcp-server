@@ -53,6 +53,14 @@ internal sealed class GuardedWriteResponseBudget(string retryTool, string guidan
             || batch?.Operations.Any(i => i.Omission is not null) == true || verification is not null
             || operationChecks?.Any(o => o is not null) == true;
 
+    /// <summary>
+    /// The root omission when it hides a value; null when it only replaced diagnostic text
+    /// (<see cref="StructuredOperationBatchPayloadBudget.DiagnosticOmissionReason"/>). Domains that let a diagnostic
+    /// omission keep a succeeded call succeeded pass the root through this before <see cref="HasOmission"/>.
+    /// </summary>
+    internal static StructuredOperationOmission? ValueOmission(StructuredOperationOmission? root)
+        => root is { Reason: StructuredOperationBatchPayloadBudget.DiagnosticOmissionReason } ? null : root;
+
     internal static bool OversizedBatchOrDiagnostics(WriteToolError? error, IReadOnlyList<string> warnings,
         IReadOnlyList<WriteGuardReport> guards, StructuredOperationBatch? batch, int limit)
         => error is not null && Size(error.Message) > limit || Size(warnings) > limit

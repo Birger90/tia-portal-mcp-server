@@ -16,7 +16,7 @@
       "contractVersion": "1.0",
       "error": {
         "category": "validation_error",
-        "message": "Unknown operation 'unknown' for operationId 'bad'. Valid read operations: get_block_content, get_type_content, list_tag_tables."
+        "message": "Unknown operation 'unknown' for operationId 'bad'. Valid read operations: get_block_content, get_type_content, list_tag_tables, list_download_targets, read_address_occupancy, find_free_address, compare_to_online, compare_software, compare_hardware, compare_hardware_to_online, get_online_state, list_station_upload_interfaces, list_watch_and_force_tables, read_watch_table, read_force_table, get_watch_table_content, get_force_table_content, get_block_interface, get_type_interface, get_db_values, get_call_tree, find_call_paths, find_unused_blocks, find_orphaned_instance_dbs, analyze_change_impact, list_text_lists, read_text_list_workbook, read_alarm_text_workbook, read_supervision_workbook, get_prodiag_fb, get_prodiag_assignment, list_technology_objects, get_technology_object_parameters, get_technology_object_hardware_connection, get_technology_object_content, get_plc_security, list_external_sources, read_tag_comments, scan_accessible_devices, find_objects, get_db_snapshot, list_networks, get_plc_checksums, get_fingerprints, get_opcua_configuration, get_cpu_settings, get_umac, get_cpu_certificates, get_safety_validation, check_activation_test, get_block_protection, get_project_languages, get_safety_administration, list_safety_blocks."
       },
       "success": false,
       "tool": "plc_read",
@@ -143,7 +143,7 @@
       "contractVersion": "1.0",
       "error": {
         "category": "validation_error",
-        "message": "Unknown operation 'unknown' for operationId 'bad'. Valid read operations: read_hardware_config, search_equipment_catalog, list_network_objects, inspect_network_object."
+        "message": "Unknown operation 'unknown' for operationId 'bad'. Valid read operations: read_hardware_config, search_equipment_catalog, list_network_objects, inspect_network_object, list_plug_locations, find_module_types, find_container_types, list_io_addresses, get_custom_identity, list_port_connections, list_transfer_areas."
       },
       "success": false,
       "tool": "network_read",
@@ -1121,7 +1121,7 @@
       "contractVersion": "1.1",
       "error": {
         "category": "validation_error",
-        "message": "Unknown operation 'unknown' for operationId 'bad'. Valid operations: list_hmi_devices, list_tag_tables, list_tags, get_tag, list_system_tags, list_connections, list_alarms, get_alarm, list_alarm_classes, list_logs, list_logging_tags, list_screens, list_screen_items, list_faceplate_instances, get_screen_navigation, get_runtime_settings, list_script_modules, list_text_and_graphic_lists, list_project_languages, validate."
+        "message": "Unknown operation 'unknown' for operationId 'bad'. Valid operations: list_hmi_devices, list_tag_tables, list_tags, get_tag, list_system_tags, list_connections, list_alarms, get_alarm, list_alarm_classes, list_logs, list_logging_tags, list_screens, list_screen_items, list_faceplate_instances, get_screen_navigation, get_runtime_settings, list_script_modules, list_text_and_graphic_lists, list_project_languages, validate, list_classic_objects, list_screen_item_events, list_screen_item_dynamizations, list_plant_views."
       },
       "success": false,
       "tool": "hmi_read",

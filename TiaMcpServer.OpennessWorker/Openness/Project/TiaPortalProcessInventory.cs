@@ -18,8 +18,27 @@ internal static class TiaPortalProcessInventory
 {
     public static IReadOnlyList<PortalInventoryEntry> Read()
         => TiaPortal.GetProcesses().Select(process => new PortalInventoryEntry(process,
-            new TiaPortalProcessCandidate(process.Id, TryReadAdvertisedProjectPath(process), TryReadHasUserInterface(process))))
+            new TiaPortalProcessCandidate(process.Id, TryReadAdvertisedProjectPath(process), TryReadHasUserInterface(process),
+                TryReadOtherClientCount(process))))
             .ToList();
+
+    /// <summary>
+    /// Attached Openness sessions other than this worker's, read like the open project and the mode without
+    /// <c>Attach()</c> (no Openness access prompt; the process handle is never disposed). Null when unreadable.
+    /// </summary>
+    private static int? TryReadOtherClientCount(TiaPortalProcess process)
+    {
+        try
+        {
+            var workerProcessId = System.Diagnostics.Process.GetCurrentProcess().Id;
+            return process.AttachedSessions.Count(session => session.ProcessId != workerProcessId);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Could not read the attached clients of TIA Portal PID {process.Id}: {ex.Message}");
+            return null;
+        }
+    }
 
     private static string? TryReadAdvertisedProjectPath(TiaPortalProcess process)
     {

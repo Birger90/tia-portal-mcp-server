@@ -55,7 +55,7 @@ public class CompileCheckerTests
     [Fact]
     public void Compile_ProjectsNestedMessagesInParentFirstOrder()
     {
-        // Catches the production mapper dropping descendants beneath a blank compiler header.
+        // Catches the production mapper dropping descendants beneath a blank compiler header (which itself is not emitted).
         var result = new CompilerResult
         {
             State = CompilerResultState.Error,
@@ -99,13 +99,8 @@ public class CompileCheckerTests
         Assert.Equal(7, report.TotalErrorCount);
         Assert.Equal(3, report.TotalWarningCount);
         Assert.Equal("Error", report.OverallState);
+        // The blank header is a container, not a message (K04); its descendants keep their qualified paths.
         Assert.Collection(plc.Messages,
-            header =>
-            {
-                Assert.Equal("", header.Description);
-                Assert.Equal("PLC_DP/Blocks", header.Path);
-                Assert.Equal("Information", header.Severity);
-            },
             error =>
             {
                 Assert.Equal("Undefined tag 'MissingTag'.", error.Description);

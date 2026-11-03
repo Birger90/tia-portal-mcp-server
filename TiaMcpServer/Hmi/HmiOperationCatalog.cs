@@ -45,6 +45,12 @@ public static class HmiOperationCatalog
         ["list_text_and_graphic_lists"] = Op(NoFields, new[] { "hmiName" }),
         ["list_project_languages"] = Op(NoFields, NoFields),
         ["validate"] = Op(new[] { "category" }, new[] { "hmiName", "name" }, paged: true),
+        // Classic WinCC (issue #28).
+        ["list_classic_objects"] = Op(new[] { "classicKind" }, new[] { "hmiName", "groupPath", "tableName" }),
+        // WinCC Unified events and dynamizations (issue #29).
+        ["list_screen_item_events"] = Op(new[] { "screenName" }, new[] { "hmiName", "itemName" }),
+        ["list_screen_item_dynamizations"] = Op(new[] { "screenName" }, new[] { "hmiName", "itemName" }),
+        ["list_plant_views"] = Op(NoFields, new[] { "hmiName", "plantViewName" }),
     };
 
     private static readonly string[] PagingFields = { "offset", "limit", "cursor" };
@@ -81,6 +87,9 @@ public static class HmiOperationCatalog
         ("screenName", op => op.ScreenName is not null),
         ("category", op => op.Category is not null),
         ("name", op => op.Name is not null),
+        ("classicKind", op => op.ClassicKind is not null),
+        ("itemName", op => op.ItemName is not null),
+        ("plantViewName", op => op.PlantViewName is not null),
     };
 
     private static readonly (string Name, Func<HmiOperationRequest, string?> Get)[] RequiredStringFields =
@@ -90,6 +99,7 @@ public static class HmiOperationCatalog
         ("alarmKind", op => op.AlarmKind),
         ("screenName", op => op.ScreenName),
         ("category", op => op.Category),
+        ("classicKind", op => op.ClassicKind),
     };
 
     private static readonly (string Name, Func<HmiOperationRequest, string?> Get)[] NonblankStringFields =
@@ -101,6 +111,8 @@ public static class HmiOperationCatalog
         ("alarmName", op => op.AlarmName),
         ("screenName", op => op.ScreenName),
         ("name", op => op.Name),
+        ("itemName", op => op.ItemName),
+        ("plantViewName", op => op.PlantViewName),
     };
 
     public static IReadOnlyList<string> OperationNames { get; } = Specs.Keys.ToArray();
@@ -132,6 +144,9 @@ public static class HmiOperationCatalog
             ScreenName = operation.ScreenName,
             Category = operation.Category,
             Name = operation.Name,
+            ClassicKind = operation.ClassicKind,
+            ItemName = operation.ItemName,
+            PlantViewName = operation.PlantViewName,
         };
     }
 
@@ -269,6 +284,19 @@ public static class HmiOperationCatalog
         if (operation.Category is { } named && NameRequiredCategories.Contains(named) && string.IsNullOrWhiteSpace(operation.Name))
         {
             errors.Add($"{prefix}: 'name' is required for category {named}.");
+        }
+
+        if (operation.ClassicKind is not null && HmiClassicKinds.Find(operation.ClassicKind) is null)
+        {
+            errors.Add($"{prefix}: 'classicKind' must be one of: {string.Join(", ", HmiClassicKinds.Names)}.");
+        }
+        else if (operation.ClassicKind is not null && operation.TableName is not null && operation.ClassicKind != HmiClassicKinds.Tags)
+        {
+            errors.Add($"{prefix}: 'tableName' is only valid with classicKind tags.");
+        }
+        else if (HmiClassicKinds.Find(operation.ClassicKind) is { } classic && operation.GroupPath is not null && !classic.HasUserFolders && !classic.NeedsTable)
+        {
+            errors.Add($"{prefix}: 'groupPath' is not valid for classicKind {classic.Name}, which has no user folders.");
         }
 
         if (operation.GroupPath is not null && operation.GroupPath.Split('/').Any(string.IsNullOrWhiteSpace))

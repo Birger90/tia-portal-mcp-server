@@ -16,6 +16,18 @@ public class PlcReadToolsTests
 {
     private const string Scenario = "plc-read-roundtrip";
 
+    private static async Task<OpennessWorkerClient> CreateClientAsync(McpAccessMode mode = McpAccessMode.ReadOnly)
+    {
+        var binding = new ProjectSessionBinding(null);
+        var client = new OpennessWorkerClient(
+            binding,
+            logger: null,
+            workerExecutablePath: FakeWorkerLocator.Locate(),
+            accessPolicy: new OperationAccessPolicy(mode));
+        await FakeWorkerBinding.BindVerifiedAsync(client, binding, Scenario);
+        return client;
+    }
+
     private static PlcOperationRequest Block(string id, string path = "PLC_1/Main") => new()
     {
         OperationId = id,
@@ -23,11 +35,12 @@ public class PlcReadToolsTests
         BlockPath = path,
     };
 
+    private static JsonElement Structured(CallToolResult result) => Assert.IsType<JsonElement>(result.StructuredContent);
 
     [Fact]
     public async Task FailedItemDoesNotStopLaterItems()
     {
-        using var client = await FakeWorkerClients.CreateBoundAsync(Scenario, McpAccessMode.ReadOnly);
+        using var client = await CreateClientAsync();
 
         var result = await PlcReadTools.PlcRead(client, new[]
         {
@@ -37,7 +50,7 @@ public class PlcReadToolsTests
         });
 
         Assert.False(result.IsError);
-        var root = CanonicalToolDocument.Read(result);
+        var root = Structured(result);
         Assert.Equal("plc_read", root.GetProperty("tool").GetString());
         Assert.Equal("1.0", root.GetProperty("contractVersion").GetString());
         Assert.False(root.GetProperty("success").GetBoolean());
@@ -51,7 +64,7 @@ public class PlcReadToolsTests
     [Fact]
     public async Task ListTagTablesForwardsTableNameAndFolderPath()
     {
-        using var client = await FakeWorkerClients.CreateBoundAsync(Scenario, McpAccessMode.ReadOnly);
+        using var client = await CreateClientAsync();
 
         var result = await PlcReadTools.PlcRead(client, new[]
         {
@@ -62,7 +75,7 @@ public class PlcReadToolsTests
             },
         });
 
-        var table = CanonicalToolDocument.Read(result).GetProperty("batch").GetProperty("operations")[0]
+        var table = Structured(result).GetProperty("batch").GetProperty("operations")[0]
             .GetProperty("result").GetProperty("plcs")[0].GetProperty("tables")[0];
         Assert.Equal("Motors", table.GetProperty("name").GetString());
         Assert.Equal("/Line", table.GetProperty("folderPath").GetString());
@@ -71,12 +84,12 @@ public class PlcReadToolsTests
     [Fact]
     public async Task ValidationFailureIsErrorEnvelope()
     {
-        using var client = await FakeWorkerClients.CreateBoundAsync(Scenario, McpAccessMode.ReadOnly);
+        using var client = await CreateClientAsync();
 
         var result = await PlcReadTools.PlcRead(client, new[] { Block("a"), Block("a") });
 
         Assert.True(result.IsError);
-        var root = CanonicalToolDocument.Read(result);
+        var root = Structured(result);
         Assert.False(root.GetProperty("success").GetBoolean());
         Assert.Equal("validation_error", root.GetProperty("error").GetProperty("category").GetString());
         Assert.Equal(JsonValueKind.Null, root.GetProperty("batch").ValueKind);
@@ -85,12 +98,12 @@ public class PlcReadToolsTests
     [Fact]
     public async Task TextEqualsStructuredContent()
     {
-        using var client = await FakeWorkerClients.CreateBoundAsync(Scenario, McpAccessMode.ReadOnly);
+        using var client = await CreateClientAsync();
 
         var result = await PlcReadTools.PlcRead(client, new[] { Block("ok") });
 
         var text = Assert.IsType<TextContentBlock>(Assert.Single(result.Content)).Text;
-        Assert.Equal(text, CanonicalToolDocument.Read(result).GetRawText());
+        Assert.Equal(text, Structured(result).GetRawText());
         using var doc = JsonDocument.Parse(text);
         var content = doc.RootElement.GetProperty("batch").GetProperty("operations")[0].GetProperty("result");
         Assert.Equal(JsonValueKind.Object, content.ValueKind);

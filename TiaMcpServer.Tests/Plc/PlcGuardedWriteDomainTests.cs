@@ -130,7 +130,8 @@ public sealed class PlcGuardedWriteDomainTests
         Assert.Equal(2, response.Batch!.Counts.Succeeded);
         Assert.Equal("table", response.Effects[1].Effect!.DependsOn);
         Assert.True(response.Verification!.Success);
-        Assert.Equal(new[] { "trusted", "trusted" }, response.Verification.Operations.Select(o => o.Check));
+        // The table create is trusted; the tag create is re-read (check tag, K24).
+        Assert.Equal(new[] { "trusted", "tag" }, response.Verification.Operations.Select(o => o.Check));
         Assert.Contains("Valve1", await fixture.InventoryAsync());
     }
 
@@ -223,6 +224,26 @@ public sealed class PlcGuardedWriteDomainTests
         Assert.Equal(JsonValueKind.Number, results[2].GetProperty("number").ValueKind);
     }
 
+    /// <summary>K57 (live V21 2026-11-02): create_block reported "trusted, nothing was read back" although the worker re-resolves the created block.</summary>
+    [Fact]
+    public async Task CreateBlock_VerificationReportsTheWorkersReadBack()
+    {
+        using var audit = new TempAuditDirectory();
+        using var fixture = await PlcGuardedWriteFixture.CreateAsync(audit, Roundtrip);
+
+        var applied = await fixture.RunAsync(false, CreateOb("cycle", "PLC_2/Cycle2"), CreateBlock("fc", "PLC_2/FC_New"));
+
+        Assert.True(applied.Success, JsonSerializer.Serialize(applied));
+        Assert.All(applied.Verification!.Operations, v =>
+        {
+            Assert.Equal("block", v.Check);
+            Assert.True(v.Success, v.Message);
+            Assert.Contains("worker re-resolved the created block", v.Message);
+            Assert.DoesNotContain("nothing was read back", v.Message);
+        });
+        Assert.Matches(@"exists \(OB, number=123\)$", applied.Verification.Operations[0].Actual);
+    }
+
     [Fact]
     public async Task NameCollision_ReachesPortalAndEarlierItemsStay()
     {
@@ -244,8 +265,10 @@ public sealed class PlcGuardedWriteDomainTests
     }
 
     [Fact]
-    public async Task LateReplanFailure_StopsWithPartialWriteGuard()
+    public async Task LateReplanUnverifiable_InformsAndTheItemRuns()
     {
+        // Owner decision (never stricter than TIA Portal): unreadable evidence found by a re-plan is information; the
+        // item runs and TIA Portal decides.
         using var audit = new TempAuditDirectory();
         using var requests = new FakeWorkerRequestLog(audit.Path);
         using var fixture = await PlcGuardedWriteFixture.CreateAsync(audit, "plc-write-late-block");
@@ -253,15 +276,11 @@ public sealed class PlcGuardedWriteDomainTests
         var response = await fixture.RunAsync(false, CreateTable("table"), CreateTag("tag", "Valve1", table: "Valves"));
 
         Assert.Equal("applied", response.Phase);
-        Assert.False(response.Success);
         Assert.Null(response.Error);
-        var failed = response.Batch!.Operations[1];
-        Assert.Equal("failed", failed.Status);
-        Assert.Equal(WorkerFailureCategories.GuardBlocked, failed.Failure!.Category);
-        Assert.Contains(response.Guards, g => g.Id == WriteGuardCatalog.PartialWriteGuardId && g.OperationId == "tag");
-        Assert.Contains(response.Guards, g => g.Id == PlcGuardDefinitions.StateUnverifiable && g.OperationId == "tag");
+        Assert.DoesNotContain(response.Guards, g => g.Id == WriteGuardCatalog.PartialWriteGuardId);
+        Assert.Contains(response.Guards, g => g.Id == PlcGuardDefinitions.StateUnverifiable && g.OperationId == "tag" && g.Severity == "info");
         Assert.Contains("create_tag_table", requests.Methods());
-        Assert.DoesNotContain("create_tag", requests.Methods());
+        Assert.Contains("create_tag", requests.Methods());
     }
 
     [Fact]
@@ -284,11 +303,13 @@ public sealed class PlcGuardedWriteDomainTests
         Assert.Equal("content", partial.OperationId);
         // Verification covers the attempted items: a, b and the failed content item, never the skipped ones.
         Assert.Equal(new[] { "a", "b", "content" }, response.Verification!.Operations.Select(o => o.OperationId));
-        Assert.True(response.Verification.Success);
+        // K58: the failed item's entry reports the hash read afterwards and is never success true.
+        Assert.False(response.Verification.Success);
+        Assert.Equal(new[] { true, true, false }, response.Verification.Operations.Select(o => o.Success));
         var observed = response.Verification.Operations[2];
         Assert.Equal("contentHash", observed.Check);
         Assert.Equal(ContentHashRules.Compute("xml", "<Block edited-in-tia-ui=\"true\"/>"), observed.ContentHash);
-        Assert.DoesNotContain(WriteExecution.VerificationFailureMessage, response.Warnings);
+        Assert.StartsWith("Operation 'content' failed with state_changed", observed.Message);
         var inventory = await fixture.InventoryAsync();
         Assert.Contains("TagB", inventory);
         Assert.DoesNotContain("TagD", inventory);
@@ -339,7 +360,7 @@ public sealed class PlcGuardedWriteDomainTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task UnverifiableEvidenceBlocks(bool dryRun)
+    public async Task UnverifiableEvidence_InformsAndTiaPortalDecides(bool dryRun)
     {
         using var audit = new TempAuditDirectory();
         using var requests = new FakeWorkerRequestLog(audit.Path);
@@ -348,10 +369,10 @@ public sealed class PlcGuardedWriteDomainTests
         // A legacy-name delete could hit the unreadable block, so the lookup cannot be trusted.
         var response = await fixture.RunAsync(dryRun, new PlcOperationRequest { OperationId = "block", Operation = "delete_block", BlockPath = "Station_1/Main" });
 
-        Assert.Equal(dryRun ? "preview" : "blocked", response.Phase);
-        Assert.Contains(response.Guards, g => g.Id == PlcGuardDefinitions.StateUnverifiable && g.Severity == "block");
-        Assert.Null(response.Batch);
-        Assert.DoesNotContain("delete_block", requests.Methods());
+        // Unreadable evidence informs; the item runs and TIA Portal decides (owner decision: never stricter than TIA Portal).
+        Assert.Equal(dryRun ? "preview" : "applied", response.Phase);
+        Assert.Contains(response.Guards, g => g.Id == PlcGuardDefinitions.StateUnverifiable && g.Severity == "info");
+        Assert.Equal(!dryRun, requests.Methods().Contains("delete_block"));
     }
 
     [Fact]
@@ -368,7 +389,8 @@ public sealed class PlcGuardedWriteDomainTests
         Assert.Null(response.Error);
         Assert.Equal(new[] { "succeeded", "succeeded" }, response.Batch!.Operations.Select(o => o.Status));
         Assert.False(response.Verification!.Success);
-        Assert.Equal(new[] { ("trusted", true), ("contentHash", false) }, response.Verification.Operations.Select(o => (o.Check, o.Success)));
+        // create_tag is re-read (check tag, K24); the content write fails its re-export.
+        Assert.Equal(new[] { ("tag", true), ("contentHash", false) }, response.Verification.Operations.Select(o => (o.Check, o.Success)));
         Assert.Contains(WriteExecution.VerificationFailureMessage, response.Warnings);
     }
 

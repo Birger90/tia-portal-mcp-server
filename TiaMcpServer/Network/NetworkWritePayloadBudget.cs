@@ -9,7 +9,12 @@ public static class NetworkWritePayloadBudget
 {
     private const string Guidance = "Inspect current state with filtered or paged network_read. Use the original exact selector; if unavailable, discover it first. Do not replay the write.";
     private const string DiagnosticSummary = "Diagnostic details omitted. Inspect current state with network_read.";
-    private const int DiagnosticChars = 512;
+    /// <summary>
+    /// Per-diagnostic character bound before a message is replaced by the summary. 512 until 2026-11-02; live, a 747-character
+    /// plug_device_item refusal that names the rack item to plug into (K29) was replaced by the bare summary (K38), so the hint
+    /// never reached the caller. 2048 keeps such refusals while staying far below the item budget.
+    /// </summary>
+    internal const int DiagnosticChars = 2048;
     private static readonly GuardedWriteResponseBudget Budget = new("network_read", Guidance, DiagnosticSummary);
     public static NetworkGuardedWriteResponse Apply(NetworkGuardedWriteResponse response,
         int? maxItemChars = null, int? maxDocumentChars = null)
@@ -35,7 +40,9 @@ public static class NetworkWritePayloadBudget
                 Batch = batch ?? current.Batch,
                 Verification = verification,
             };
-            return result with { Success = response.Success && !HasOmission(result.Omission,
+            // A root omission that only compacted diagnostic text (messages, warnings, guard texts) keeps a succeeded
+            // call succeeded and is still reported; an omitted value (effect, item result, verification) does not (K07).
+            return result with { Success = response.Success && !HasOmission(ValueOmission(result.Omission),
                 effects.Select(e => e.Omission), result.Batch, verification?.Omission) };
         }
 

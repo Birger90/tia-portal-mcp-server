@@ -48,6 +48,15 @@ internal static class CompileReportProjection
         public bool WasTruncated { get; set; }
     }
 
+    /// <summary>
+    /// Flattens the compiler message tree parent-first. TIA Portal nests the real diagnostics under container
+    /// nodes (the PLC, "Hardware configuration", a rack, a block folder) whose description is empty or blank and
+    /// whose state repeats the worst state below them (live 2026-11-02); such a container is not a message and is
+    /// not emitted. Its path is carried instead: every emitted message's path is the chain of the non-blank paths
+    /// of its ancestors and its own (<see cref="CompileMessagePaths.Extend"/>), so a leaf with an empty path still
+    /// says where it belongs. A message whose description could not be read is kept (with an empty description).
+    /// Reported error and warning totals are TIA Portal's and never recomputed from the emitted rows.
+    /// </summary>
     public static Projection Flatten<TMessage>(
         IEnumerable<TMessage> roots,
         Func<TMessage, string> readDescription,
@@ -57,12 +66,12 @@ internal static class CompileReportProjection
         Budget budget)
     {
         var projection = new Projection();
-        Visit(roots, 1);
+        Visit(roots, 1, string.Empty);
         return projection;
 
         // Depth is one-based. On exhaustion, look at at most one additional element to
         // distinguish exact-boundary completion (including an empty next PLC) from omission.
-        bool Visit(IEnumerable<TMessage> messages, int depth)
+        bool Visit(IEnumerable<TMessage> messages, int depth, string context)
         {
             try
             {
@@ -79,13 +88,18 @@ internal static class CompileReportProjection
                         return false;
                     }
 
-                    budget.MessageCount++;
-                    projection.Messages.Add(new CompileMessageInfo
+                    var descriptionRead = TryReadText(readDescription, message, out var description);
+                    var path = CompileMessagePaths.Extend(context, ReadText(readPath, message));
+                    if (!descriptionRead || !string.IsNullOrWhiteSpace(description))
                     {
-                        Description = budget.TakeText(ReadText(readDescription, message), projection),
-                        Path = budget.TakeText(ReadText(readPath, message), projection),
-                        Severity = ReadText(readSeverity, message, "Information")
-                    });
+                        budget.MessageCount++;
+                        projection.Messages.Add(new CompileMessageInfo
+                        {
+                            Description = budget.TakeText(description, projection),
+                            Path = budget.TakeText(path, projection),
+                            Severity = ReadText(readSeverity, message, "Information")
+                        });
+                    }
 
                     IEnumerable<TMessage> children;
                     try
@@ -97,7 +111,7 @@ internal static class CompileReportProjection
                         projection.WasTruncated = true;
                         continue;
                     }
-                    if (!Visit(children, depth + 1))
+                    if (!Visit(children, depth + 1, path))
                         return false;
                 }
             }
@@ -112,11 +126,22 @@ internal static class CompileReportProjection
 
         string ReadText(Func<TMessage, string> read, TMessage message, string fallback = "")
         {
-            try { return read(message) ?? fallback; }
+            TryReadText(read, message, out var text, fallback);
+            return text;
+        }
+
+        bool TryReadText(Func<TMessage, string> read, TMessage message, out string text, string fallback = "")
+        {
+            try
+            {
+                text = read(message) ?? fallback;
+                return true;
+            }
             catch (Exception ex) when (IsExpectedDetailFailure(ex))
             {
                 projection.WasTruncated = true;
-                return fallback;
+                text = fallback;
+                return false;
             }
         }
     }

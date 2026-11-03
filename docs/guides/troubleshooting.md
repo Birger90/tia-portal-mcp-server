@@ -1,5 +1,7 @@
 # Troubleshooting
 
+**Language:** English · [Deutsch](troubleshooting.de.md)
+
 Common failures and their causes, plus TIA Portal V21 behaviors verified against a real
 installation that are surprising but expected.
 
@@ -61,6 +63,22 @@ see the [lifecycle reference](../SupportedOperations/PROJECT_OPERATIONS_SUMMARY.
 A supported SaveAs rebinds both host and worker to the
 worker-reported copied project path; verify it with a subsequent status or read call.
 
+## TIA Portal V21 pitfalls
+
+Reported by rickgaiser/TiaMcp, not verified on V21; details, guards and the live acceptance list are in
+[V21 pitfalls](../SupportedOperations/V21_PITFALLS.md).
+
+- **HMI calls are very slow:** close an open HMI tag editor ("Show all tags") in TIA Portal; it is
+  reported to slow Openness calls on that HMI about eight times.
+- **`plc_s7dcl_import_may_alter` in a `plc_write` response:** the bundle has no `.xml` document, so the
+  block is imported through SIMATIC SD. Submit the bundle with its edited SimaticML (`.xml`) document
+  instead. A failing `s7dclConstructs` verification entry means the re-export differs from what was
+  submitted; inspect the block before anything else.
+- **`plc_textual_interface_overwrite_may_terminate`:** save the project first
+  (`plc_save_before_write_recommended`). If TIA Portal terminates, the call ends with `portal_lost`;
+  restart TIA Portal, reopen the saved project and bind again. Every overwrite through `plc_write`
+  exports the block more than once first, so reopening alone does not avoid the reported condition.
+
 ## Guarded lifecycle failures
 
 - Local `unsupported_capability`: local sessions support adoption, open, basic status, content
@@ -83,6 +101,14 @@ worker-reported copied project path; verify it with a subsequent status or read 
   failure. A healthy local status does not prove remote connectivity or session mode; explicit
   endpoint observations cannot populate the currently unjoined active remote identity.
 
+- `plcsim_api_unavailable`: the PLCSIM worker found no loadable S7-PLCSIM Advanced API. Run
+  `tia-mcp doctor --verbose` (check `plcsim-advanced`) and `plcsim_read` `probe_api`; install
+  PLCSIM Advanced or set `TIA_MCP_PLCSIM_API_DIR` to the absolute path of the folder containing
+  `Siemens.Simatic.Simulation.Runtime.Api.x64.dll` (a relative value is refused). `plcsim_api_member_missing`: the installed API
+  lacks a member with a declared signature; `probe_api` lists what resolved and what was found
+  instead. `plcsim_runtime_error`: the API raised its own exception (error code in the message);
+  check that the instance exists in the Control Panel and its name matches exactly. See the
+  [PLCSIM reference](../SupportedOperations/PLCSIM_OPERATIONS_SUMMARY.md#failure-categories).
 - `access_denied` naming elicitation: every actual lifecycle call in read-write requires one form
   acceptance with boolean `confirm:true`, even with no guards or only info guards. Decline, cancel,
   timeout, unsupported capability, or transport failure blocks mutation. Use a supporting client;

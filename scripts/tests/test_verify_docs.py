@@ -72,6 +72,24 @@ class VerifyDocsTests(unittest.TestCase):
         repo = self.make_repo({"docs/README.md": "none\n", "docs/superpowers/evidence/x/run.json": "{}\n"})
         self.assertEqual(verify_docs.check(repo, "", True)[0], ["docs/superpowers/evidence/x/run.json: transient working file present"])
 
+    def test_german_version_needs_its_english_twin_and_mutual_links(self):
+        repo = self.make_repo({
+            "docs/README.md": "[g](guides/a.md)\n",
+            "docs/guides/a.md": "# A\n",
+            "docs/guides/a.de.md": "# A\n\n**Sprache:** [English](a.md) · Deutsch\n",
+            "docs/guides/b.de.md": "x\n",
+        })
+        errors, _ = verify_docs.check(repo, "", False)
+        self.assertIn("docs/guides/a.md: no language switch link to docs/guides/a.de.md", errors)
+        self.assertIn("docs/guides/b.de.md: German version without its English docs/guides/b.md", errors)
+
+    def test_bilingual_set_is_required_only_on_request(self):
+        repo = self.make_repo({"docs/README.md": "[g](guides/a.md)\n", "docs/guides/a.md": "x\n"})
+        self.assertEqual(verify_docs.check(repo, "", False), ([], []))
+        errors, _ = verify_docs.check(repo, "", False, True)
+        self.assertIn("docs/guides/a.md: German version docs/guides/a.de.md is missing (bilingual set)", errors)
+        self.assertIn("docs/README.md: German version docs/README.de.md is missing (bilingual set)", errors)
+
     def test_untracked_files_are_checked_before_git_add(self):
         repo = self.make_repo({"docs/README.md": "none\n"})
         with open(os.path.join(repo, "docs", "new.md"), "w", encoding="utf-8") as handle:

@@ -1,5 +1,7 @@
 # TIA Portal Network and Topology Operations
 
+**Language:** English · [Deutsch](NETWORK_OPERATIONS_SUMMARY.de.md)
+
 `network_write` uses contract **2.0**; `network_read` remains **1.0**. The native-rejections
 candidate `75c0568` passed offline qualification and all 17 expected outcomes in the scoped installed
 TIA Portal V21 rerun. See the [2026-10-29 acceptance report](../superpowers/acceptance/reports/2026-10-29-network-write-native-rejections-live-verification.md)
@@ -51,6 +53,14 @@ The MCP provides a bounded device and network-identity surface:
 | `network_write` | `create_subnet` | Creates a new Ethernet or PROFIBUS subnet from `subnet: { name, networkType, highestAddress?, transmissionSpeed? }`. PROFIBUS-only fields are rejected for Ethernet. |
 | `network_write` | `update_subnet` | Renames or changes PROFIBUS attributes on an existing subnet: `target: { kind: "subnet", subnetId }` plus `subnetChanges` (at least one member). |
 | `network_write` | `delete_subnet` | Deletes an existing subnet by exact `target: { kind: "subnet", subnetId }`. Connected subnets are deletable; devices are never deleted. |
+| `network_write` | `create_io_system` | Creates a PROFINET IO system on a CPU's node: `target: { kind: "node", deviceName, nodeId, interfacePath }` as `read_hardware_config` reports it, optional `ioSystem: { name }`. **Not live-tested.** See "PROFINET IO system" below. |
+
+Hardware-module operations (`list_plug_locations`, `find_module_types`, `find_container_types`,
+`list_io_addresses`, `plug_device_item`, `move_device_item`, `copy_device_item`,
+`delete_device_item`, `change_device_item_type`, `set_hardware_attributes`, `set_io_address`,
+`export_io_map`) share these tools and the same write pipeline; their contract, guards, provenance
+and live acceptance list are in [HARDWARE_MODULES_SUMMARY.md](HARDWARE_MODULES_SUMMARY.md). They
+are not live-tested.
 
 `configure_network_device` is not a general network-editor proxy. Its writable contract is limited to the listed `changes` fields, and every selector is exact — see "Selector resolution" below.
 `create_subnet`, `update_subnet`, and `delete_subnet` are the Phase 4 subnet lifecycle operations,
@@ -427,7 +437,7 @@ Public input is `network_write(operations, dryRun=false)`: **omitting `dryRun` e
 An older operations-only call used to preview; migrate every preview caller to `dryRun:true`.
 `confirm`, `acknowledge`, unknown root keys and nonboolean `dryRun` are rejected
 before tool entry with the tool's canonical document (`validation_error`, `isError:true`) and no
-audit record, like every argument-shape error in all 19 tools. Entered validation, binding and guard denials have
+audit record, like every argument-shape error in all 30 tools. Entered validation, binding and guard denials have
 a typed canonical top-level `error`, MCP `isError:true`, and exactly one audit v2 record.
 
 Binding-gate failures preserve their original category, including `worker_timeout`, `worker_crashed`,
@@ -554,6 +564,48 @@ wrapped engineering failures retain any partial configure outcome. Native messag
 Portal UI language; message/inner-chain bounds remain as described in the
 [PLC reference](PLC_OPERATIONS_SUMMARY.md#failures-from-tia-portal).
 
+### PROFINET IO system
+
+`create_io_system` (K28, owner request after the live run of 2026-11-02, where an ET 200SP could not
+be assigned to a CPU because no IO system existed: "ET200SP_1 is not assigned to an IO-Controller")
+is **not live-tested**.
+
+- Request: `target` is the CPU's node with `kind: "node"` (required here), exact `deviceName` and
+  `nodeId`, and the owner path (`interfacePath`, or legacy `itemPath` plus `nodeIndex`) as
+  `read_hardware_config` reports it; optional `ioSystem: { name }` with a nonblank name (shaped like
+  `create_subnet`'s `subnet`; the flat field `ioSystemName` stays retired with the other legacy flat
+  configure fields). The node is resolved exactly as
+  for `configure_network_device` (a bare `deviceName`/`nodeId` is qualified from the planning snapshot).
+- Worker: the node's owning `NetworkInterface` (from `GetService<NetworkInterface>` in the selector
+  resolver), its `IoControllers` composition and the first `IoController` (stub members, already read
+  by `read_hardware_config`), then `IoController.CreateIoSystem(System.String)`. That member has no
+  stub; it is bound at runtime by exact name and parameter type (`LibraryRuntimeBinding.Find`), and an
+  installation without it fails `api_member_missing` with nothing changed. An omitted `ioSystem`
+  passes an empty string; which name TIA Portal then assigns is not live-tested, the result reports it.
+  An interface without IO controller (an IO device such as the ET 200SP head) fails
+  `target_kind_unsupported`; any refusal by TIA Portal follows the shared classification
+  (`engineering_rejected` with `engineeringError`).
+- Read-back: the created IO system (the return value, else `IoController.IoSystem`) must report a
+  readable `Number`, `Name` and `Subnet`, the subnet a readable `subnetId`, and the subnet's
+  `IoSystems` must list it; otherwise `postcondition_failed` ("may exist; inspect"). A name other than
+  the requested one or an `IoController.IoSystem` that does not read back as the new IO system is a
+  message, not a failure.
+- Result (`CreateIoSystemResultInfo`): `{ deviceName, nodeId, requestedName, name, number, subnetId,
+  messages }`. `subnetId` and `number` are what `configure_network_device`
+  `changes.ioSystem: { subnetId, number }` takes to attach an IO device's node in a later call (one
+  snapshot plans a call, so the new IO system is not selectable in the same call).
+- Guards, all info (TIA Portal decides): `network_io_system_create_unverified` on every item,
+  `network_io_system_node_unconnected` when the planning snapshot shows the node without a subnet
+  (connect it first with `configure_network_device` `changes.subnet`),
+  `network_io_system_already_assigned` when its interface already belongs to an IO system, and
+  `network_state_unverifiable` when the node's connection evidence is incomplete.
+- Verification is `trusted`; the superseding key is the node's IO controller, so a later configure of
+  the same node does not supersede it.
+
+Chain (FakeWorker scenario `network-io-system`, offline only): `create_subnet` → `configure_network_device`
+`changes.subnet` for the CPU node and the ET 200SP node → `create_io_system` on the CPU node →
+`configure_network_device` `changes.ioSystem` with the returned `subnetId` and `number` on the ET 200SP node.
+
 ### PROFINET device name
 
 Optional boolean `changes.pnDeviceNameAutoGeneration` writes the node's "Generate PROFINET device
@@ -619,6 +671,7 @@ Every direct public network worker result decodes against exactly one declared C
 | `add_network_device` | `AddDeviceResultInfo` | `deviceName`, `rootItemName`, `typeIdentifier`, `warnings[]`. |
 | `configure_network_device` | `ConfigureNetworkDeviceResultInfo` | `deviceName`, sparse `appliedSettings`, `messages[]`; the same typed result can accompany a failed configure when the worker carries its partial outcome. |
 | `create_subnet`, `update_subnet`, `delete_subnet` | `SubnetLifecycleResultInfo` | Required `subnetId`, `name`; all three operations share this result type. Failed items have `result:null`. See [NETWORK_PHASE4_SUBNET_LIFECYCLE.md](NETWORK_PHASE4_SUBNET_LIFECYCLE.md). |
+| `create_io_system` | `CreateIoSystemResultInfo` | `deviceName`/`nodeId` must equal the request (device name ignoring case), `requestedName` must equal `ioSystem.name`, nonblank `subnetId`, nonnegative `number`, `name`, `messages[]`. |
 
 `NodeInfo.NodeId` and `SubnetInfo.SubnetId` are empty strings, and `IoSystemInfo.Number` is `null`, when the engineering system could not report that identity — an empty/null identity must never satisfy a write selector (see "Selector resolution is exact and fail-closed" above).
 
@@ -634,7 +687,12 @@ characters are replaced whole with concise summaries; diagnostic collections may
 under pressure. No raw diagnostic prefix or cut JSON is delivered.
 
 Delivery `success:false` may coexist with successful mutation, item status `succeeded`, immediate
-status `passed` and verification `success:true` when required requested evidence was omitted.
+status `passed` and verification `success:true` when a requested value (an effect, an item result or
+the verification entries) was omitted. A root omission that only replaced diagnostic text
+(`diagnosticDetailsOmitted`: messages, warnings, guard texts) does not change `success`; it is still
+reported in `omission` (since 2026-11-02, K07: `export_io_map` wrote its CSV and returned its
+`sha256`, but 2,362 characters of diagnostics over the 512-character cap turned the call into
+`success:false`).
 Attempted calls remain `phase:applied`, `error:null`, MCP `isError:false`. The exact delivered
 document/hash goes to audit; audit item status retains execution truth. Omission records/digests
 are not selectors. Inspect via filtered/paged `network_read` using the original exact selectors,
@@ -670,8 +728,14 @@ Network writes are sequential and stop on the first failure. Completed operation
 The current surface does not provide:
 
 - Node attributes beyond the device-configuration fields listed above.
-- PROFINET IO-system or DP master-system attribute editing.
-- Transfer-area creation or deletion.
+- PROFINET IO-system or DP master-system attribute editing (renaming, numbering). Deleting an IO system
+  (`delete_io_system`), disconnecting an IO device from it (`disconnect_from_io_system`) and transfer areas
+  (`list_transfer_areas`, `create_transfer_area`, `update_transfer_area`, `delete_transfer_area`) are
+  hardware-module operations since issue #11 (not live-tested; see the
+  [hardware modules reference](HARDWARE_MODULES_SUMMARY.md#io-systems-dp-master-systems-and-transfer-areas)).
+  V21 documents no separate member to create a DP master system: `create_io_system` calls the generic
+  `IoController.CreateIoSystem(System.String)` on whatever node's interface has an IO controller, a
+  PROFIBUS DP master node included, and TIA Portal decides (not live-tested on a DP interface).
 - Address-object, process-image, channel, or address-controller **writes**; the I/O map is a
   read-only view (`ioDetails`), not an editing surface.
 - I/O-map reads beyond addresses and channels: diagnostics data, module-specific hardware

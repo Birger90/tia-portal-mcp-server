@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Text.Json;
 using TiaMcpServer.Contracts.Block;
+using TiaMcpServer.Contracts.Plc;
 using TiaMcpServer.Contracts.Project;
 using TiaMcpServer.Contracts.Safety;
 using TiaMcpServer.Contracts.Worker;
@@ -31,6 +32,13 @@ public sealed class PlcWriteInvokerTests
         ["dataType"] = "Bool",
     };
 
+    private static OpennessWorkerClient CreateClient(string? workerPath = null)
+        => new(
+            new ProjectSessionBinding(null),
+            logger: null,
+            workerExecutablePath: workerPath ?? FakeWorkerLocator.Locate(),
+            accessPolicy: new OperationAccessPolicy(McpAccessMode.Full));
+
     private static object SentinelFor(PropertyInfo property, string fieldName, string operation)
     {
         if (fieldName == "format")
@@ -50,7 +58,22 @@ public sealed class PlcWriteInvokerTests
             return known;
         }
 
+        // List-valued fields carry one sentinel element; the element is what must reach the worker.
+        if (property.PropertyType == typeof(IReadOnlyList<string>) || property.PropertyType == typeof(string[])) return new[] { $"__sentinel_{fieldName}__" };
+        if (property.PropertyType == typeof(TiaMcpServer.PlcDownload.PlcDownloadPasswordMap))
+            return new TiaMcpServer.PlcDownload.PlcDownloadPasswordMap(new[] { new PlcDownloadPasswordInfo { Type = $"__sentinel_{fieldName}_key__", Variable = $"__sentinel_{fieldName}__" } });
+        if (property.PropertyType == typeof(List<TiaMcpServer.Contracts.Plc.Interface.PlcTextReplacementInfo>))
+            return new List<TiaMcpServer.Contracts.Plc.Interface.PlcTextReplacementInfo> { new() { Find = $"__sentinel_{fieldName}__", Replace = $"__sentinel_{fieldName}_by__" } };
+        if (property.PropertyType == typeof(List<PlcNameRenameInfo>))
+            return new List<PlcNameRenameInfo> { new() { Name = $"__sentinel_{fieldName}__", NewName = $"__sentinel_{fieldName}_new__" } };
+        if (property.PropertyType == typeof(PlcSettingValues))
+            return new PlcSettingValues(new[] { new KeyValuePair<string, string>($"__sentinel_{fieldName}_key__", $"__sentinel_{fieldName}__") });
+        if (property.PropertyType == typeof(IReadOnlyList<TiaMcpServer.PlcAlarms.PlcAlarmCellEditRequest>))
+            return new[] { new TiaMcpServer.PlcAlarms.PlcAlarmCellEditRequest { Sheet = $"__sentinel_{fieldName}__" } };
+
         var type = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
+        if (type == typeof(int)) return 4242;
+        if (type == typeof(IReadOnlyList<string>)) return new[] { $"__sentinel_{fieldName}__" };
         return type == typeof(bool) ? true : $"__sentinel_{fieldName}__";
     }
 
@@ -68,7 +91,16 @@ public sealed class PlcWriteInvokerTests
             var property = PropertyFor(field);
             var value = SentinelFor(property, field, operation);
             property.SetValue(request, value);
-            expected.Add(value);
+            expected.Add(value switch
+            {
+                string[] items => items[0],
+                TiaMcpServer.PlcDownload.PlcDownloadPasswordMap map => map.Entries[0].Variable,
+                PlcSettingValues settings => settings.Entries[0].Value,
+                TiaMcpServer.PlcAlarms.PlcAlarmCellEditRequest[] edits => edits[0].Sheet!,
+                List<PlcNameRenameInfo> renames => renames[0].Name,
+                List<TiaMcpServer.Contracts.Plc.Interface.PlcTextReplacementInfo> pairs => pairs[0].Find,
+                _ => value,
+            });
         }
 
         return (request, expected);
@@ -94,7 +126,9 @@ public sealed class PlcWriteInvokerTests
     public static TheoryData<string> AllWriteOperations()
     {
         var data = new TheoryData<string>();
-        foreach (var name in PlcOperationCatalog.WriteOperationNames)
+        // Interface edits have no worker method: the domain imports their planned document (see PlcBlockEditWriteTests).
+        // The file exports have none either: they compose existing reads in the host (see PlcSourceFolderMcpTests).
+        foreach (var name in PlcOperationCatalog.WriteOperationNames.Except(PlcBlockEditMethods.PlannedEdits).Except(PlcSourceFolderMethods.HostWrites))
         {
             data.Add(name);
         }
@@ -108,7 +142,9 @@ public sealed class PlcWriteInvokerTests
     {
         var (request, _) = Build(operation);
         var binding = new ProjectSessionBinding(null);
-        using var client = FakeWorkerClients.Create(McpAccessMode.Full, binding: binding);
+        using var client = new OpennessWorkerClient(
+            binding, logger: null, workerExecutablePath: FakeWorkerLocator.Locate(),
+            accessPolicy: new OperationAccessPolicy(McpAccessMode.Full));
         await FakeWorkerBinding.BindVerifiedAsync(client, binding, "echo");
 
         var result = await new PlcWriteDomain(client).MutateAsync(request);
@@ -124,7 +160,9 @@ public sealed class PlcWriteInvokerTests
     {
         var (request, expected) = Build(operation);
         var binding = new ProjectSessionBinding(null);
-        using var client = FakeWorkerClients.Create(McpAccessMode.Full, binding: binding);
+        using var client = new OpennessWorkerClient(
+            binding, logger: null, workerExecutablePath: FakeWorkerLocator.Locate(),
+            accessPolicy: new OperationAccessPolicy(McpAccessMode.Full));
         await FakeWorkerBinding.BindVerifiedAsync(client, binding, "echo");
 
         var result = await PlcWorkerInvoker.InvokeWriteAsync(client, request);
@@ -150,7 +188,9 @@ public sealed class PlcWriteInvokerTests
         var (request, _) = Build(operation);
         request.Format = operation == "update_block_logic" ? "source" : null;
         var binding = new ProjectSessionBinding(null);
-        using var client = FakeWorkerClients.Create(McpAccessMode.Full, binding: binding);
+        using var client = new OpennessWorkerClient(
+            binding, logger: null, workerExecutablePath: FakeWorkerLocator.Locate(),
+            accessPolicy: new OperationAccessPolicy(McpAccessMode.Full));
         await FakeWorkerBinding.BindVerifiedAsync(client, binding, "echo");
 
         var result = await PlcWorkerInvoker.InvokeWriteAsync(client, request);
@@ -164,7 +204,7 @@ public sealed class PlcWriteInvokerTests
     [Fact]
     public async Task InvalidFormatIsValidationErrorWithNotSentOutcome()
     {
-        using var client = FakeWorkerClients.Create(McpAccessMode.Full, workerPath: Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".exe"));
+        using var client = CreateClient(Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".exe"));
 
         var result = await PlcWorkerInvoker.InvokeWriteAsync(client, new PlcOperationRequest
         {
@@ -189,7 +229,7 @@ public sealed class PlcWriteInvokerTests
     [Fact]
     public async Task InvalidTypeFormatIsValidationErrorWithoutOutcome()
     {
-        using var client = FakeWorkerClients.Create(McpAccessMode.Full, workerPath: Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".exe"));
+        using var client = CreateClient(Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".exe"));
 
         var result = await PlcWorkerInvoker.InvokeWriteAsync(client, new PlcOperationRequest
         {
@@ -208,7 +248,7 @@ public sealed class PlcWriteInvokerTests
     [Fact]
     public async Task UnsupportedOperationIsValidationError()
     {
-        using var client = FakeWorkerClients.Create(McpAccessMode.Full, workerPath: Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".exe"));
+        using var client = CreateClient(Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".exe"));
 
         var result = await PlcWorkerInvoker.InvokeWriteAsync(
             client, new PlcOperationRequest { OperationId = "x", Operation = "get_block_content", BlockPath = "a/b" });

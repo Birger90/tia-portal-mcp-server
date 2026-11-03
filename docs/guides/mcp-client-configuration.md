@@ -1,5 +1,7 @@
 # MCP client configuration
 
+**Language:** English · [Deutsch](mcp-client-configuration.de.md)
+
 Reference for configuring the server in an MCP client, including how block paths are
 addressed. For first-time installation, see [Installation](installation.md).
 
@@ -30,14 +32,32 @@ Configure your MCP client to launch the tool command:
 }
 ```
 
-Without explicit access arguments the server starts in `read-write` with nineteen tools: edits,
-compilation, and all six lifecycle tools. Each actual lifecycle call asks once through form
+Without explicit access arguments the server starts in `read-write` with thirty tools: edits (library edits included),
+compilation, S7-PLCSIM Advanced simulation control, all seven lifecycle tools, `plc_download` (to PLCSIM or to real hardware),
+`plc_online_write` for configured S7-1500 CPUs, `plc_tia_online` and `plc_station_upload`. Each actual lifecycle, download,
+online-write, online-connection or upload call, and each `library_write` call with a global-library lifecycle item, asks once through form
 elicitation `accept` with boolean `confirm:true`, even with no guards or only info guards. A client
 without that capability receives `access_denied`; decline, cancel, timeout, or transport failure
-also denies. Set `"args": ["--access-mode", "full"]` for the same nineteen tools with lifecycle
+also denies. Set `"args": ["--access-mode", "full"]` for the same thirty tools with lifecycle, download, online-write,
+online-connection and upload
 policy confirmation and no server elicitation; full adds no tools or operations.
-`tia-mcp install` defaults separately to read-only with eight tools, including `bind_project`.
+`tia-mcp install` defaults separately to read-only with eleven tools, including `bind_project`, `plcsim_read`, `plc_online_read` and `library_read`.
 Block guards stop the call in every mode. See [Installation](installation.md#access-modes).
+
+The access mode can also be chosen without any `args`: in "TiaMcp Passwortverwaltung" (`tia-mcp passwords`, tab
+**Zugriffsmodus**), which writes the server settings file `%APPDATA%\TiaMcpServer\settings.json` (or the file named by
+`TIA_MCP_SETTINGS` in `env`). The entry above then stays without `args`. Precedence at startup:
+
+1. CLI argument in `args` (`--access-mode <mode>`, `--read-only`, `--read-write`),
+2. `TIA_MCP_ACCESS_MODE` in `env`,
+3. the settings file (`accessMode`),
+4. the default `read-write`.
+
+Keep `--access-mode` and `TIA_MCP_ACCESS_MODE` out of the client configuration when the program should decide. The
+server reads the file once at startup and never writes it; restart the MCP server (quit and restart Claude Desktop)
+after a change. An invalid settings file refuses startup. The startup log and `tia-mcp doctor` name the source
+(`cli`, `environment`, `settingsFile`, `default`); see
+[Choosing the access mode in the password manager](installation.md#choosing-the-access-mode-in-the-password-manager).
 
 Remove the old startup confirmation switch; it is rejected with:
 
@@ -81,7 +101,7 @@ opening required operator-dismissed Siemens dialogs in the scoped
 [PR4 run](../superpowers/acceptance/reports/2026-10-08-multiuser-pr4-live-verification.md).
 Omit the path with the default binding action to select
 the sole open project or list candidates. Reattachment may require a human response to TIA's
-Openness access dialog. Worker ownership is lost on detach. Only `open_project` and `create_project`
+Openness access dialog. Worker ownership is lost on detach. Only `open_project`, `create_project` and `retrieve_project`
 open projects; ordinary reads never open, bind or switch. Read-only never opens, creates, saves or
 closes. A project-tree cursor whose binding changed returns `cursor_binding_mismatch`; restart browsing
 without it.
@@ -111,6 +131,29 @@ With an explicit project binding:
   }
 }
 ```
+
+### PLC download passwords
+
+`plc_download` answers password configurations (for example `ModuleWriteAccessPassword` of a
+write-protected CPU) only from environment variables of the server process, which the Openness
+worker inherits. Put the password in the client's `env` block and pass only the variable **name**
+in the tool call, for example `"passwords": { "ModuleWriteAccessPassword": "PLC_WRITE_PW" }`:
+
+```json
+{
+  "mcpServers": {
+    "tia-portal": {
+      "command": "tia-mcp",
+      "env": { "PLC_WRITE_PW": "<the password>" }
+    }
+  }
+}
+```
+
+Restart the server after changing it. The password never appears in tool results, logs or the
+audit; only the variable name does. Variable names use ASCII letters, digits and underscores and do
+not start with a digit. A variable that is not set is refused before anything is downloaded. See the
+[PLC download reference](../SupportedOperations/PLC_DOWNLOAD_SUMMARY.md#passwords).
 
 ## Response size limits
 
@@ -158,6 +201,41 @@ Raising the server budgets does not raise limits the MCP client enforces on its 
 maximum tool-result size, and a content write still sends the whole document as one tool
 argument. Fixed limits are unaffected: project-tree pages, `network_read` hardware pages and the
 `compile_check` report stay at 60,000 characters.
+
+## PLC Web API targets
+
+`plc_online_read` and `plc_online_write` reach only the S7-1500 CPUs listed in a target file that you
+write; the AI names a target, never an address or a credential. Point the server at the file with an
+absolute path and put the credentials in the server's environment, under the variable names the file
+declares:
+
+```json
+{
+  "mcpServers": {
+    "tia-portal": {
+      "command": "tia-mcp",
+      "args": ["--access-mode", "read-write", "--plc-webapi-config", "C:\\TiaMcp\\plc-webapi.json"],
+      "env": {
+        "TIA_LINE1_WEBAPI_USER": "mcp-operator",
+        "TIA_LINE1_WEBAPI_PASSWORD": "<password of that web server user>"
+      }
+    }
+  }
+}
+```
+
+| Setting | Command line | Environment variable | Default |
+| --- | --- | --- | --- |
+| Target file (absolute path) | `--plc-webapi-config <path>` | `TIA_MCP_PLC_WEBAPI_CONFIG` | none (the online tools answer `target_not_found`) |
+
+The command line wins over the environment. The file is read once at startup and an invalid file
+rejects startup; check it first with `tia-mcp doctor --plc-webapi-config <path>`. Startup stderr reports
+`TIA MCP PLC Web API targets: <n> target(s) from <path>`. Credentials are read from the named variables
+when the server logs in, so keep them out of the file, out of prompts and out of version control; a
+client that stores `env` in a shared configuration file stores the password there too. Use a web
+server user with only the rights the AI should have. The file format, certificate validation modes,
+prerequisites in TIA Portal and the confirmation model are in the
+[PLC online reference](../SupportedOperations/PLC_ONLINE_WEBAPI_SUMMARY.md).
 
 ## Worker timeout
 

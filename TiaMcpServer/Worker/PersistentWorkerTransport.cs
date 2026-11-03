@@ -10,6 +10,17 @@ using TiaMcpServer.Contracts.Worker;
 namespace TiaMcpServer.Worker;
 
 /// <summary>
+/// The exact <c>hello</c> answer a worker process must give before its first real request, plus the
+/// name used in transport diagnostics. The Openness worker and the PLCSIM worker share the envelope
+/// and the transport but are different protocols, so each pins its own version and capabilities.
+/// </summary>
+public sealed record WorkerHandshake(string Version, IReadOnlyList<string> RequiredCapabilities, string DisplayName)
+{
+    public static WorkerHandshake Openness { get; } =
+        new(WorkerProtocol.Version, WorkerProtocol.RequiredCapabilities, "TIA Openness worker");
+}
+
+/// <summary>
 /// Owns ONE long-lived worker process and the stdin/stdout line protocol against it.
 /// Requests are serialized behind an instance gate (Siemens Openness is not safe for
 /// concurrent access to one TIA Portal). A crash, timeout, or protocol desync kills the
@@ -27,6 +38,7 @@ public sealed class PersistentWorkerTransport : IDisposable
     private readonly TimeSpan _requestTimeout;
     private readonly ILogger? _logger;
     private readonly string? _workerArgs;
+    private readonly WorkerHandshake _handshake;
     private readonly ConcurrentQueue<string> _recentStderr = new();
 
     private Process? _process;
@@ -34,12 +46,14 @@ public sealed class PersistentWorkerTransport : IDisposable
     private bool _handshakeComplete;
     private volatile bool _disposed;
 
-    public PersistentWorkerTransport(string workerExecutablePath, TimeSpan requestTimeout, ILogger? logger = null, string? workerArgs = null)
+    public PersistentWorkerTransport(string workerExecutablePath, TimeSpan requestTimeout, ILogger? logger = null, string? workerArgs = null,
+        WorkerHandshake? handshake = null)
     {
         _workerExecutablePath = workerExecutablePath;
         _requestTimeout = requestTimeout;
         _logger = logger;
         _workerArgs = workerArgs;
+        _handshake = handshake ?? WorkerHandshake.Openness;
     }
 
     public async Task<WorkerResponse> SendAsync(WorkerRequest request)
@@ -65,13 +79,13 @@ public sealed class PersistentWorkerTransport : IDisposable
                     new WorkerRequest
                     {
                         Method = "hello",
-                        ProtocolVersion = WorkerProtocol.Version
+                        ProtocolVersion = _handshake.Version
                     }).ConfigureAwait(false);
                 ValidateHello(hello);
                 _handshakeComplete = true;
             }
 
-            request.ProtocolVersion = WorkerProtocol.Version;
+            request.ProtocolVersion = _handshake.Version;
             return await ExchangeAsync(process, request).ConfigureAwait(false);
         }
         finally
@@ -105,14 +119,14 @@ public sealed class PersistentWorkerTransport : IDisposable
         {
             KillProcess();
             throw new TimeoutException(
-                $"TIA Openness worker did not respond within {_requestTimeout.TotalSeconds:N0} seconds. "
+                $"{_handshake.DisplayName} did not respond within {_requestTimeout.TotalSeconds:N0} seconds. "
                 + "The worker process was terminated and will restart on the next request; retry it.");
         }
 
         if (responseLine is null)
         {
             var detail = await CaptureCrashDetailAsync().ConfigureAwait(false);
-            throw new InvalidOperationException($"TIA Openness worker exited without a response. {detail}");
+            throw new InvalidOperationException($"{_handshake.DisplayName} exited without a response. {detail}");
         }
 
         WorkerResponse? response;
@@ -157,7 +171,7 @@ public sealed class PersistentWorkerTransport : IDisposable
         if (response is null)
         {
             KillProcess();
-            throw new InvalidOperationException("TIA Openness worker returned an empty response.");
+            throw new InvalidOperationException($"{_handshake.DisplayName} returned an empty response.");
         }
 
         try
@@ -182,17 +196,17 @@ public sealed class PersistentWorkerTransport : IDisposable
     private void ValidateHello(WorkerResponse response)
     {
         var capabilities = response.Capabilities ?? new List<string>();
-        var missing = WorkerProtocol.RequiredCapabilities
+        var missing = _handshake.RequiredCapabilities
             .Where(required => !capabilities.Contains(required, StringComparer.Ordinal))
             .ToArray();
         if (!response.Success ||
-            !string.Equals(response.ProtocolVersion, WorkerProtocol.Version, StringComparison.Ordinal) ||
+            !string.Equals(response.ProtocolVersion, _handshake.Version, StringComparison.Ordinal) ||
             missing.Length != 0)
         {
             var message =
-                "TIA Openness worker protocol handshake failed before any Siemens operation. "
-                + $"Expected version '{WorkerProtocol.Version}' and capabilities "
-                + $"[{string.Join(", ", WorkerProtocol.RequiredCapabilities)}]; received version "
+                $"{_handshake.DisplayName} protocol handshake failed before any Siemens operation. "
+                + $"Expected version '{_handshake.Version}' and capabilities "
+                + $"[{string.Join(", ", _handshake.RequiredCapabilities)}]; received version "
                 + $"'{response.ProtocolVersion ?? "(missing)"}', missing [{string.Join(", ", missing)}]. "
                 + $"Worker error: {response.Error ?? "(none)"}";
             KillProcess();
@@ -227,10 +241,10 @@ public sealed class PersistentWorkerTransport : IDisposable
         };
 
         var process = Process.Start(startInfo) ??
-            throw new InvalidOperationException("Failed to start the TIA Openness worker process.");
+            throw new InvalidOperationException($"Failed to start the {_handshake.DisplayName} process.");
         _process = process;
         _stderrPump = Task.Run(() => PumpStderrAsync(process));
-        _logger?.LogInformation("Started TIA Openness worker process (pid {Pid}).", process.Id);
+        _logger?.LogInformation("Started {Worker} process (pid {Pid}).", _handshake.DisplayName, process.Id);
     }
 
     private async Task PumpStderrAsync(Process process)
@@ -246,7 +260,7 @@ public sealed class PersistentWorkerTransport : IDisposable
                     continue;
                 }
 
-                _logger?.LogWarning("TIA Openness worker stderr: {Line}", trimmed);
+                _logger?.LogWarning("{Worker} stderr: {Line}", _handshake.DisplayName, trimmed);
                 _recentStderr.Enqueue(trimmed);
                 while (_recentStderr.Count > RecentStderrCapacity)
                 {

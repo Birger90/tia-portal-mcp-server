@@ -20,6 +20,8 @@
     <PackageReference Include="ModelContextProtocol" Version="2.3.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.14" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.403" PrivateAssets="All" />
+    <!-- Official SIMATIC S7-1500 Web API client (MIT, siemens/simatic-s7-webserver-api); a NuGet dependency of the host only. -->
+    <PackageReference Include="Siemens.Simatic.S7.Webserver.API" Version="3.3.92" />
   </ItemGroup>
 
   <ItemGroup>
@@ -29,13 +31,66 @@
   <ItemGroup>
     <None Include="../README.md" Pack="true" PackagePath="/" />
     <None Include="../LICENSE" Pack="true" PackagePath="/" />
+    <None Include="../LICENSE-MIT" Pack="true" PackagePath="/" />
   </ItemGroup>
+
+  <!--
+    The Windows-only password manager (TiaMcpServer.PasswordManager, WinForms) ships next to the server in password-manager\.
+    It is not in TiaMcpServer.slnx; it is restored and built here on Windows only, so Linux builds and tests never need the
+    Windows Desktop targeting pack. Set BuildPasswordManager=false to skip it.
+  -->
+  <PropertyGroup>
+    <BuildPasswordManager Condition="'$(BuildPasswordManager)' == '' and '$(OS)' == 'Windows_NT'">true</BuildPasswordManager>
+    <PasswordManagerProject>..\TiaMcpServer.PasswordManager\TiaMcpServer.PasswordManager.csproj</PasswordManagerProject>
+    <PasswordManagerOutput>..\TiaMcpServer.PasswordManager\bin\$(Configuration)\net10.0-windows\</PasswordManagerOutput>
+  </PropertyGroup>
+
+  <Target Name="BuildPasswordManager" BeforeTargets="Build" Condition="'$(BuildPasswordManager)' == 'true'">
+    <!-- A separate global property gives the restore its own project instance, so the build below sees the fresh assets. -->
+    <MSBuild Projects="$(PasswordManagerProject)"
+      Targets="Restore"
+      Properties="Configuration=$(Configuration);TiaMcpPasswordManagerRestore=true"
+      RemoveProperties="TargetFramework;TargetFrameworks;RuntimeIdentifier;SelfContained;PackAsTool;PublishSingleFile;PublishSelfContained;PublishTrimmed;PublishReadyToRun" />
+    <MSBuild Projects="$(PasswordManagerProject)"
+      Targets="Build"
+      Properties="Configuration=$(Configuration)"
+      RemoveProperties="TargetFramework;TargetFrameworks;RuntimeIdentifier;SelfContained;PackAsTool;PublishSingleFile;PublishSelfContained;PublishTrimmed;PublishReadyToRun" />
+  </Target>
+
+  <Target Name="CopyPasswordManager" AfterTargets="Build" BeforeTargets="PackTool" Condition="'$(BuildPasswordManager)' == 'true'">
+    <RemoveDir Directories="$(OutputPath)password-manager" />
+    <ItemGroup>
+      <PasswordManagerFiles Include="$(PasswordManagerOutput)**\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(PasswordManagerFiles)"
+      DestinationFiles="@(PasswordManagerFiles->'$(OutputPath)password-manager\%(RecursiveDir)%(Filename)%(Extension)')"
+      SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="RegisterPasswordManagerPublishFiles" AfterTargets="ComputeFilesToPublish" Condition="'$(BuildPasswordManager)' == 'true'">
+    <RemoveDir Directories="$(PublishDir)password-manager" />
+    <ItemGroup>
+      <PasswordManagerPublishFiles Include="$(PasswordManagerOutput)**\*.*" />
+      <ResolvedFileToPublish Include="@(PasswordManagerPublishFiles)">
+        <RelativePath>password-manager\%(RecursiveDir)%(Filename)%(Extension)</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+        <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+      </ResolvedFileToPublish>
+    </ItemGroup>
+  </Target>
 
   <Target Name="BuildOpennessWorker" BeforeTargets="Build">
     <MSBuild Projects="..\TiaMcpServer.OpennessWorker\TiaMcpServer.OpennessWorker.csproj"
       Targets="Build"
       Properties="Configuration=$(Configuration)"
-      RemoveProperties="TargetFramework;TargetFrameworks;RuntimeIdentifier;SelfContained;PackAsTool" />
+      RemoveProperties="TargetFramework;TargetFrameworks;RuntimeIdentifier;SelfContained;PackAsTool;PublishSingleFile;PublishSelfContained;PublishTrimmed;PublishReadyToRun" />
+  </Target>
+
+  <Target Name="BuildPlcSimWorker" BeforeTargets="Build">
+    <MSBuild Projects="..\TiaMcpServer.PlcSimWorker\TiaMcpServer.PlcSimWorker.csproj"
+      Targets="Build"
+      Properties="Configuration=$(Configuration)"
+      RemoveProperties="TargetFramework;TargetFrameworks;RuntimeIdentifier;SelfContained;PackAsTool;PublishSingleFile;PublishSelfContained;PublishTrimmed;PublishReadyToRun" />
   </Target>
 
   <Target Name="CopyOpennessWorker" AfterTargets="Build" BeforeTargets="PackTool">
@@ -48,6 +103,33 @@
     <Copy SourceFiles="@(OpennessWorkerFiles)"
       DestinationFiles="@(OpennessWorkerFiles->'$(OutputPath)openness-worker\%(RecursiveDir)%(Filename)%(Extension)')"
       SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- The PLCSIM worker never ships Siemens binaries; the PLCSIM Advanced API is loaded from the installation at runtime. -->
+  <Target Name="CopyPlcSimWorker" AfterTargets="Build" BeforeTargets="PackTool">
+    <RemoveDir Directories="$(OutputPath)plcsim-worker" />
+    <ItemGroup>
+      <PlcSimWorkerFiles
+        Include="..\TiaMcpServer.PlcSimWorker\bin\$(Configuration)\net48\**\*.*"
+        Exclude="..\TiaMcpServer.PlcSimWorker\bin\$(Configuration)\net48\Siemens.*.dll;..\TiaMcpServer.PlcSimWorker\bin\$(Configuration)\net48\**\*.runtimeconfig.json" />
+    </ItemGroup>
+    <Copy SourceFiles="@(PlcSimWorkerFiles)"
+      DestinationFiles="@(PlcSimWorkerFiles->'$(OutputPath)plcsim-worker\%(RecursiveDir)%(Filename)%(Extension)')"
+      SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="RegisterPlcSimWorkerPublishFiles" AfterTargets="ComputeFilesToPublish">
+    <RemoveDir Directories="$(PublishDir)plcsim-worker" />
+    <ItemGroup>
+      <PlcSimWorkerPublishFiles
+        Include="..\TiaMcpServer.PlcSimWorker\bin\$(Configuration)\net48\**\*.*"
+        Exclude="..\TiaMcpServer.PlcSimWorker\bin\$(Configuration)\net48\Siemens.*.dll;..\TiaMcpServer.PlcSimWorker\bin\$(Configuration)\net48\**\*.runtimeconfig.json" />
+      <ResolvedFileToPublish Include="@(PlcSimWorkerPublishFiles)">
+        <RelativePath>plcsim-worker\%(RecursiveDir)%(Filename)%(Extension)</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+        <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+      </ResolvedFileToPublish>
+    </ItemGroup>
   </Target>
 
   <Target Name="RegisterOpennessWorkerPublishFiles" AfterTargets="ComputeFilesToPublish">

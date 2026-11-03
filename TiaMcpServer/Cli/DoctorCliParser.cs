@@ -1,4 +1,5 @@
 using TiaMcpServer.Contracts.Safety;
+using TiaMcpServer.Contracts.Shared;
 
 namespace TiaMcpServer.Cli;
 
@@ -12,6 +13,12 @@ public sealed record DoctorCliOptions(
     string? ParseError)
 {
     public WorkerTimeoutParseResult? WorkerTimeout { get; init; }
+
+    /// <summary>The resolved access mode with its source and the settings file read (same precedence as the server).</summary>
+    public AccessModeParseResult? AccessModeResolution { get; init; }
+
+    /// <summary>The PLC Web API target file the server would load (option, environment or none).</summary>
+    public PlcWebApi.PlcWebApiConfigOptionResult? PlcWebApiConfig { get; init; }
 }
 
 public static class DoctorCliParser
@@ -26,7 +33,8 @@ public static class DoctorCliParser
     private const string ReadOnlyFlag = "--read-only";
     private const string ReadWriteFlag = "--read-write";
 
-    public static DoctorCliOptions Parse(string[] args, Func<string, string?>? getEnvironmentVariable = null)
+    /// <param name="settings">The server settings file as the server would read it; null means none is considered.</param>
+    public static DoctorCliOptions Parse(string[] args, Func<string, string?>? getEnvironmentVariable = null, ServerSettingsReadResult? settings = null)
     {
         getEnvironmentVariable ??= Environment.GetEnvironmentVariable;
         bool json = args.Any(arg => string.Equals(arg, JsonFlag, StringComparison.OrdinalIgnoreCase));
@@ -35,7 +43,7 @@ public static class DoctorCliParser
         bool help = args.Any(arg => string.Equals(arg, HelpFlag, StringComparison.OrdinalIgnoreCase));
         string? projectPath = null;
 
-        var accessModeResult = AccessModeParser.Parse(args, getEnvironmentVariable);
+        var accessModeResult = AccessModeParser.Parse(args, getEnvironmentVariable, settings);
         if (!accessModeResult.IsValid)
         {
             return new DoctorCliOptions(
@@ -53,6 +61,13 @@ public static class DoctorCliParser
         if (!workerTimeout.IsValid)
         {
             return new DoctorCliOptions(false, json, verbose, help, null, accessMode, workerTimeout.Error);
+        }
+
+        var plcWebApiConfig = PlcWebApi.PlcWebApiConfigOption.Parse(args, getEnvironmentVariable);
+        if (!plcWebApiConfig.IsValid && plcWebApiConfig.Source == PlcWebApi.PlcWebApiConfigSource.Option
+            && PlcWebApiOptionShapeError(args) is { } shapeError)
+        {
+            return new DoctorCliOptions(false, json, verbose, help, null, accessMode, shapeError);
         }
 
         for (int i = 0; i < args.Length; i++)
@@ -103,6 +118,18 @@ public static class DoctorCliParser
                 continue;
             }
 
+            if (arg.StartsWith(PlcWebApi.PlcWebApiConfigOption.Flag + "=", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (string.Equals(arg, PlcWebApi.PlcWebApiConfigOption.Flag, StringComparison.OrdinalIgnoreCase))
+            {
+                // PlcWebApiConfigOption already read the value above; a relative path is reported by the check.
+                i++;
+                continue;
+            }
+
             if (string.Equals(arg, ProjectFlag, StringComparison.OrdinalIgnoreCase))
             {
                 if (i + 1 >= args.Length ||
@@ -145,7 +172,13 @@ public static class DoctorCliParser
 
         return new DoctorCliOptions(true, json, verbose, help, projectPath, accessMode, null)
         {
-            WorkerTimeout = workerTimeout
+            WorkerTimeout = workerTimeout,
+            PlcWebApiConfig = plcWebApiConfig,
+            AccessModeResolution = accessModeResult
         };
     }
+
+    /// <summary>A missing or repeated <c>--plc-webapi-config</c> value is an argument error; a bad path is the check's finding.</summary>
+    private static string? PlcWebApiOptionShapeError(string[] args)
+        => StartupOptionReader.ReadSingle(args, PlcWebApi.PlcWebApiConfigOption.Flag).Error;
 }

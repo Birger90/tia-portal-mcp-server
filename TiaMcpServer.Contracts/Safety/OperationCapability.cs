@@ -24,9 +24,30 @@ public enum OperationCapability
     /// <summary>Modifies project data: blocks, tags, tag tables, user constants, network devices.</summary>
     ProjectMutation,
 
-    /// <summary>Reserved for PLC runtime control. No operation is classified here.</summary>
+    /// <summary>
+    /// Changes a target device or TIA Portal's online connection to it: <c>plc_download</c>, which
+    /// downloads to PLCSIM or to real hardware, the S7-1500 Web API control methods of
+    /// <c>plc_online_write</c> (<c>webapi_*</c>, real controllers configured by the user) and the
+    /// Openness go-online/go-offline methods of <c>plc_tia_online</c>. Allowed in read-write and
+    /// full, never in read-only: the access mode is the human's control over these changes.
+    /// </summary>
     OnlineControl,
 
     /// <summary>Selects an already-open Portal project without opening, saving, or closing it.</summary>
-    SessionSelection
+    SessionSelection,
+
+    /// <summary>
+    /// Controls an S7-PLCSIM Advanced virtual CPU through the separate PLCSIM worker: power, run/stop,
+    /// memory reset, tag-list refresh, tag writes, scale factor and test scenarios. It never touches a
+    /// TIA Portal project. Appended last so existing numeric values stay stable.
+    /// </summary>
+    SimulationControl,
+
+    /// <summary>
+    /// Connects to a target device but changes neither the target nor the project: <c>compare_to_online</c>
+    /// (<c>PlcSoftware.CompareToOnline</c>). Allowed in every mode because read-only means observation; kept
+    /// apart from <see cref="Observe"/> so the network reach is explicit and can be tightened without
+    /// touching offline reads. Appended last so existing numeric values stay stable.
+    /// </summary>
+    OnlineObserve
 }

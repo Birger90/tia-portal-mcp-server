@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.Json;
 using ModelContextProtocol.Protocol;
 using TiaMcpServer.Contracts.Json;
@@ -33,6 +34,7 @@ public sealed class LifecycleGuardedContractTests
     [Fact]
     public void LifecyclePayload_WritesRequiredNullMembers()
     {
+        Assert.Null(typeof(ProjectLifecycleResultInfo).GetCustomAttribute<LegacyNullOmissionAttribute>());
         using var document = JsonDocument.Parse(WorkerJson.SerializePayload(new ProjectLifecycleResultInfo
         {
             Operation = "close_project"

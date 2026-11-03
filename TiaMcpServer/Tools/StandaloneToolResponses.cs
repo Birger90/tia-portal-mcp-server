@@ -76,4 +76,5 @@ public sealed record ProjectBindingInfo(
     int? PortalProcessId,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] ProjectContextInfo? Context = null);
 
-public sealed record PortalProcessInfo(int ProcessId, string? ProjectPath, bool HasUserInterface, bool IsBound);
+/// <summary>One running TIA Portal; <paramref name="OtherClientCount"/> counts attached Openness clients other than this server's worker (null when unreadable).</summary>
+public sealed record PortalProcessInfo(int ProcessId, string? ProjectPath, bool HasUserInterface, bool IsBound, int? OtherClientCount);

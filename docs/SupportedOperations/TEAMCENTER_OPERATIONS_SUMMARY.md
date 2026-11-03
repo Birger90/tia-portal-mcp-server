@@ -1,5 +1,7 @@
 # TIA Portal Teamcenter Operations
 
+**Language:** English · [Deutsch](TEAMCENTER_OPERATIONS_SUMMARY.de.md)
+
 ## Support status
 
 The current project lifecycle surface works with ordinary local project paths. It does not include Teamcenter service, storage, managed-project, or Teamcenter connection objects.

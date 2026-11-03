@@ -7,7 +7,7 @@ namespace TiaMcpServer.Tests.Network;
 
 public class HardwareConfigInfoTests
 {
-    private static readonly JsonSerializerOptions JsonOptions = WorkerJson.ExplicitNullPayload;
+    private static readonly JsonSerializerOptions JsonOptions = WorkerJson.PayloadOptionsFor(typeof(HardwareConfigInfo));
 
     [Fact]
     public void SerializesEmptyConfig()
@@ -172,6 +172,8 @@ public class HardwareConfigInfoTests
         var json = JsonSerializer.Serialize(item, JsonOptions);
         var roundTripped = JsonSerializer.Deserialize<DeviceItemInfo>(json, JsonOptions);
 
+        // HardwareConfigInfo no longer carries [LegacyNullOmission(RequiredMemberEnforcement)]
+        // (Task 3): a null Address is now written explicitly instead of omitted.
         Assert.Contains("\"address\":null", json);
         Assert.NotNull(roundTripped);
         Assert.Null(roundTripped.Address);

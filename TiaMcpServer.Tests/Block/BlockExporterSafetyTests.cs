@@ -34,11 +34,28 @@ public sealed class BlockExporterSafetyTests
             documents.Add(new BlockImportDocument("Mixer.s7dcl", "Mixer.s7dcl", "PRIVATE_COMPANION"));
         }
 
-        var publicBundle = BlockExporter.ExportXmlBundle("PLC_1/Blocks/Mixer", "Mixer",
-            () => throw new InvalidOperationException("PRIVATE_XML_ERROR"), ExportCompanions);
+        var original = Console.Error;
+        using var warnings = new StringWriter();
+        string publicBundle;
+        Console.SetError(warnings);
+        try
+        {
+            publicBundle = BlockExporter.ExportXmlBundle("PLC_1/Blocks/Mixer", "Mixer",
+                () => throw new InvalidOperationException("PRIVATE_XML_ERROR"), ExportCompanions);
+        }
+        finally
+        {
+            Console.SetError(original);
+        }
+
         Assert.Contains("PRIVATE_COMPANION", publicBundle);
         Assert.DoesNotContain("PRIVATE_XML_ERROR", publicBundle);
         Assert.Equal(1, companionCalls);
+        // D15: the fallback is no longer silent; the warning names the block and the cause, never the Siemens message.
+        var text = warnings.ToString();
+        Assert.Contains(TiaMcpServer.Contracts.Plc.Interface.SimaticMlExportNotes.NotExported("PLC_1/Blocks/Mixer", null), text);
+        Assert.Contains("run compile_check and read again", text);
+        Assert.DoesNotContain("PRIVATE_XML_ERROR", text);
     }
 
     [Fact]

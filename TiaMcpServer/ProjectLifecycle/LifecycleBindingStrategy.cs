@@ -44,6 +44,14 @@ public sealed class LifecycleBindingStrategy(OpennessWorkerClient workerClient) 
         var before = workerClient.BindingSnapshot;
         if (item.Operation == "create_project" && before.State == ProjectBindingSnapshot.UnboundState)
             return WriteBindingPreparation.Prepared(before);
+        if (item.Operation == "retrieve_project")
+        {
+            // Like open_project: an existing binding is replaced only with forceRebind.
+            if (before.State != ProjectBindingSnapshot.UnboundState && !item.ForceRebind)
+                return WriteBindingPreparation.Rejected(new(WorkerFailureCategories.BindingConflict,
+                    $"This session is bound to '{before.ProjectPath}'. Pass forceRebind:true to bind to the retrieved project instead."));
+            if (before.State == ProjectBindingSnapshot.UnboundState) return WriteBindingPreparation.Prepared(before);
+        }
 
         return await PrepareVerifiedSourceAsync(before, cancellationToken).ConfigureAwait(false);
     }

@@ -13,6 +13,14 @@ namespace TiaMcpServer.Tests.Project;
 [Collection(RealWorkerProcessCollection.Name)]
 public class ProjectStandaloneToolTests
 {
+    private static OpennessWorkerClient CreateClient(
+        string workerPath,
+        ProjectSessionBinding? binding = null)
+        => new(
+            binding ?? new ProjectSessionBinding(null),
+            logger: null,
+            workerExecutablePath: workerPath);
+
     private static async Task VerifyBindingAsync(
         OpennessWorkerClient client,
         ProjectSessionBinding binding,
@@ -61,14 +69,14 @@ public class ProjectStandaloneToolTests
     {
         const string projectPath = "compile-arguments";
         var binding = new ProjectSessionBinding(projectPath);
-        using var client = FakeWorkerClients.Create(binding: binding);
+        using var client = CreateClient(FakeWorkerLocator.Locate(), binding);
         await VerifyBindingAsync(client, binding, projectPath);
 
         var response = await ProjectEngineeringTools.CompileCheck(
             client,
             plcName: "PLC_1",
             blockPath: "PLC_1/Blocks/Main");
-        var root = CanonicalToolDocument.Read(response);
+        var root = StandaloneStatusToolTests.Document(response);
         Assert.True(root.GetProperty("success").GetBoolean());
         var report = root.GetProperty("result").GetProperty("value");
         Assert.Equal("block", report.GetProperty("scope").GetString());
@@ -81,13 +89,13 @@ public class ProjectStandaloneToolTests
     {
         const string projectPath = "compile-arguments";
         var binding = new ProjectSessionBinding(projectPath);
-        using var client = FakeWorkerClients.Create(binding: binding);
+        using var client = CreateClient(FakeWorkerLocator.Locate(), binding);
         await VerifyBindingAsync(client, binding, projectPath);
 
         var response = await ProjectEngineeringTools.CompileCheck(
             client,
             blockPath: new string('x', StructuredOperationBatchPayloadBudget.MaxItemChars + 100));
-        var root = CanonicalToolDocument.Read(response);
+        var root = StandaloneStatusToolTests.Document(response);
         var outcome = root.GetProperty("result");
         Assert.Equal("omitted", outcome.GetProperty("status").GetString());
         Assert.Equal(JsonValueKind.Null, outcome.GetProperty("value").ValueKind);

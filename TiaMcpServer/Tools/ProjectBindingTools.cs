@@ -73,7 +73,7 @@ public class ProjectBindingTools
 
     private static PortalProcessInfo[] Portals(IReadOnlyList<TiaPortalProcessInfo> portals, ProjectBindingSnapshot binding)
         => portals.Select(portal => new PortalProcessInfo(portal.ProcessId, portal.ProjectPath,
-            portal.HasUserInterface, binding.IsVerified && binding.PortalProcessId == portal.ProcessId)).ToArray();
+            portal.HasUserInterface, binding.IsVerified && binding.PortalProcessId == portal.ProcessId, portal.OtherClientCount)).ToArray();
 
     private static CallToolResult InvalidArguments() => StructuredStandaloneResult.Create<ProjectBindingResult>("bind_project", null,
         Array.Empty<string>(), new(WorkerFailureCategories.ValidationError, ProjectBindingInspectionCatalog.InvalidArguments));

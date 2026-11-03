@@ -97,7 +97,7 @@ internal static class PlcTypeTargetResolver
         return new TypeOwner(unit.TypeGroup, unit.ExternalSourceGroup);
     }
 
-    private static PlcUnit FindSoftwareUnit(PlcSoftware plcSoftware, string unitName)
+    internal static PlcUnit FindSoftwareUnit(PlcSoftware plcSoftware, string unitName)
     {
         PlcUnitProvider? unitProvider = plcSoftware.GetService<PlcUnitProvider>();
         if (unitProvider is null)

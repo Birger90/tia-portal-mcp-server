@@ -5,14 +5,25 @@ namespace TiaMcpServer.Diagnostics;
 
 public static class DoctorTextRenderer
 {
-    public static void Render(DoctorReport report, bool verbose, TextWriter writer, McpAccessMode? accessMode = null, WorkerTimeoutParseResult? workerTimeout = null)
+    /// <param name="accessModeResolution">When given (with <paramref name="accessMode"/>), the source follows the mode and a settings file line is added.</param>
+    public static void Render(DoctorReport report, bool verbose, TextWriter writer, McpAccessMode? accessMode = null, WorkerTimeoutParseResult? workerTimeout = null,
+        AccessModeParseResult? accessModeResolution = null)
     {
         writer.WriteLine("TIA Portal MCP Environment Doctor");
         writer.WriteLine();
         if (accessMode.HasValue)
         {
             var modeLabel = McpAccessModeNames.ToName(accessMode.Value).ToUpperInvariant();
-            writer.WriteLine($"Access mode: {modeLabel}");
+            if (accessModeResolution is null)
+            {
+                writer.WriteLine($"Access mode: {modeLabel}");
+            }
+            else
+            {
+                writer.WriteLine($"Access mode: {modeLabel} ({AccessModeParseResult.SourceName(accessModeResolution.Source)})");
+                writer.WriteLine($"Settings file: {accessModeResolution.SettingsPath ?? "none"}");
+            }
+
             writer.WriteLine();
         }
 

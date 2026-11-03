@@ -62,9 +62,13 @@ public class McpToolSchemaTests
         var hardwareCoordinator = new HardwarePaginationCoordinator(workerClient, hardwareCodec, hardwareProjector);
         var objectCoordinator = new NetworkObjectPaginationCoordinator(workerClient, objectCodec);
         var networkExecutor = new NetworkReadOperationExecutor(workerClient, hardwareCoordinator, objectCoordinator);
+        var plcSimClient = new TiaMcpServer.PlcSim.PlcSimWorkerClient(new TiaMcpServer.Safety.OperationAccessPolicy(McpAccessMode.ReadWrite));
+        var plcSimAudit = new TiaMcpServer.PlcSim.PlcSimAudit(
+            new JsonlWriteAuditSink(Path.Combine(Path.GetTempPath(), "tia-schema-" + Guid.NewGuid().ToString("N"))));
+        var plcWebApi = new TiaMcpServer.Tests.PlcWebApi.FakePlcWebApiWorld().Service(McpAccessMode.ReadWrite);
         return new FakeServiceProvider(binding, workerClient, coordinator, execution,
             protector, hardwareCodec, objectCodec, hardwareProjector, hardwareCoordinator, objectCoordinator, networkExecutor,
-            new TiaMcpServer.Hmi.HmiPageCursorCodec(protector));
+            new TiaMcpServer.Hmi.HmiPageCursorCodec(protector), plcSimClient, plcSimAudit, plcWebApi);
     }
 
     private static string[] SchemaPropertyNames(Type toolType, string methodName)
@@ -153,12 +157,12 @@ public class McpToolSchemaTests
     /// ProjectWriteTools lives in - which, for TiaMcpServer.Tests, is the test assembly
     /// itself, since the host's tool source files are compiled directly into it (see
     /// TiaMcpServer.Tests.csproj's Compile Include entries). Counts every method on those types
-    /// carrying [McpServerTool] and asserts the exact approved surface: 19 tools total, and the
-    /// internal lifecycle probe (probe_project_status_for_lifecycle, never [McpServerTool]-decorated)
-    /// absent.
+    /// carrying [McpServerTool] and asserts the exact approved surface: 30 tools total (22 TIA Portal
+    /// tools, library_read and library_write included, plus plc_download, plc_tia_online, plc_station_upload, plcsim_read, plcsim_write, plcsim_test, plc_online_read and plc_online_write), and the internal lifecycle probe
+    /// (probe_project_status_for_lifecycle, never [McpServerTool]-decorated) absent.
     /// </summary>
     [Fact]
-    public void McpToolSurface_ExposesExactlyNineteenApprovedTools()
+    public void McpToolSurface_ExposesExactlyTwentySevenApprovedTools()
     {
         var toolTypes = typeof(ProjectWriteTools).Assembly
             .GetTypes()
@@ -185,12 +189,19 @@ public class McpToolSchemaTests
             "save_project_as",
             "archive_project",
             "close_project",
+            "retrieve_project",
             "network_read",
             "network_write",
+            "plc_download",
+            "plc_tia_online",
+            "plc_station_upload",
             "plc_read",
             "plc_write",
             "hmi_write",
-            "read_cross_references", "vci_read", "vci_write"
+            "read_cross_references", "vci_read", "vci_write",
+            "plcsim_read", "plcsim_write", "plcsim_test",
+            "plc_online_read", "plc_online_write",
+            "library_read", "library_write"
         };
 
         Assert.Equal(expected.OrderBy(name => name), toolNames);
@@ -198,7 +209,7 @@ public class McpToolSchemaTests
     }
 
     [Fact]
-    public void McpReadOnlySurface_RemainsExactlyEightApprovedTools()
+    public void McpReadOnlySurface_RemainsExactlyTenApprovedTools()
     {
         var toolNames = new[]
         {
@@ -209,6 +220,9 @@ public class McpToolSchemaTests
             typeof(TiaMcpServer.Hmi.HmiReadTools),
             typeof(TiaMcpServer.CrossReferences.CrossReferenceReadTools),
             typeof(TiaMcpServer.Vci.VciReadTools),
+            typeof(TiaMcpServer.PlcSim.PlcSimReadTools),
+            typeof(TiaMcpServer.PlcWebApi.PlcWebApiReadTools),
+            typeof(TiaMcpServer.Library.LibraryReadTools),
         }
             .SelectMany(type => type.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance))
             .Select(method => method.GetCustomAttribute<McpServerToolAttribute>())
@@ -218,7 +232,7 @@ public class McpToolSchemaTests
             .ToArray();
 
         Assert.Equal(
-            new[] { "bind_project", "browse_project_tree", "get_project_status", "hmi_read", "network_read", "plc_read", "read_cross_references", "vci_read" },
+            new[] { "bind_project", "browse_project_tree", "get_project_status", "hmi_read", "library_read", "network_read", "plc_online_read", "plc_read", "plcsim_read", "read_cross_references", "vci_read" },
             toolNames);
         Assert.DoesNotContain("probe_network_object_attributes", toolNames);
     }
@@ -266,6 +280,7 @@ public class McpToolSchemaTests
                 "close_project",
                 "create_project",
                 "open_project",
+                "retrieve_project",
                 "save_project",
                 "save_project_as"
             },
@@ -277,11 +292,25 @@ public class McpToolSchemaTests
     [InlineData(typeof(TiaMcpServer.Network.NetworkReadTools), "NetworkRead")]
     [InlineData(typeof(TiaMcpServer.Hmi.HmiReadTools), "HmiRead")]
     [InlineData(typeof(TiaMcpServer.Vci.VciReadTools), "VciRead")]
+    [InlineData(typeof(TiaMcpServer.PlcSim.PlcSimReadTools), "PlcSimRead")]
+    [InlineData(typeof(TiaMcpServer.PlcWebApi.PlcWebApiReadTools), "PlcOnlineRead")]
     public void ReadBatchSchemas_ExposeOnlyOperations(Type toolType, string methodName)
     {
         var properties = SchemaPropertyNames(toolType, methodName);
 
         Assert.Equal(new[] { "operations" }, properties);
+    }
+
+    [Theory]
+    [InlineData(typeof(TiaMcpServer.PlcSim.PlcSimWriteTools), "PlcSimWrite", "dryRun,operations")]
+    [InlineData(typeof(TiaMcpServer.PlcSim.PlcSimTestTools), "PlcSimTest", "continueOnFailure,dryRun,instance,maxDurationMs,steps")]
+    public void PlcSimSchemas_ExposeExactlyModelInputs(Type toolType, string methodName, string expected)
+    {
+        var properties = SchemaPropertyNames(toolType, methodName);
+
+        Assert.Equal(expected.Split(','), properties.OrderBy(name => name, StringComparer.Ordinal).ToArray());
+        Assert.DoesNotContain("plcSimClient", properties);
+        Assert.DoesNotContain("audit", properties);
     }
 
     [Fact]
@@ -448,7 +477,7 @@ public class McpToolSchemaTests
             nameof(ProjectEngineeringTools.CompileCheck));
 
         Assert.Equal(
-            new[] { "blockPath", "plcName" },
+            new[] { "blockPath", "plcName", "scope" },
             properties.OrderBy(name => name).ToArray());
         Assert.DoesNotContain("workerClient", properties);
         Assert.DoesNotContain("confirm", properties);

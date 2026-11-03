@@ -8,7 +8,7 @@ using TiaMcpServer.OpennessWorker.Worker;
 
 namespace TiaMcpServer.OpennessWorker.Openness.Block;
 
-public static class BlockImporter
+public static partial class BlockImporter
 {
     internal static BlockImportResult Import(
         ProjectBase project,
@@ -19,6 +19,9 @@ public static class BlockImporter
     {
         if (project is null) throw new ArgumentNullException(nameof(project));
         if (yamlContent is null) throw new ArgumentNullException(nameof(yamlContent));
+
+        if (string.Equals(format, SourceFormatNames.Sd, StringComparison.Ordinal))
+            return ImportSd(project, blockPath, yamlContent, expectedContentHash);
 
         if (!string.Equals(format, SourceFormatNames.Xml, StringComparison.Ordinal))
             return ImportSource(project, blockPath, yamlContent, expectedContentHash);
@@ -42,6 +45,9 @@ public static class BlockImporter
                         $"No block exists at '{prepared.Address.ToDisplayPath()}'. update_block_logic only updates a "
                         + "block that is already in the project; it never creates one.");
                 }
+
+                // A fail-safe block: refused before any import only when its safety program has a password and is not logged on.
+                Safety.PlcSafetyGate.RequireImportPermitted(project, prepared.Address.PlcName, existing.Block, yamlContent, sourceFormat: false);
 
                 PlcWritePreconditions.RequireContentHash(
                     expectedContentHash,
@@ -80,6 +86,7 @@ public static class BlockImporter
         BlockImportInvocationBoundary boundary)
     {
         var target = BlockTargetResolver.ResolveForImport(project, address);
+        var plcName = PlcSoftwareLocator.FindUnique(project, address.PlcName).Software.Name;
 
         if (BlockImportRouting.SelectRoute(bundle) == BlockImportRoute.SimaticMl)
         {
@@ -99,22 +106,13 @@ public static class BlockImporter
             boundary.BeforeSiemensCall();
             target.Group.Blocks.Import(new FileInfo(xmlPath), ImportOptions.Override);
             boundary.AfterSiemensCallReturned();
+            // A returned import is a write: the block's export count restarts at zero (BlockExportLedger).
+            BlockExportLedger.Shared.RecordWrite(plcName, target.DocumentName);
             boundary.RecordReturnedResult(BlockImportReturnedState.Success);
             return;
         }
 
-        boundary.BeforeSiemensCall();
-        var result = target.Group.Blocks.ImportFromDocuments(
-            directory,
-            BlockImportRouting.SimaticSdBaseName(bundle),
-            ImportDocumentOptions.Override);
-        boundary.AfterSiemensCallReturned();
-        boundary.RecordReturnedResult(result.State == DocumentResultState.Success
-            ? BlockImportReturnedState.Success
-            : BlockImportReturnedState.NonSuccess);
-
-        if (result.State != DocumentResultState.Success)
-            throw new InvalidOperationException("SIMATIC SD import returned a non-success state.");
+        ImportFromDocuments(target, plcName, directory, BlockImportRouting.SimaticSdBaseName(bundle), boundary);
     }
 
     private static BlockImportResult ImportSource(
@@ -135,6 +133,9 @@ public static class BlockImporter
                         $"No block exists at '{address.ToDisplayPath()}'. update_block_logic only updates a "
                         + "block that is already in the project; it never creates one.");
                 }
+
+                // A fail-safe block: the same login rule as the xml route (TIA Portal decides the rest).
+                Safety.PlcSafetyGate.RequireImportPermitted(project, address.PlcName, target.Block, null, sourceFormat: true);
 
                 var decision = BlockExporter.DecideSourceFormat(target.Block, address);
                 var targetName = target.Block.Name;
@@ -173,6 +174,7 @@ public static class BlockImporter
         return BlockImportCoordinator.ExecuteSource(
             (boundary, sourceTracker) =>
             {
+                var plcName = PlcSoftwareLocator.FindUnique(project, preflight.Address.PlcName).Software.Name;
                 var scope = ExternalSourceScope.Create(
                     preflight.Target.ExternalSourceGroup,
                     preflight.TargetName + preflight.Decision.Extension,
@@ -192,6 +194,7 @@ public static class BlockImporter
                         generated = scope.Source.GenerateBlocksFromSource(GenerateBlockOption.None);
                     }
                     boundary.AfterSiemensCallReturned();
+                    BlockExportLedger.Shared.RecordWrite(plcName, preflight.TargetName);
                     boundary.RecordReturnedResult(BlockImportReturnedState.Success);
                 }
                 finally
@@ -321,8 +324,9 @@ public static class BlockImporter
             }
             else
             {
-                exportSucceeded = !string.IsNullOrWhiteSpace(
-                    BlockExporter.Export(project, blockPath, SourceFormatNames.Source));
+                exportSucceeded = !string.IsNullOrWhiteSpace(string.Equals(format, SourceFormatNames.Sd, StringComparison.Ordinal)
+                    ? BlockExporter.Export(project, blockPath, SourceFormatNames.Sd)
+                    : BlockExporter.Export(project, blockPath, SourceFormatNames.Source));
             }
 
             return BlockPostconditionEvidence.Import(

@@ -34,6 +34,9 @@ public sealed class WorkerOperationException : Exception
 
     public ConfigureNetworkDeviceResultInfo? ConfigureNetworkDeviceOutcome { get; }
 
+    /// <summary>plc_download evidence (serialized <c>PlcDownloadResultInfo</c>) for a failure after the download was invoked.</summary>
+    public string? PlcDownloadOutcome { get; }
+
     public WorkerOperationException(
         string failureCategory,
         string message,
@@ -42,7 +45,8 @@ public sealed class WorkerOperationException : Exception
         HmiWriteOutcomeInfo? hmiWriteOutcome = null,
         VciWriteOutcomeInfo? vciWriteOutcome = null,
         EngineeringErrorInfo? engineeringError = null,
-        ConfigureNetworkDeviceResultInfo? configureNetworkDeviceOutcome = null)
+        ConfigureNetworkDeviceResultInfo? configureNetworkDeviceOutcome = null,
+        string? plcDownloadOutcome = null)
         : base(message)
     {
         if (!WorkerFailureCategories.IsKnown(failureCategory))
@@ -59,5 +63,6 @@ public sealed class WorkerOperationException : Exception
         VciWriteOutcome = vciWriteOutcome;
         EngineeringError = engineeringError;
         ConfigureNetworkDeviceOutcome = configureNetworkDeviceOutcome;
+        PlcDownloadOutcome = plcDownloadOutcome;
     }
 }

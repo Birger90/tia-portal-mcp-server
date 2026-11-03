@@ -84,7 +84,7 @@ is running unless you pass `-AllowDirty` or `-StopRunningServer`:
 
 3. **Restore and pack** just the host project (this also builds and embeds the
    net48 Openness worker via the `BuildOpennessWorker`/`CopyOpennessWorker` MSBuild
-   targets in `TiaMcpServer.csproj`):
+   targets, and the PLCSIM worker via `BuildPlcSimWorker`/`CopyPlcSimWorker`, in `TiaMcpServer.csproj`):
 
    ```powershell
    cd C:\Users\LCZ\Desktop\RnD\TIA-Portal\tia-portal-mcp
@@ -100,7 +100,11 @@ is running unless you pass `-AllowDirty` or `-StopRunningServer`:
    Confirm the build log shows `UseTiaPortalReferenceStubs=false` — that means it
    linked against the real local TIA Portal assemblies, not the CI-only stubs in `ref/`.
 
-4. **Verify the package layout** (same check CI runs before publishing):
+4. **Verify the package layout** (same check CI runs before publishing). The script requires the
+   canonical `tools/net10.0/any/openness-worker/` and `tools/net10.0/any/plcsim-worker/` subtrees
+   with exactly their required files, no worker `runtimeconfig.json` and no Siemens assemblies other
+   than the host's MIT-licensed S7-1500 Web API client, which is allowed only as
+   `tools/net10.0/any/Siemens.Simatic.S7.Webserver.API.dll`:
 
    ```powershell
    ./scripts/verify-doctor-package.ps1 -PackagePath ./artifacts/phase5-install/TiaMcpServer.$version.nupkg

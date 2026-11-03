@@ -27,6 +27,7 @@ namespace Siemens.Engineering.SW.Tags
     }
     public abstract class PlcTag : global::Siemens.Engineering.IEngineeringObject, global::Siemens.Engineering.IEngineeringInstance, global::Siemens.Engineering.IEngineeringServiceProvider
     {
+        public global::Siemens.Engineering.MultilingualText Comment { get => throw new global::System.NotSupportedException(); }
         public string DataTypeName { get => throw new global::System.NotSupportedException(); set => throw new global::System.NotSupportedException(); }
         public bool ExternalAccessible { get => throw new global::System.NotSupportedException(); set => throw new global::System.NotSupportedException(); }
         public bool ExternalVisible { get => throw new global::System.NotSupportedException(); set => throw new global::System.NotSupportedException(); }
@@ -57,6 +58,7 @@ namespace Siemens.Engineering.SW.Tags
         public bool IsDefault { get => throw new global::System.NotSupportedException(); }
         public string Name { get => throw new global::System.NotSupportedException(); }
         public void Delete() => throw new global::System.NotSupportedException();
+        public void Export(global::System.IO.FileInfo path, global::Siemens.Engineering.ExportOptions exportOptions) => throw new global::System.NotSupportedException();
         public void Export(global::System.IO.FileInfo path, global::Siemens.Engineering.ExportOptions exportOptions, global::Siemens.Engineering.DocumentInfoOptions documentInfoOptions) => throw new global::System.NotSupportedException();
         object global::Siemens.Engineering.IEngineeringObject.GetAttribute(string name) => throw new global::System.NotSupportedException();
         void global::Siemens.Engineering.IEngineeringObject.SetAttribute(string name, object value) => throw new global::System.NotSupportedException();
@@ -93,6 +95,7 @@ namespace Siemens.Engineering.SW.Tags
     }
     public abstract class PlcTagTableUserGroup : global::Siemens.Engineering.SW.Tags.PlcTagTableGroup, global::Siemens.Engineering.IEngineeringObject, global::Siemens.Engineering.IEngineeringInstance
     {
+        public void Delete() => throw new global::System.NotSupportedException();
         object global::Siemens.Engineering.IEngineeringObject.GetAttribute(string name) => throw new global::System.NotSupportedException();
         void global::Siemens.Engineering.IEngineeringObject.SetAttribute(string name, object value) => throw new global::System.NotSupportedException();
         global::System.Collections.Generic.IList<global::Siemens.Engineering.EngineeringAttributeInfo> global::Siemens.Engineering.IEngineeringObject.GetAttributeInfos() => throw new global::System.NotSupportedException();
@@ -100,6 +103,7 @@ namespace Siemens.Engineering.SW.Tags
     }
     public abstract class PlcTagTableUserGroupComposition : global::Siemens.Engineering.IEngineeringComposition, global::Siemens.Engineering.IEngineeringInstance, global::System.Collections.Generic.IEnumerable<global::Siemens.Engineering.SW.Tags.PlcTagTableUserGroup>
     {
+        public global::Siemens.Engineering.SW.Tags.PlcTagTableUserGroup Create(string name) => throw new global::System.NotSupportedException();
         public global::System.Collections.Generic.IEnumerator<global::Siemens.Engineering.SW.Tags.PlcTagTableUserGroup> GetEnumerator() => throw new global::System.NotSupportedException();
         public global::Siemens.Engineering.SW.Tags.PlcTagTableUserGroup Find(string name) => throw new global::System.NotSupportedException();
         global::Siemens.Engineering.IEngineeringObject global::Siemens.Engineering.IEngineeringComposition.Create(global::System.Type type, global::System.Collections.Generic.IEnumerable<global::System.Collections.Generic.KeyValuePair<string, object>> parameters) => throw new global::System.NotSupportedException();

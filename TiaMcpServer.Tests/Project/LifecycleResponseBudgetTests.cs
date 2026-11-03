@@ -101,7 +101,8 @@ public sealed class LifecycleResponseBudgetTests
         try
         {
             using var uiOpen = new FakeWorkerUiOpenProject(path);
-            using var client = FakeWorkerClients.Create(McpAccessMode.Full, binding: new ProjectSessionBinding(path));
+            using var client = new OpennessWorkerClient(new ProjectSessionBinding(path), logger: null,
+                workerExecutablePath: FakeWorkerLocator.Locate(), accessPolicy: new(McpAccessMode.Full));
             var audit = new Audit();
             var execution = new WriteExecution(new OpennessWriteBindingGate(client), audit,
                 LifecycleWriteDomain.Catalog, TimeProvider.System);

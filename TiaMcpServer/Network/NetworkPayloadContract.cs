@@ -137,6 +137,8 @@ public static class NetworkPayloadContract
         "inspect_network_object" => Decode<NetworkObjectInspectionInfo>(payload, ValidateObjectInspection),
         "create_subnet" or "update_subnet" or "delete_subnet" =>
             Decode<SubnetLifecycleResultInfo>(payload, value => ValidateSubnetMutation(operation, value)),
+        NetworkIoSystemMethods.CreateIoSystem => Decode<CreateIoSystemResultInfo>(payload, value => ValidateIoSystemCreation(operation, value)),
+        var name when HardwareModulePayloadContract.Handles(name) => HardwareModulePayloadContract.Decode(operation, payload),
         _ => throw new JsonException($"No declared result contract for network operation '{operation.Operation}'."),
     };
 
@@ -177,6 +179,18 @@ public static class NetworkPayloadContract
         ValidateSubnetLifecycleResult(value);
         if (op.Operation != "create_subnet" && value.SubnetId != op.Target?.SubnetId)
             throw new JsonException("Subnet identity contradicts the request.");
+    }
+
+    private static void ValidateIoSystemCreation(NetworkOperationRequest op, CreateIoSystemResultInfo value)
+    {
+        if (!string.Equals(value.DeviceName, op.Target?.DeviceName, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(value.NodeId, op.Target?.NodeId, StringComparison.Ordinal))
+            throw new JsonException("The IO-system controller identity contradicts the request.");
+        if (!string.Equals(value.RequestedName, op.IoSystem?.Name, StringComparison.Ordinal))
+            throw new JsonException("The requested IO-system name contradicts the request.");
+        if (string.IsNullOrWhiteSpace(value.SubnetId)) throw new JsonException("'subnetId' must be a nonblank string.");
+        if (value.Number < 0) throw new JsonException("'number' must not be negative.");
+        if (value.Messages.Any(message => message is null)) throw new JsonException("'messages' must not contain null.");
     }
 
     // The worker-payload reader rejects a missing member and an explicit null in any member the

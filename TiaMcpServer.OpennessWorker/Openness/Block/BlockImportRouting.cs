@@ -44,6 +44,52 @@ internal static class BlockImportRouting
     }
 
     /// <summary>
+    /// The .s7dcl document of an sd bundle (update_block_logic format sd): exactly one .s7dcl, no SimaticML (.xml)
+    /// document, and nothing besides an optional .s7res of the same name.
+    /// </summary>
+    public static BlockImportDocument SelectSimaticSdDocument(ParsedBlockImportBundle bundle)
+    {
+        if (bundle is null) throw new ArgumentNullException(nameof(bundle));
+        if (FindSimaticMlDocument(bundle) is not null)
+            throw ValidationFailure("format sd takes only the SIMATIC SD documents (.s7dcl, .s7res); this bundle has a SimaticML (.xml) "
+                + "document. Write it with format xml, or submit the bundle of plc_read get_block_content format sd.");
+        var s7dcl = bundle.Documents.Where(d => d.LogicalName.EndsWith(".s7dcl", StringComparison.OrdinalIgnoreCase)).ToList();
+        if (s7dcl.Count != 1)
+            throw ValidationFailure($"format sd needs exactly one .s7dcl document; the bundle has {s7dcl.Count}.");
+        var baseName = Path.GetFileNameWithoutExtension(s7dcl[0].LogicalName);
+        foreach (var document in bundle.Documents)
+        {
+            if (ReferenceEquals(document, s7dcl[0])) continue;
+            if (!document.LogicalName.EndsWith(".s7res", StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(Path.GetFileNameWithoutExtension(document.LogicalName), baseName, StringComparison.OrdinalIgnoreCase))
+                throw ValidationFailure($"format sd takes '{baseName}.s7dcl' and optionally '{baseName}.s7res'; '{document.LogicalName}' is not one of them.");
+        }
+
+        return s7dcl[0];
+    }
+
+    /// <summary>The .s7dcl must declare the block it updates: update_block_logic never renames or creates.</summary>
+    public static void RequireDeclaredName(BlockImportDocument s7dcl, string targetName, string displayPath)
+    {
+        string? declared;
+        try
+        {
+            declared = Contracts.Plc.SimaticSd.SimaticSdDocument.Parse(s7dcl.Content).BlockName;
+        }
+        catch (Contracts.Plc.SimaticSd.SimaticSdException exception)
+        {
+            throw ValidationFailure($"The .s7dcl document cannot be read: {exception.Message}");
+        }
+
+        if (declared is null)
+            throw ValidationFailure("The .s7dcl document declares no block (FUNCTION_BLOCK, FUNCTION, ORGANIZATION_BLOCK or DATA_BLOCK \"Name\").");
+        if (!string.Equals(declared, targetName, StringComparison.Ordinal))
+            throw ValidationFailure($"The .s7dcl document declares '{declared}' but '{displayPath}' resolves to '{targetName}'. "
+                + "update_block_logic never renames and never creates: submit a document declaring "
+                + $"'{targetName}' (create_block_from_document creates a new block).");
+    }
+
+    /// <summary>
     /// Only the authoritative document is applied. If the caller edited any other document we
     /// must refuse rather than silently discard their edit.
     /// </summary>

@@ -11,7 +11,7 @@ public sealed class HmiOperationRequest : IOperationBatchItem
     [Description("Client-supplied unique identifier for this HMI operation; returned results are keyed by it.")]
     public string OperationId { get; set; } = string.Empty;
 
-    [Description("HMI operation to run: list_hmi_devices, list_tag_tables, list_tags, get_tag, list_system_tags, list_connections, list_alarms, get_alarm, list_alarm_classes, list_logs, list_logging_tags, list_screens, list_screen_items, list_faceplate_instances, get_screen_navigation, get_runtime_settings, list_script_modules, list_text_and_graphic_lists, list_project_languages, validate.")]
+    [Description("HMI operation to run: list_hmi_devices, list_tag_tables, list_tags, get_tag, list_system_tags, list_connections, list_alarms, get_alarm, list_alarm_classes, list_logs, list_logging_tags, list_screens, list_screen_items, list_faceplate_instances, get_screen_navigation, get_runtime_settings, list_script_modules, list_text_and_graphic_lists, list_project_languages, validate, list_screen_item_events, list_screen_item_dynamizations, list_plant_views, and for Classic WinCC HMIs list_classic_objects.")]
     public string Operation { get; set; } = string.Empty;
 
     [Description("Optional WinCC Unified HMI, matched case-insensitively on software name or device name. May be omitted only when the project has exactly one Unified HMI, otherwise the item fails with target_ambiguous. Not valid for list_hmi_devices and list_project_languages.")]
@@ -47,7 +47,7 @@ public sealed class HmiOperationRequest : IOperationBatchItem
     [Description("Alarm kind: discrete or analog. Required by get_alarm; optional filter for list_alarms.")]
     public string? AlarmKind { get; set; }
 
-    [Description("Screen name. Required by list_screen_items; optional filter for list_faceplate_instances.")]
+    [Description("Screen name. Required by list_screen_items, list_screen_item_events and list_screen_item_dynamizations; optional filter for list_faceplate_instances.")]
     public string? ScreenName { get; set; }
 
     [Description("validate category: tags, alarms, screens, connections, logs, alarmClasses or all (not part of all: memberTags, loggingTags, screenItems, which need name). Required by validate.")]
@@ -55,4 +55,13 @@ public sealed class HmiOperationRequest : IOperationBatchItem
 
     [Description("validate: narrows to one object of the given category; not valid with category all. For memberTags and loggingTags it is the tag name, for screenItems the screen name; required for those three.")]
     public string? Name { get; set; }
+
+    [Description("list_classic_objects (Classic WinCC HMI): the object kind, one of tagTables, tags, screens, screenTemplates, screenPopups, screenSlideins, vbScripts, textLists, graphicLists, connections, cycles, screenGlobalElements, screenOverview. Required by list_classic_objects.")]
+    public string? ClassicKind { get; set; }
+
+    [Description("list_screen_item_events, list_screen_item_dynamizations: the screen item on screenName; omitted: the screen itself.")]
+    public string? ItemName { get; set; }
+
+    [Description("list_plant_views: only this plant view.")]
+    public string? PlantViewName { get; set; }
 }

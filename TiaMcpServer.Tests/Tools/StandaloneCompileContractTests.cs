@@ -7,7 +7,6 @@ using TiaMcpServer.Tests.Project;
 using TiaMcpServer.Tools;
 using TiaMcpServer.Worker;
 using Xunit;
-using TiaMcpServer.Tests.TestSupport;
 
 namespace TiaMcpServer.Tests.Tools;
 
@@ -95,7 +94,7 @@ public sealed class StandaloneCompileContractTests
         report.Plcs[0].Messages = [];
         report.Plcs[0].DiagnosticNotes = ["Some compiler diagnostics were omitted or shortened because a report limit was reached or a detail could not be read."];
         var outcome = StandalonePayloadContract.DecodeCompile(WorkerCallResult.Ok(WorkerJson.SerializePayload(report)));
-        var root = CanonicalToolDocument.Read(StructuredStandaloneResult.Create("compile_check", outcome, ["worker warning"]));
+        var root = StandaloneStatusToolTests.Document(StructuredStandaloneResult.Create("compile_check", outcome, ["worker warning"]));
         Assert.Equal("failed", outcome.Status);
         Assert.Null(outcome.Failure);
         var value = root.GetProperty("result").GetProperty("value");
@@ -129,7 +128,7 @@ public sealed class StandaloneCompileContractTests
             with { Payload = "PRIVATE_COMPILER_MARKER", DispatchState = WorkerDispatchState.Unknown };
         var outcome = StandalonePayloadContract.DecodeCompile(worker);
         var response = StructuredStandaloneResult.Create("compile_check", outcome, worker.Warnings);
-        var root = CanonicalToolDocument.Read(response);
+        var root = StandaloneStatusToolTests.Document(response);
         Assert.False(response.IsError);
         Assert.Equal("worker_timeout", outcome.Failure!.Category);
         Assert.Equal("inspect before retry", root.GetProperty("warnings")[0].GetString());

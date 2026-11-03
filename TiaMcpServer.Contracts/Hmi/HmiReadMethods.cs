@@ -24,5 +24,9 @@ public static class HmiReadMethods
         "hmi_list_text_and_graphic_lists",
         "hmi_list_project_languages",
         "hmi_validate",
+        HmiClassicMethods.ListObjects,
+        HmiScreenEventMethods.ListEvents,
+        HmiScreenEventMethods.ListDynamizations,
+        HmiUnifiedConfigurationMethods.ListPlantViews,
     });
 }

@@ -12,11 +12,12 @@ namespace TiaMcpServer.OpennessWorker.Openness.Project;
 /// </summary>
 internal sealed class TiaPortalProcessCandidate
 {
-    public TiaPortalProcessCandidate(int id, string? projectPath, bool hasUserInterface = false)
+    public TiaPortalProcessCandidate(int id, string? projectPath, bool hasUserInterface = false, int? otherClientCount = null)
     {
         Id = id;
         ProjectPath = ProjectPathNormalization.Canonicalize(projectPath);
         HasUserInterface = hasUserInterface;
+        OtherClientCount = otherClientCount;
     }
 
     public int Id { get; }
@@ -24,6 +25,9 @@ internal sealed class TiaPortalProcessCandidate
     public string? ProjectPath { get; }
 
     public bool HasUserInterface { get; }
+
+    /// <summary>Attached Openness sessions other than this worker's; null when unreadable. Listing only, never selection input.</summary>
+    public int? OtherClientCount { get; }
 }
 
 /// <summary>
@@ -61,7 +65,8 @@ internal static class TiaPortalTargetSelector
             ProcessId = candidate.Id,
             ProjectPath = candidate.ProjectPath,
             HasUserInterface = candidate.HasUserInterface,
-            AttachedByThisWorker = candidate.Id == attachedPid
+            AttachedByThisWorker = candidate.Id == attachedPid,
+            OtherClientCount = candidate.OtherClientCount
         }).ToList();
 
     public static int SelectProcessId(

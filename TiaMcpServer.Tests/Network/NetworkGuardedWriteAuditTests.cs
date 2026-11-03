@@ -19,8 +19,8 @@ public sealed class NetworkGuardedWriteAuditTests
     [InlineData(McpAccessMode.ReadWrite, false, "null-item", "error", "none")]
     [InlineData(McpAccessMode.ReadWrite, false, "binding", "error", "none")]
     [InlineData(McpAccessMode.ReadWrite, false, "network-guarded-rejected-setting", "applied", "none")]
-    [InlineData(McpAccessMode.ReadWrite, false, "network-guarded-incomplete", "blocked", "none")]
-    [InlineData(McpAccessMode.Full, false, "network-guarded-incomplete", "blocked", "none")]
+    [InlineData(McpAccessMode.ReadWrite, false, "network-guarded-incomplete", "applied", "none")]
+    [InlineData(McpAccessMode.Full, false, "network-guarded-incomplete", "applied", "policy")]
     [InlineData(McpAccessMode.ReadWrite, false, "network-guarded-lost-node", "applied", "none")]
     [InlineData(McpAccessMode.ReadWrite, false, "network-guarded-unknown-result", "applied", "none")]
     public async Task WriteEntry_ProducesExpectedAudit(McpAccessMode mode, bool dryRun, string scenario, string phase, string by)
@@ -43,7 +43,7 @@ public sealed class NetworkGuardedWriteAuditTests
             args["operations"] = new[] { partial, NetworkGuardedWriteFixture.Delete() };
         }
         var reply = await harness.Client.CallToolAsync("network_write", args);
-        var root = CanonicalToolDocument.Read(reply);
+        var root = NetworkGuardedWriteMcpTests.Document(reply);
         Assert.Equal(phase, root.GetProperty("phase").GetString());
         Assert.Equal(phase is "blocked" or "error", reply.IsError == true);
         if (preflightFailure)

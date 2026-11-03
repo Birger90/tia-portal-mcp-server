@@ -17,7 +17,9 @@ public sealed class NetworkWritePlanner(OpennessWorkerClient client)
         var plans = new List<ItemPlan<NetworkWriteEffect>>();
         foreach (var item in items)
         {
-            var resolved = Resolve(item, snapshot.State!);
+            var resolved = HardwareModuleWritePlanner.Handles(item.Operation)
+                ? await HardwareModuleWritePlanner.ResolveAsync(client, item, snapshot.State!).ConfigureAwait(false)
+                : Resolve(item, snapshot.State!);
             if (!resolved.Success) return WritePlan<NetworkWriteEffect>.Fail(resolved.Error!.Category, resolved.Error.Message);
             plans.Add(resolved.Plan!);
         }
@@ -42,6 +44,14 @@ public sealed class NetworkWritePlanner(OpennessWorkerClient client)
         {
             var node = NetworkIdentityResolver.PreparedNode(state, target);
             foreach (var key in requested.Keys) current[key] = NodeValue(node, key);
+        }
+        else if (item.Operation == NetworkIoSystemMethods.CreateIoSystem)
+        {
+            // What the guards need: the node's subnet connection and any IO-system relationship of its interface.
+            var node = NetworkIdentityResolver.PreparedNode(state, target);
+            foreach (var key in new[] { NetworkSettingKeys.Subnet, NetworkSettingKeys.IoSystemSubnet, NetworkSettingKeys.IoSystemNumber })
+                current[key] = NodeValue(node, key);
+            complete = node.ConnectionEvidence?.Complete == true;
         }
         else if (item.Operation is "update_subnet" or "delete_subnet")
         {
@@ -127,6 +137,7 @@ public sealed class NetworkWritePlanner(OpennessWorkerClient client)
         }
         if (item.Subnet is { } subnet)
         { Add("Name", subnet.Name); Add("TypeIdentifier", SubnetLifecycleContract.TypeIdentifierFor(subnet.NetworkType)); Add("HighestAddress", subnet.HighestAddress?.ToString(CultureInfo.InvariantCulture)); Add("TransmissionSpeed", subnet.TransmissionSpeed); }
+        if (item.Operation == NetworkIoSystemMethods.CreateIoSystem) Add("ioSystemName", item.IoSystem?.Name);
         if (item.SubnetChanges is { } update)
         { Add("Name", update.Name); Add("HighestAddress", update.HighestAddress?.ToString(CultureInfo.InvariantCulture)); Add("TransmissionSpeed", update.TransmissionSpeed); }
         return result;

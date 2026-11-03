@@ -1,6 +1,7 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using TiaMcpServer.Cursors;
-using TiaMcpServer.Contracts.Shared;
 using TiaMcpServer.Contracts.Worker;
 
 namespace TiaMcpServer.Hmi;
@@ -45,7 +46,7 @@ public sealed class HmiPageCursorCodec
             operation.Operation, operation.HmiName, operation.TableName, operation.Language, operation.AlarmKind,
             operation.DataLogName, operation.TagName, operation.ScreenName, operation.Category, operation.Name,
         });
-        return ContentHashRules.Sha256Hex(key);
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key))).ToLowerInvariant();
     }
 
     private static bool IsValid(HmiPageCursorState state)

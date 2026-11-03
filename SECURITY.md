@@ -1,5 +1,11 @@
 # Security Policy
 
+**Language:** English · [Deutsch](SECURITY.de.md)
+
+> **This fork** (Birger90/tia-portal-mcp-server): report vulnerabilities in code specific to this
+> fork through its [Security Advisories](https://github.com/Birger90/tia-portal-mcp-server/security/advisories).
+> The rest of this policy is the original project's and refers to its repository and NuGet package.
+
 MCP server for Siemens TIA Portal V21, exposing Openness API operations through an MCP interface.
 
 ## Supported Versions

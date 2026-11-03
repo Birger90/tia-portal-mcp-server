@@ -1,5 +1,7 @@
 # Installation
 
+**Language:** English · [Deutsch](installation.de.md)
+
 How to install the TIA Portal MCP server, verify it, and register it with an MCP client.
 For a condensed quick start, see the [README](../../README.md).
 
@@ -121,6 +123,7 @@ Options:
 - `--json` - emit a single JSON document to stdout.
 - `--verbose` - include diagnostic evidence for each check.
 - `--project` - validate the exact absolute path of an existing `.ap21` project without opening or attaching to TIA Portal.
+- `--plc-webapi-config` - parse a PLC Web API target file (default: `TIA_MCP_PLC_WEBAPI_CONFIG`) and list its targets, reporting only whether each target's credential variables are set. Doctor never contacts a PLC; an invalid file fails, because the server refuses to start with it.
 
 Project-selection diagnostics are access-mode aware:
 
@@ -188,18 +191,34 @@ Exit codes: `0` (success), `1` (general failure), `2` (invalid arguments), `3` (
 
 The server supports three access modes, enforced at discovery, host dispatch, and worker dispatch:
 
-- **read-only** - eight tools: seven observation tools plus `bind_project`; no compile, edits, or
-  lifecycle.
-- **read-write** (server startup default) - nineteen tools: the read-only surface plus
-  `compile_check`, `network_write`, `plc_write`, `hmi_write`, `vci_write`, and all six lifecycle tools. Every actual lifecycle
-  call requires one confirmation form; the four domain write tools never prompt.
-- **full** - the same nineteen tools and operations; lifecycle runs without server elicitation.
-  Unknown operations remain denied.
+- **read-only** - eleven tools: ten observation tools (including `plcsim_read`, `plc_online_read` and `library_read`) plus `bind_project`; no
+  compile, edits, simulation control, download, online changes, going online, station upload, or lifecycle. `plc_read`
+  `compare_to_online` (an Openness online compare that changes nothing) and `scan_accessible_devices` (live network
+  discovery through one explicitly named PC interface, changes nothing) are observation and work in every mode.
+- **read-write** (server startup default) - thirty tools: the read-only surface plus
+  `compile_check`, `network_write`, `plc_write`, `hmi_write`, `vci_write`, `library_write`, `plcsim_write`, `plcsim_test`, all seven lifecycle tools, `plc_download`
+  (to PLCSIM or to real hardware), `plc_online_write` (configured S7-1500 CPUs), `plc_tia_online` (TIA Portal go online/offline)
+  and `plc_station_upload`. Every actual lifecycle, download, online-write, online-connection or upload call, and every `library_write`
+  call that opens, retrieves, creates, saves or closes a global library, requires one confirmation form; the download prompt states when
+  the target is a real controller. The other domain write calls (library content items included) and the PLCSIM tools never prompt.
+- **full** - the same thirty tools and operations; lifecycle, download, online writes, online connections, uploads and global library lifecycle run without
+  server elicitation, so the AI can download to a real controller (and answer its download configurations) or change a configured CPU
+  online without asking. Unknown operations remain denied.
+
+The access mode is the control over downloads and online writes: there is no separate hardware block. Start in
+`read-only` to forbid them, `read-write` to approve each call, `full` only when the AI may
+download or change PLCs unattended. Passwords that a download needs (for example a CPU write-protection password)
+are passed as environment variables in the client configuration (`env`), never in a tool call; see
+[MCP client configuration](mcp-client-configuration.md#plc-download-passwords). The same applies to the
+Web API credentials of `plc_online_*` targets ([PLC Web API targets](mcp-client-configuration.md#plc-web-api-targets))
+and to the online and upload passwords of `plc_tia_online` and `plc_station_upload`.
 
 **Migration:** read-write clients can save, close, and use all lifecycle tools with confirmation.
-Select `--access-mode full` for lifecycle without server elicitation. PLC run/stop
+Select `--access-mode full` for lifecycle without server elicitation. The Openness PLC run/stop
 (`start_plc`/`stop_plc`) and the generic batch tools (`preview_write_batch`, `apply_write_batch`)
-were removed; PLC writes use `plc_write`.
+were removed; PLC writes use `plc_write`, and a configured real CPU's operating mode is changed with
+`plc_online_write change_operating_mode` over the S7-1500 Web API (see
+[PLC Web API targets](mcp-client-configuration.md#plc-web-api-targets)).
 The install command still defaults
 to read-only. To preview registration without changing client configuration:
 
@@ -219,9 +238,45 @@ $env:TIA_MCP_ACCESS_MODE = 'read-only'
 tia-mcp
 ```
 
-Configuration precedence: CLI argument > environment variable > default (read-write).
+Configuration precedence: CLI argument (`--access-mode`, `--read-only`, `--read-write`) > environment variable
+`TIA_MCP_ACCESS_MODE` > server settings file > default (read-write).
 
 The mode is resolved once at startup and cannot be changed during the process lifetime. There is no MCP tool that changes the access mode at runtime.
+
+### Choosing the access mode in the password manager
+
+Instead of `--access-mode` in the client configuration, the owner can choose the mode in the Windows program
+"TiaMcp Passwortverwaltung" (`tia-mcp passwords`, tab **Zugriffsmodus**): three radio buttons ("Nur lesen (read-only)",
+"Lesen und schreiben, mit Rückfrage (read-write)", "Voll, ohne Rückfrage (full)"), the stored value (or
+"nicht gesetzt – Standard read-write"), **Speichern** and **Einstellung entfernen**. It writes the server settings file:
+
+- Location: `%APPDATA%\TiaMcpServer\settings.json`, or the path in `TIA_MCP_SETTINGS` (set it in the client's `env`
+  and start the program with `tia-mcp passwords --settings <same path>`).
+- Content (closed schema, version 1, names only): `{ "version": 1, "accessMode": "read-only" }`; `accessMode` is optional
+  (omitted: not set) and is exactly `read-only`, `read-write` or `full`. Unknown members, another version, a wrongly
+  spelled mode, an unreadable file or a `TIA_MCP_SETTINGS` path that does not exist refuse startup with a message
+  naming the file, even when a CLI argument or `TIA_MCP_ACCESS_MODE` decides the mode. A missing default file is no
+  setting.
+- The server reads it once at startup and never writes it; only the password manager does (through a temporary file in
+  the same folder, never over a file the server would refuse). No MCP tool reads or changes it.
+- A `--access-mode` argument or `TIA_MCP_ACCESS_MODE` in the client configuration takes precedence, so remove them when
+  the program should decide; `tia-mcp install` still writes `--access-mode` (default `read-only`). A change takes effect
+  when the MCP server restarts (quit and restart Claude Desktop).
+- Startup logs `TIA MCP access mode source: cli | environment (TIA_MCP_ACCESS_MODE) | settingsFile (<path>) | default`
+  and `TIA MCP settings file: <path> | none`; `tia-mcp doctor` prints `Access mode: <MODE> (<source>)` and
+  `Settings file: <path> | none`, and `doctor --json` adds `accessModeSource` and `settingsFile` after `accessMode`.
+
+With the settings file, a Claude Desktop entry needs no `args` at all:
+
+```json
+{
+  "mcpServers": {
+    "tia-portal": {
+      "command": "tia-mcp"
+    }
+  }
+}
+```
 
 In read-only mode, the server exposes exactly eight MCP tools:
 
@@ -261,7 +316,8 @@ MCP client configuration example:
 }
 ```
 
-The `tia-mcp doctor` command reports the active access mode.
+The `tia-mcp doctor` command reports the active access mode and its source (`cli`, `environment`, `settingsFile`,
+`default`).
 
 ### User confirmation by access mode
 
@@ -271,7 +327,7 @@ The removed startup switch fails with this exact migration message:
 --confirm-with-user was removed. Confirmation follows the access mode: read-write asks for every lifecycle call; use --access-mode full to run lifecycle tools without prompts.
 ```
 
-Every actual lifecycle call in read-write requires one form elicitation `accept` with boolean
+Every actual lifecycle, `plc_download` and `plc_online_write` call in read-write requires one form elicitation `accept` with boolean
 `confirm:true`, including calls with no guards or only info guards. Missing capability, decline,
 cancel, timeout, or transport failure denies with `access_denied`. Full uses policy confirmation
 without server elicitation. Block guards stop a call in every mode, and `dryRun:true` never elicits.
@@ -286,4 +342,4 @@ destructive tools out of client auto-approve lists to require client permission 
 call. See the [lifecycle reference](../SupportedOperations/PROJECT_OPERATIONS_SUMMARY.md#lifecycle-operations)
 for dry-run examples, lifecycle/local-source guards, and the staged major-release input/output migration.
 
-The package includes the `openness-worker` folder and required non-Siemens dependencies. It intentionally excludes `Siemens.Engineering*.dll`; those are loaded from the local TIA Portal installation at runtime.
+The package includes the `openness-worker` and `plcsim-worker` folders and required non-Siemens dependencies, plus the host's MIT-licensed S7-1500 Web API client `Siemens.Simatic.S7.Webserver.API.dll` from nuget.org. It intentionally excludes `Siemens.Engineering*.dll` and every S7-PLCSIM Advanced assembly; those are loaded from the local TIA Portal and (optional) S7-PLCSIM Advanced installations at runtime. `tia-mcp doctor` reports where the PLCSIM Advanced API would be loaded from (`TIA_MCP_PLCSIM_API_DIR` or the registry) without loading it.

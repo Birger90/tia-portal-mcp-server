@@ -19,6 +19,16 @@
 /reference-stubs/Siemens.Engineering.WinCCUnified/**/*.cs text eol=crlf
 /reference-stubs/Siemens.Engineering.PublicKey.snk binary
 
+# Batch files need CRLF for cmd.exe.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# These two fixtures are compared byte for byte (SimaticML interface edits, bundle
+# document replacement). They are committed with LF; keep LF on every checkout so
+# Windows CI with core.autocrlf=true sees the same bytes as Linux.
+/TiaMcpServer.Tests/Fixtures/AnalogInputSettings.xml text eol=lf
+/TiaMcpServer.Tests/Fixtures/get_block_content.ob-lad.v2.bundle.txt text eol=lf
+
 # Process material is collapsed by default in GitHub diffs (linguist-generated). Everything
 # removed from the tree stays reachable through the tag docs-archive-2026-10-30. A bare
 # directory pattern matches nothing, so '/**' is required. Reports are deliberately not matched.

@@ -18,6 +18,7 @@ public static partial class ProjectLifecycleService
             throw new WorkerOperationException(WorkerFailureCategories.ValidationError, $"{fieldName} must be an absolute path.");
         }
 
+        RequireCallerPathShape(path, fieldName);
         if (!File.Exists(path))
         {
             throw new WorkerOperationException(WorkerFailureCategories.ValidationError, "TIA Portal project file was not found.");
@@ -36,9 +37,22 @@ public static partial class ProjectLifecycleService
             throw new WorkerOperationException(WorkerFailureCategories.ValidationError, $"{fieldName} must be an absolute path.");
         }
 
+        RequireCallerPathShape(path, fieldName);
         if (mustExist && !Directory.Exists(path))
         {
             throw new WorkerOperationException(WorkerFailureCategories.ValidationError, $"{fieldName} '{path}' was not found.");
+        }
+    }
+
+    /// <summary>
+    /// The shared caller-path rules of the file exports (security review F5): device paths (\\?\, \\.\, \??\), reserved
+    /// device names and segments ending in a space or a dot are refused before TIA Portal sees the path.
+    /// </summary>
+    internal static void RequireCallerPathShape(string path, string fieldName)
+    {
+        if (TiaMcpServer.Contracts.Plc.PlcFileTargets.PathShapeError(fieldName, path) is { } error)
+        {
+            throw new WorkerOperationException(WorkerFailureCategories.ValidationError, error);
         }
     }
 

@@ -1,4 +1,7 @@
-using TiaMcpServer.Contracts.Shared;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json.Serialization;
+using TiaMcpServer.Contracts.Plc.Interface;
 
 namespace TiaMcpServer.Plc;
 
@@ -50,8 +53,8 @@ public static class PlcContentDiff
         }
 
         return new PlcContentDiffEvidence(
-            new PlcContentDiffSide(ContentHashRules.Sha256Hex(current), current.Length, CountLines(current), currentExcerpt),
-            new PlcContentDiffSide(ContentHashRules.Sha256Hex(requested), requested.Length, CountLines(requested), requestedExcerpt),
+            new PlcContentDiffSide(Sha256(current), current.Length, CountLines(current), currentExcerpt),
+            new PlcContentDiffSide(Sha256(requested), requested.Length, CountLines(requested), requestedExcerpt),
             compared.RawTextEqual,
             compared.NormalizedLinesEqual,
             compared.LineEndingOnly,
@@ -61,6 +64,29 @@ public static class PlcContentDiff
             compared.RequestedChangedLineCount,
             exhausted);
     }
+    /// <summary>
+    /// The diff of a content write: like with like. A plain SimaticML document submitted in format xml (no
+    /// <c>--- FILE:</c> delimiter) is compared with the .xml document of the current export bundle only, not with the
+    /// whole bundle and its other documents (defect K31: one added contact showed 157 changed lines); the current side
+    /// then names that document in <see cref="PlcContentDiffEvidence.CurrentDocument"/>, and one trailing line break the
+    /// bundle layout adds is not counted when the submitted document has none. A bundle is compared with the bundle, and
+    /// every other format with the whole export.
+    /// </summary>
+    public static PlcContentDiffEvidence BuildForWrite(string format, string current, string requested, PlcContentDiffBudget? budget = null)
+    {
+        if (format == Contracts.Block.SourceFormatNames.Xml
+            && PlcBlockBundleText.Documents(requested).Count == 0
+            && PlcBlockBundleText.TryGetSimaticMl(current, out var name, out var document))
+        {
+            if (!requested.EndsWith('\n') && !requested.EndsWith('\r'))
+                document = document.EndsWith("\r\n", StringComparison.Ordinal) ? document[..^2]
+                    : document.EndsWith('\n') ? document[..^1] : document;
+            return Build(document, requested, budget) with { CurrentDocument = name };
+        }
+
+        return Build(current, requested, budget);
+    }
+
     private static ComparedLines Compare(string currentText, string requestedText)
     {
         var currentLines = NormalizeLineEndings(currentText).Split('\n');
@@ -184,6 +210,9 @@ public static class PlcContentDiff
     private static string NormalizeLineEndings(string text)
         => text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
 
+    private static string Sha256(string text)
+        => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text))).ToLowerInvariant();
+
     private sealed record ComparedLines(
         string[] CurrentLines,
         string[] RequestedLines,
@@ -220,7 +249,8 @@ public sealed record PlcContentDiffEvidence(
     int UnchangedSuffixLineCount,
     int CurrentChangedLineCount,
     int RequestedChangedLineCount,
-    bool BudgetExhausted);
+    bool BudgetExhausted,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? CurrentDocument = null);
 
 public sealed record PlcContentDiffSide(string Sha256, int CharacterCount, int LineCount, PlcContentDiffExcerpt Excerpt);
 

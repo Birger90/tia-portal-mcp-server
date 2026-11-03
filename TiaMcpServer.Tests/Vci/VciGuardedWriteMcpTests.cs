@@ -14,6 +14,7 @@ public class VciGuardedWriteMcpTests
         => new { operationId = id, operation, workspaceName = workspace, rootPath = root,
             scope = operation is "create_workspace" or "delete_workspace" ? null : new[] { new { nodeType = "Device", name = "Fixture" } } };
     internal static Dictionary<string, object?> Args(params object[] items) => new() { ["operations"] = items };
+    internal static JsonElement Document(ModelContextProtocol.Protocol.CallToolResult reply) => NetworkGuardedWriteMcpTests.Document(reply);
 
     [Theory]
     [InlineData(McpAccessMode.ReadWrite, "none")]
@@ -24,16 +25,16 @@ public class VciGuardedWriteMcpTests
         using var requests = new FakeWorkerRequestLog(audit.Path);
         await using var h = await McpProtocolTestHarness.StartProductionSurfaceAsync(mode, audit.Path, "vci-write-roundtrip");
         var args = Args(Item()); args["dryRun"] = true;
-        var preview = CanonicalToolDocument.Read(await h.Client.CallToolAsync("vci_write", args));
+        var preview = Document(await h.Client.CallToolAsync("vci_write", args));
         Assert.True(preview.GetProperty("success").GetBoolean(), preview.GetRawText());
         Assert.Contains("vci_plan", requests.Methods());
         Assert.DoesNotContain("vci_list_mappings", requests.Methods());
         Assert.DoesNotContain("vci_export", requests.Methods());
         args.Remove("dryRun");
-        var applied = CanonicalToolDocument.Read(await h.Client.CallToolAsync("vci_write", args));
+        var applied = Document(await h.Client.CallToolAsync("vci_write", args));
         Assert.True(applied.GetProperty("success").GetBoolean(), applied.GetRawText());
         Assert.Equal(preview.GetProperty("effects").GetRawText(), applied.GetProperty("effects").GetRawText());
-        var sync = CanonicalToolDocument.Read(await h.Client.CallToolAsync("vci_write", Args(Item("sync_to_workspace"))));
+        var sync = Document(await h.Client.CallToolAsync("vci_write", Args(Item("sync_to_workspace"))));
         Assert.True(sync.GetProperty("success").GetBoolean(), sync.GetRawText());
         Assert.Equal("trusted", sync.GetProperty("verification").GetProperty("operations")[0].GetProperty("check").GetString());
         Assert.All(applied.GetProperty("verification").GetProperty("operations").EnumerateArray(), v => Assert.Equal("trusted", v.GetProperty("check").GetString()));
@@ -49,7 +50,7 @@ public class VciGuardedWriteMcpTests
     {
         using var audit = new TempAuditDirectory(); Directory.CreateDirectory(audit.Path);
         await using var h = await McpProtocolTestHarness.StartProductionSurfaceAsync(McpAccessMode.ReadWrite, audit.Path, "vci-write-roundtrip");
-        var root = CanonicalToolDocument.Read(await h.Client.CallToolAsync("vci_write", Args(Item(workspace: "Fail"), Item(id: "b"))));
+        var root = Document(await h.Client.CallToolAsync("vci_write", Args(Item(workspace: "Fail"), Item(id: "b"))));
         Assert.False(root.GetProperty("success").GetBoolean());
         var items = root.GetProperty("batch").GetProperty("operations");
         Assert.Equal("failed", items[0].GetProperty("status").GetString());
@@ -61,7 +62,7 @@ public class VciGuardedWriteMcpTests
     {
         using var audit = new TempAuditDirectory(); Directory.CreateDirectory(audit.Path);
         await using var h = await McpProtocolTestHarness.StartProductionSurfaceAsync(McpAccessMode.ReadWrite, audit.Path, scenario);
-        return CanonicalToolDocument.Read(await h.Client.CallToolAsync("vci_write", Args(items))).Clone();
+        return Document(await h.Client.CallToolAsync("vci_write", Args(items))).Clone();
     }
 
     [Fact]
@@ -129,7 +130,7 @@ public class VciGuardedWriteMcpTests
     {
         using var audit = new TempAuditDirectory(); Directory.CreateDirectory(audit.Path);
         await using var h = await McpProtocolTestHarness.StartProductionSurfaceAsync(McpAccessMode.ReadWrite, audit.Path, "vci-portal-lost");
-        var root = CanonicalToolDocument.Read(await h.Client.CallToolAsync("vci_write", Args(Item(id: "bad"))));
+        var root = Document(await h.Client.CallToolAsync("vci_write", Args(Item(id: "bad"))));
         var item = root.GetProperty("batch").GetProperty("operations")[0];
         Assert.Equal("portal_lost", item.GetProperty("failure").GetProperty("category").GetString());
         Assert.Equal(1, item.GetProperty("result").GetProperty("failures").GetArrayLength());
@@ -161,7 +162,7 @@ public class VciGuardedWriteMcpTests
         using var audit = new TempAuditDirectory(); Directory.CreateDirectory(audit.Path);
         await using var h = await McpProtocolTestHarness.StartProductionSurfaceAsync(McpAccessMode.ReadWrite, audit.Path, "vci-write-roundtrip");
         var args = Args(Item(workspace: "Fixture")); args["dryRun"] = true;
-        var root = CanonicalToolDocument.Read(await h.Client.CallToolAsync("vci_write", args));
+        var root = Document(await h.Client.CallToolAsync("vci_write", args));
         Assert.True(root.GetProperty("success").GetBoolean(), root.GetRawText());
         Assert.Equal("preview", root.GetProperty("phase").GetString());
         Assert.Empty(root.GetProperty("guards").EnumerateArray());
@@ -172,7 +173,7 @@ public class VciGuardedWriteMcpTests
     {
         using var audit = new TempAuditDirectory(); Directory.CreateDirectory(audit.Path);
         await using var h = await McpProtocolTestHarness.StartProductionSurfaceAsync(McpAccessMode.ReadWrite, audit.Path, "vci-write-roundtrip");
-        var root = CanonicalToolDocument.Read(await h.Client.CallToolAsync("vci_write", Args(Item(workspace: "Blocked"))));
+        var root = Document(await h.Client.CallToolAsync("vci_write", Args(Item(workspace: "Blocked"))));
         Assert.Equal("blocked", root.GetProperty("phase").GetString());
         Assert.Single(NetworkGuardedWriteMcpTests.AuditLines(audit.Path));
     }
@@ -186,7 +187,7 @@ public class VciGuardedWriteMcpTests
         using var audit = new TempAuditDirectory(); Directory.CreateDirectory(audit.Path);
         using var log = new FakeWorkerRequestLog(audit.Path);
         await using var h = await McpProtocolTestHarness.StartProductionSurfaceAsync(McpAccessMode.ReadWrite, audit.Path, scenario, requestTimeout: TimeSpan.FromSeconds(2));
-        var root = CanonicalToolDocument.Read(await h.Client.CallToolAsync("vci_write", Args(Item(id: "ok", workspace: "Healthy"), Item(id: "bad"), Item(id: "last", workspace: "Other"))));
+        var root = Document(await h.Client.CallToolAsync("vci_write", Args(Item(id: "ok", workspace: "Healthy"), Item(id: "bad"), Item(id: "last", workspace: "Other"))));
         var items = root.GetProperty("batch").GetProperty("operations");
         Assert.Equal(category, items[1].GetProperty("failure").GetProperty("category").GetString());
         if (category == "portal_lost")
@@ -215,7 +216,7 @@ public class VciGuardedWriteMcpTests
         using var log = new FakeWorkerRequestLog(audit.Path);
         await using var h = await McpProtocolTestHarness.StartProductionSurfaceAsync(McpAccessMode.Full, audit.Path);
         var before = log.Methods();
-        var root = CanonicalToolDocument.Read(await h.Client.CallToolAsync("vci_write", Args(new { operationId = "a", operation = "export", workspaceName = "Fixture", scope = new[]
+        var root = Document(await h.Client.CallToolAsync("vci_write", Args(new { operationId = "a", operation = "export", workspaceName = "Fixture", scope = new[]
         { new { nodeType = "Device", name = "Fixture" }, new { nodeType = "PlcSoftware", name = "Fixture" }, new { nodeType, name = "Fixture" } } })));
         Assert.Equal("target_kind_unsupported", root.GetProperty("error").GetProperty("category").GetString());
         Assert.Equal(before, log.Methods());
@@ -228,7 +229,7 @@ public class VciGuardedWriteMcpTests
         using var audit = new TempAuditDirectory(); Directory.CreateDirectory(audit.Path);
         using var log = new FakeWorkerRequestLog(audit.Path);
         await using var h = await McpProtocolTestHarness.StartProductionSurfaceAsync(McpAccessMode.Full, audit.Path, "vci-portal-lost");
-        var root = CanonicalToolDocument.Read(await h.Client.CallToolAsync("vci_write", Args(Item(workspace: "OuterFailure"), Item(id: "b"))));
+        var root = Document(await h.Client.CallToolAsync("vci_write", Args(Item(workspace: "OuterFailure"), Item(id: "b"))));
         var outcome = root.GetProperty("batch").GetProperty("operations")[0];
         Assert.Equal("portal_lost", outcome.GetProperty("failure").GetProperty("category").GetString());
         Assert.Equal(0, outcome.GetProperty("result").GetProperty("leaves").GetInt32());
@@ -244,7 +245,7 @@ public class VciGuardedWriteMcpTests
         using var audit = new TempAuditDirectory(); Directory.CreateDirectory(audit.Path);
         await using var h = await McpProtocolTestHarness.StartProductionSurfaceAsync(McpAccessMode.Full, audit.Path, "vci-write-roundtrip");
         var items = new[] { "a", "b", "c", "d", "e", "f" }.Select(id => Item(id: id)).ToArray();
-        var root = CanonicalToolDocument.Read(await h.Client.CallToolAsync("vci_write", Args(items)));
+        var root = Document(await h.Client.CallToolAsync("vci_write", Args(items)));
         Assert.True(root.GetProperty("success").GetBoolean(), root.GetRawText());
         var checks = root.GetProperty("verification").GetProperty("operations").EnumerateArray().Select(o => o.GetProperty("check").GetString()).ToArray();
         Assert.Equal(["superseded", "superseded", "superseded", "superseded", "superseded", "trusted"], checks);
@@ -257,13 +258,13 @@ public class VciGuardedWriteMcpTests
         using var log = new FakeWorkerRequestLog(audit.Path);
         await using var h = await McpProtocolTestHarness.StartProductionSurfaceAsync(McpAccessMode.Full, audit.Path, "vci-write-roundtrip");
         var args = Args(Item("create_workspace", "a", "w", Path.Combine(audit.Path, "workspace")), Item("export", "b", "W")); args["dryRun"] = true;
-        var preview = CanonicalToolDocument.Read(await h.Client.CallToolAsync("vci_write", args));
+        var preview = Document(await h.Client.CallToolAsync("vci_write", args));
         Assert.True(preview.GetProperty("success").GetBoolean(), preview.GetRawText());
         Assert.Contains(preview.GetProperty("warnings").EnumerateArray(), w => w.GetString()!.Contains("b after a") && w.GetString()!.StartsWith("Dependent operations ["));
         Assert.Single(preview.GetProperty("effects").EnumerateArray());
         Assert.Equal(1, log.Methods().Count(m => m == "vci_plan"));
         args.Remove("dryRun");
-        var applied = CanonicalToolDocument.Read(await h.Client.CallToolAsync("vci_write", args));
+        var applied = Document(await h.Client.CallToolAsync("vci_write", args));
         Assert.True(applied.GetProperty("success").GetBoolean(), applied.GetRawText());
         Assert.Equal(2, log.Methods().Count(m => m == "vci_plan"));
         Assert.Contains("vci_create_workspace", log.Methods()); Assert.Contains("vci_export", log.Methods());
@@ -288,7 +289,7 @@ public class VciGuardedWriteMcpTests
         await using var h = await McpProtocolTestHarness.StartProductionSurfaceAsync(McpAccessMode.Full, audit.Path, "vci-write-roundtrip");
         Directory.CreateDirectory(audit.Path);
         var path = Path.Combine(audit.Path, "workspace");
-        var root = CanonicalToolDocument.Read(await h.Client.CallToolAsync("vci_write", Args(Item("create_workspace", "a", "NewA", path), Item("create_workspace", "b", "NewB", path))));
+        var root = Document(await h.Client.CallToolAsync("vci_write", Args(Item("create_workspace", "a", "NewA", path), Item("create_workspace", "b", "NewB", path))));
         var items = root.GetProperty("batch").GetProperty("operations");
         Assert.Equal("succeeded", items[0].GetProperty("status").GetString());
         Assert.Equal("state_changed", items[1].GetProperty("failure").GetProperty("category").GetString());
@@ -303,7 +304,7 @@ public class VciGuardedWriteMcpTests
         using var log = new FakeWorkerRequestLog(audit.Path);
         await using var h = await McpProtocolTestHarness.StartProductionSurfaceAsync(McpAccessMode.Full, audit.Path, "vci-timeout-silent", requestTimeout: TimeSpan.FromSeconds(2));
         Assert.True(VciBreadcrumbFile.TryWrite(h.BreadcrumbLocation.Path, new(Guid.NewGuid().ToString("N"), "foreign", "export", [new() { NodeType = "Device", Name = "FOREIGN_MARKER" }], null)));
-        var root = CanonicalToolDocument.Read(await h.Client.CallToolAsync("vci_write", Args(Item())));
+        var root = Document(await h.Client.CallToolAsync("vci_write", Args(Item())));
         Assert.DoesNotContain("FOREIGN_MARKER", root.GetRawText());
         Assert.False(File.Exists(h.BreadcrumbLocation.Path));
         var failure = root.GetProperty("batch").GetProperty("operations")[0].GetProperty("failure");

@@ -3,8 +3,11 @@ using Siemens.Engineering.SW;
 using Siemens.Engineering.SW.Blocks;
 using Siemens.Engineering.SW.ExternalSources;
 using TiaMcpServer.Contracts.Block;
+using TiaMcpServer.Contracts.Plc.Interface;
+using TiaMcpServer.Contracts.Plc.SimaticSd;
 using TiaMcpServer.Contracts.Worker;
 using TiaMcpServer.OpennessWorker.Openness.Infrastructure;
+using TiaMcpServer.OpennessWorker.Openness.Plc;
 using TiaMcpServer.OpennessWorker.Worker;
 
 namespace TiaMcpServer.OpennessWorker.Openness.Block;
@@ -19,7 +22,9 @@ public static partial class BlockExporter
         try
         {
             var address = BlockAddress.Parse(blockPath);
-            var target = BlockTargetResolver.ResolveForExport(project, address);
+            var software = PlcSoftwareLocator.FindUnique(project, address.PlcName).Software;
+            var target = BlockTargetResolver.ResolveForExport(software, address);
+            BlockExportLedger.Shared.RecordExport(software.Name, target.DocumentName);
             return VerifyPrimaryDocument(
                 target.DocumentName,
                 primaryDocumentName,
@@ -70,14 +75,34 @@ public static partial class BlockExporter
         bool withDependencies = false)
     {
         var address = BlockAddress.Parse(blockPath);
-        var target = BlockTargetResolver.ResolveForExport(project, address);
+        var software = PlcSoftwareLocator.FindUnique(project, address.PlcName).Software;
+        var target = BlockTargetResolver.ResolveForExport(software, address);
+        // Every export counts, attempted ones included (V21 textual-interface pitfall, see BlockExportLedger).
+        BlockExportLedger.Shared.RecordExport(software.Name, target.DocumentName);
+        // K20: an inconsistent block's failed export names compile_check (the exception itself propagates unchanged).
+        return ExportConsistencyEvidence.Observe(target.Block, () => TiaMcpServer.Contracts.Plc.PlcExportConsistency.BlockHint(address.ToDisplayPath()),
+            () => ExportResolved(software, target, address, format, withDependencies));
+    }
+
+    private static string ExportResolved(PlcSoftware software, ResolvedBlockTarget target, BlockAddress address, string format, bool withDependencies)
+    {
+        if (string.Equals(format, SourceFormatNames.Sd, StringComparison.Ordinal))
+        {
+            var sd = ExportSd(target, address);
+            if (PlcBlockBundleText.TryGetDocument(sd, ".s7dcl", out _, out var sdS7dcl))
+                BlockExportLedger.Shared.RecordTextualInterface(software.Name, target.DocumentName, S7dclImportHazards.HasTextualInterface(sdS7dcl));
+            return sd;
+        }
 
         if (!string.Equals(format, SourceFormatNames.Xml, StringComparison.Ordinal))
         {
             return ExportSource(target, address, withDependencies);
         }
 
-        return ExportXml(target, address);
+        var bundle = ExportXml(target, address);
+        if (PlcBlockBundleText.TryGetDocument(bundle, ".s7dcl", out _, out var s7dcl))
+            BlockExportLedger.Shared.RecordTextualInterface(software.Name, target.DocumentName, S7dclImportHazards.HasTextualInterface(s7dcl));
+        return bundle;
     }
 
     private static string ExportXml(ResolvedBlockTarget target, BlockAddress address)
@@ -119,6 +144,42 @@ public static partial class BlockExporter
             TemporaryDirectoryCleanup.TryDeleteTempDirectory(tempDir);
         }
     }
+
+    /// <summary>
+    /// SIMATIC SD: only the documents of <c>PlcBlock.ExportAsDocuments(DirectoryInfo, string)</c> (Siemens V21 skill
+    /// simatic-sd §2; .s7dcl, and .s7res when TIA Portal writes one), delimited like the xml bundle with the .s7dcl first.
+    /// The files are read as UTF-8 with a leading BOM kept in the text (<see cref="SimaticSdFileText"/>), so the next import
+    /// writes them back alike. A refused export fails with TIA Portal's own error or result state: nothing is stricter here.
+    /// The export goes into a fresh directory, so no earlier file can make it throw (§2).
+    /// </summary>
+    private static string ExportSd(ResolvedBlockTarget target, BlockAddress address)
+    {
+        string tempDir = Path.Combine(Path.GetTempPath(), "tia-mcp-sd-export-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            DocumentExportResult result = target.Block!.ExportAsDocuments(new DirectoryInfo(tempDir), target.DocumentName);
+            if (result.State != DocumentResultState.Success)
+                throw new WorkerOperationException(WorkerFailureCategories.WorkerOperationFailed,
+                    $"TIA Portal returned SIMATIC SD document export state '{result.State}' for '{address.ToDisplayPath()}'.");
+            var documents = new List<BlockImportDocument>();
+            foreach (FileInfo file in result.ExportedDocuments)
+                documents.Add(new BlockImportDocument(file.Name, file.Name, SimaticSdFileText.Decode(File.ReadAllBytes(file.FullName))));
+            if (documents.Count == 0)
+                throw new WorkerOperationException(WorkerFailureCategories.WorkerOperationFailed,
+                    $"TIA Portal reported a successful SIMATIC SD export of '{address.ToDisplayPath()}' but wrote no document.");
+            return BlockBundleFormat.Compose(SdDocumentOrder(documents));
+        }
+        finally
+        {
+            TemporaryDirectoryCleanup.TryDeleteTempDirectory(tempDir);
+        }
+    }
+
+    /// <summary>The .s7dcl first (the import's primary document), then the others by name.</summary>
+    internal static IReadOnlyList<BlockImportDocument> SdDocumentOrder(IEnumerable<BlockImportDocument> documents)
+        => documents.OrderBy(d => d.LogicalName.EndsWith(".s7dcl", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+            .ThenBy(d => d.LogicalName, StringComparer.OrdinalIgnoreCase).ToList();
 
     /// <summary>
     /// Exports one block as Siemens external-source text, raw and unbundled: unlike the XML route,

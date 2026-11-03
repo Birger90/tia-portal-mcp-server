@@ -1,5 +1,7 @@
 # Roadmap
 
+**Language:** English · [Deutsch](ROADMAP.de.md)
+
 > Directional roadmap, not a release schedule. Priorities may change as Siemens TIA Portal V21 capabilities, licensing, and real-project validation are confirmed.
 
 - **Maintain a reliable and safe foundation** — keep lifecycle operations, diagnostics, error handling, packaging, documentation, and live TIA Portal V21 acceptance evidence dependable.

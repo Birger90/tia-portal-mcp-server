@@ -9,7 +9,9 @@ namespace TiaMcpServer.OpennessWorker.Openness.Network;
 /// <summary>
 /// Reads the structured I/O map for one device item: addresses (I/O type, start, length,
 /// dynamic context, controller names) and channels (number, I/O type, type, dynamic bit
-/// address and width), each read individually guarded.
+/// address and width), each read individually guarded. The dynamic attributes (address Context, channel ChannelAddress and
+/// ChannelWidth) are read only when the object lists them in GetAttributeInfos (K58, as list_io_addresses since K39); what is
+/// not offered or not readable is reported once per attribute and device item.
 /// </summary>
 public static class HardwareIoMapReader
 {
@@ -22,8 +24,12 @@ public static class HardwareIoMapReader
         var details = new DeviceItemIoDetailsInfo();
         var addressRecords = new List<IoAddressRecord>();
 
-        ReadAddresses(item, itemDescription, messages, details, addressRecords);
-        ReadChannels(item, itemDescription, messages, tagIndex, addressRecords, details);
+        var addressNotes = new DynamicAttributeNotes("addresses");
+        ReadAddresses(item, itemDescription, messages, details, addressRecords, addressNotes);
+        addressNotes.AddTo(messages, details.Addresses.Count, $" of device item '{itemDescription}'");
+        var channelNotes = new DynamicAttributeNotes("channels");
+        ReadChannels(item, itemDescription, messages, tagIndex, addressRecords, details, channelNotes);
+        channelNotes.AddTo(messages, details.Channels.Count, $" of device item '{itemDescription}'");
 
         details.Addresses = details.Addresses
             .OrderBy(address => address.IoType, StringComparer.Ordinal)
@@ -43,7 +49,8 @@ public static class HardwareIoMapReader
         string itemDescription,
         List<string> messages,
         DeviceItemIoDetailsInfo details,
-        List<IoAddressRecord> addressRecords)
+        List<IoAddressRecord> addressRecords,
+        DynamicAttributeNotes notes)
     {
         try
         {
@@ -65,7 +72,7 @@ public static class HardwareIoMapReader
                             () => address.Length,
                             $"device item '{itemDescription}' address length",
                             messages),
-                        Context = ReadAddressContext(address, itemDescription, messages),
+                        Context = ReadAddressContext(address, notes),
                     };
 
                     var record = new IoAddressRecord
@@ -139,7 +146,8 @@ public static class HardwareIoMapReader
         List<string> messages,
         IoTagIndex? tagIndex,
         IReadOnlyList<IoAddressRecord> addressRecords,
-        DeviceItemIoDetailsInfo details)
+        DeviceItemIoDetailsInfo details,
+        DynamicAttributeNotes notes)
     {
         try
         {
@@ -147,6 +155,7 @@ public static class HardwareIoMapReader
             {
                 try
                 {
+                    var offered = notes.Offered((IEngineeringObject)channel);
                     var channelInfo = new IoChannelInfo
                     {
                         Number = ReadOptionalInt(
@@ -163,11 +172,15 @@ public static class HardwareIoMapReader
                             messages),
                         ChannelAddressBits = ReadDynamicIntAttribute(
                             (IEngineeringObject)channel,
+                            offered,
+                            notes,
                             "ChannelAddress",
                             $"device item '{itemDescription}' channel address",
                             messages),
                         ChannelWidthBits = ReadDynamicUIntAttribute(
                             (IEngineeringObject)channel,
+                            offered,
+                            notes,
                             "ChannelWidth",
                             $"device item '{itemDescription}' channel width",
                             messages),
@@ -259,74 +272,50 @@ public static class HardwareIoMapReader
         return matches;
     }
 
-    private static string? ReadAddressContext(
-        Address address,
-        string itemDescription,
-        List<string> messages)
+    private static string? ReadAddressContext(Address address, DynamicAttributeNotes notes)
     {
-        try
-        {
-            var value = ((IEngineeringObject)address).GetAttribute("Context");
-            return value?.ToString();
-        }
-        catch (EngineeringException exception)
-        {
-            messages.Add(
-                $"Could not read device item '{itemDescription}' address context: {exception.Message}");
-            return null;
-        }
+        var dynamic = (IEngineeringObject)address;
+        return notes.Read<string>(notes.Offered(dynamic), "Context", () => dynamic.GetAttribute("Context")?.ToString());
     }
 
     private static int? ReadDynamicIntAttribute(
         IEngineeringObject engineeringObject,
+        HashSet<string>? offered,
+        DynamicAttributeNotes notes,
         string attributeName,
         string description,
         List<string> messages)
     {
-        try
+        var value = notes.Read<object>(offered, attributeName, () => engineeringObject.GetAttribute(attributeName));
+        var coerced = DynamicNumericAttribute.CoerceInt32(value);
+        if (coerced is null && value is not null)
         {
-            var value = engineeringObject.GetAttribute(attributeName);
-            var coerced = DynamicNumericAttribute.CoerceInt32(value);
-            if (coerced is null && value is not null)
-            {
-                messages.Add(
-                    $"Could not read {description}: attribute '{attributeName}' had an unexpected CLR type or value.");
-                return null;
-            }
-
-            return coerced;
-        }
-        catch (EngineeringException exception)
-        {
-            messages.Add($"Could not read {description}: {exception.Message}");
+            messages.Add(
+                $"Could not read {description}: attribute '{attributeName}' had an unexpected CLR type or value.");
             return null;
         }
+
+        return coerced;
     }
 
     private static uint? ReadDynamicUIntAttribute(
         IEngineeringObject engineeringObject,
+        HashSet<string>? offered,
+        DynamicAttributeNotes notes,
         string attributeName,
         string description,
         List<string> messages)
     {
-        try
+        var value = notes.Read<object>(offered, attributeName, () => engineeringObject.GetAttribute(attributeName));
+        var coerced = DynamicNumericAttribute.CoerceUInt32(value);
+        if (coerced is null && value is not null)
         {
-            var value = engineeringObject.GetAttribute(attributeName);
-            var coerced = DynamicNumericAttribute.CoerceUInt32(value);
-            if (coerced is null && value is not null)
-            {
-                messages.Add(
-                    $"Could not read {description}: attribute '{attributeName}' had an unexpected CLR type or value.");
-                return null;
-            }
-
-            return coerced;
-        }
-        catch (EngineeringException exception)
-        {
-            messages.Add($"Could not read {description}: {exception.Message}");
+            messages.Add(
+                $"Could not read {description}: attribute '{attributeName}' had an unexpected CLR type or value.");
             return null;
         }
+
+        return coerced;
     }
 
     private static string? ReadControllerOwningDeviceName(

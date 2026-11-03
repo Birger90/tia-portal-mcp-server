@@ -116,7 +116,8 @@ public sealed class VciWriteCatalogTests : IDisposable
     [InlineData(null)]
     [InlineData("relative")]
     [InlineData("C:\\")]
-    [InlineData("\\\\server\\share\\out")]
+    // UNC shares are allowed since 2026-11-01 (owner decision); device paths are not.
+    [InlineData("\\\\?\\C:\\out")]
     [InlineData("C:\\out:stream")]
     public void InvalidRootRejected(string? root)
     {

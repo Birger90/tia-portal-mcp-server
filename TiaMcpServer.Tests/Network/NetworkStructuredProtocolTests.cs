@@ -42,7 +42,7 @@ public class NetworkStructuredProtocolTests
                 }
             });
 
-        var structured = CanonicalToolDocument.Read(result);
+        var structured = AssertOneCanonicalDocument(result);
         Assert.False(result.IsError);
         Assert.Equal("1.0", structured.GetProperty("contractVersion").GetString());
         Assert.Equal(JsonValueKind.Array, structured.GetProperty("warnings").ValueKind);
@@ -66,7 +66,7 @@ public class NetworkStructuredProtocolTests
             "network_read",
             new Dictionary<string, object?> { ["operations"] = Array.Empty<object>() });
 
-        var rejected = CanonicalToolDocument.Read(result);
+        var rejected = AssertOneCanonicalDocument(result);
         var rejectedIsError = result.IsError == true;
         Assert.True(rejectedIsError);
         Assert.Equal(JsonValueKind.Null, rejected.GetProperty("batch").ValueKind);
@@ -109,7 +109,7 @@ public class NetworkStructuredProtocolTests
                 },
             });
 
-        var root = CanonicalToolDocument.Read(result);
+        var root = AssertOneCanonicalDocument(result);
         Assert.False(result.IsError);
         var items = root.GetProperty("batch").GetProperty("operations");
         Assert.Equal(
@@ -135,19 +135,19 @@ public class NetworkStructuredProtocolTests
         Assert.NotNull(tool.ProtocolTool.OutputSchema);
 
         var error = await CallWriteAsync(harness, Array.Empty<object>());
-        var errorRoot = CanonicalToolDocument.Read(error);
+        var errorRoot = AssertOneCanonicalDocument(error);
         Assert.True(error.IsError);
         AssertOnlyPopulated(errorRoot, "error", "error");
 
         var preview = await CallWriteAsync(harness, WriteOperations());
-        var previewRoot = CanonicalToolDocument.Read(preview);
+        var previewRoot = AssertOneCanonicalDocument(preview);
         Assert.False(preview.IsError);
         AssertOnlyPopulated(previewRoot, "preview", "none");
         Assert.NotEmpty(previewRoot.GetProperty("effects").EnumerateArray());
 
         var applied = await CallWriteAsync(
             harness, WriteOperations(), dryRun: false);
-        var appliedRoot = CanonicalToolDocument.Read(applied);
+        var appliedRoot = AssertOneCanonicalDocument(applied);
         Assert.False(applied.IsError);
         AssertOnlyPopulated(appliedRoot, "applied", "batch");
         Assert.True(appliedRoot.GetProperty("success").GetBoolean());
@@ -162,13 +162,13 @@ public class NetworkStructuredProtocolTests
             startupProjectPath: "network-write-item-failure");
         var operations = WriteOperations();
 
-        var preview = CanonicalToolDocument.Read(await CallWriteAsync(harness, operations));
+        var preview = AssertOneCanonicalDocument(await CallWriteAsync(harness, operations));
         var applied = await CallWriteAsync(
             harness,
             operations,
             dryRun: false);
 
-        var root = CanonicalToolDocument.Read(applied);
+        var root = AssertOneCanonicalDocument(applied);
 
         // The batch ran, so this is a successful MCP call reporting a failed item — not a tool error.
         Assert.False(applied.IsError);
@@ -212,7 +212,7 @@ public class NetworkStructuredProtocolTests
             },
         };
 
-        var preview = CanonicalToolDocument.Read(await CallWriteAsync(harness, operations));
+        var preview = AssertOneCanonicalDocument(await CallWriteAsync(harness, operations));
 
         // The preview's own resolved target evidence already proves node-plc (not node-db, not a
         // guess) is what was matched, before anything is applied.
@@ -221,7 +221,7 @@ public class NetworkStructuredProtocolTests
         Assert.Equal("PC_1", previewTarget.GetProperty("deviceName").GetString());
 
         var applied = await CallWriteAsync(harness, operations, dryRun: false);
-        var appliedRoot = CanonicalToolDocument.Read(applied);
+        var appliedRoot = AssertOneCanonicalDocument(applied);
         Assert.False(applied.IsError);
         Assert.True(appliedRoot.GetProperty("success").GetBoolean());
         Assert.Equal(
@@ -267,7 +267,7 @@ public class NetworkStructuredProtocolTests
                 },
             });
 
-        var root = CanonicalToolDocument.Read(result);
+        var root = AssertOneCanonicalDocument(result);
         Assert.False(result.IsError);
 
         var items = root.GetProperty("batch").GetProperty("operations");
@@ -313,10 +313,10 @@ public class NetworkStructuredProtocolTests
             },
         };
 
-        var preview = CanonicalToolDocument.Read(await CallWriteAsync(harness, operations));
+        var preview = AssertOneCanonicalDocument(await CallWriteAsync(harness, operations));
 
         var applied = await CallWriteAsync(harness, operations, dryRun: false);
-        var root = CanonicalToolDocument.Read(applied);
+        var root = AssertOneCanonicalDocument(applied);
 
         // The batch RAN (a usable batch exists), so this stays a successful MCP call even though
         // the batch itself reports failure.
@@ -372,7 +372,7 @@ public class NetworkStructuredProtocolTests
         // ...and the surviving scalars are offered once each, inside changes only.
         foreach (var scalar in new[] { "\"ipAddress\"", "\"subnetMask\"", "\"pnDeviceName\"" })
         {
-            Assert.Equal(1, RepositoryFiles.CountOccurrences(schema, scalar));
+            Assert.Equal(1, schema.Split(scalar).Length - 1);
         }
 
         // Finally, the nested selectors are advertised closed, so an unknown member is not merely
@@ -453,7 +453,7 @@ public class NetworkStructuredProtocolTests
             });
 
         Assert.False(result.IsError);
-        return CanonicalToolDocument.Read(result)
+        return AssertOneCanonicalDocument(result)
             .GetProperty("batch")
             .GetProperty("operations")[0]
             .GetProperty("result");
@@ -499,6 +499,16 @@ public class NetworkStructuredProtocolTests
         }
     }
 
+    /// <summary>Asserts the text block and structuredContent are the same canonical document.</summary>
+    private static JsonElement AssertOneCanonicalDocument(CallToolResult result)
+    {
+        var structured = Assert.IsType<JsonElement>(result.StructuredContent);
+        var text = Assert.IsType<TextContentBlock>(Assert.Single(result.Content)).Text;
+        Assert.Equal(CanonicalJson.Serialize(structured), text);
+        using var textDocument = JsonDocument.Parse(text);
+        Assert.True(JsonElement.DeepEquals(structured, textDocument.RootElement));
+        return structured;
+    }
 
     private static IEnumerable<JsonElement> EnumerateSchemaObjects(JsonElement element)
     {

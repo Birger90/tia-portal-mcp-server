@@ -8,7 +8,7 @@ namespace TiaMcpServer.Tests.Block;
 
 public class CrossReferenceInfoTests
 {
-    private static readonly JsonSerializerOptions JsonOptions = WorkerJson.ExplicitNullPayload;
+    private static readonly JsonSerializerOptions JsonOptions = WorkerJson.PayloadOptionsFor(typeof(CrossReferenceReport));
 
     [Fact]
     public void EmptyReportSerializesWithEmptySourcesAndDefaultFilter()

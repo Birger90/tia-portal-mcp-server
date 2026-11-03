@@ -69,11 +69,12 @@ public class ProjectLifecycleToolTests
     public async Task GetProjectStatus_RegisteredToolReturnsCanonicalNoProjectStatus()
     {
         using var uiOpen = FakeWorkerUiOpenProject.ForWorkerRelativePath("status-no-project");
-        using var client = FakeWorkerClients.Create(binding: new ProjectSessionBinding(null));
+        using var client = new OpennessWorkerClient(
+            new ProjectSessionBinding(null), workerExecutablePath: FakeWorkerLocator.Locate());
 
         var result = await ProjectReadTools.GetProjectStatus(client);
 
-        var document = CanonicalToolDocument.Read(result);
+        var document = StandaloneStatusToolTests.Document(result);
         Assert.True(document.GetProperty("success").GetBoolean());
         Assert.False(document.GetProperty("result").GetProperty("value").GetProperty("isOpen").GetBoolean());
     }

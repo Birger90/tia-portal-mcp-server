@@ -10,14 +10,16 @@ namespace TiaMcpServer.Tests.Tools;
 [Collection("Mcp protocol serial")]
 public class AccessModeDiscoveryTests
 {
-    private static readonly string[] Reads = { "bind_project", "browse_project_tree", "get_project_status", "hmi_read", "network_read", "plc_read", "read_cross_references", "vci_read" };
-    private static readonly string[] Edits = { "compile_check", "network_write", "plc_write", "hmi_write", "vci_write" };
-    private static readonly string[] Lifecycle = { "archive_project", "close_project", "create_project", "open_project", "save_project", "save_project_as" };
+    private static readonly string[] Reads = { "bind_project", "browse_project_tree", "get_project_status", "hmi_read", "library_read", "network_read", "plc_online_read", "plc_read", "plcsim_read", "read_cross_references", "vci_read" };
+    private static readonly string[] Edits = { "compile_check", "network_write", "plc_write", "hmi_write", "vci_write", "plc_station_upload", "library_write" };
+    private static readonly string[] Online = { "plc_download", "plc_online_write", "plc_tia_online" };
+    private static readonly string[] Simulation = { "plcsim_test", "plcsim_write" };
+    private static readonly string[] Lifecycle = { "archive_project", "close_project", "create_project", "open_project", "retrieve_project", "save_project", "save_project_as" };
 
     [Theory]
-    [InlineData(McpAccessMode.ReadOnly, 8)]
-    [InlineData(McpAccessMode.ReadWrite, 19)]
-    [InlineData(McpAccessMode.Full, 19)]
+    [InlineData(McpAccessMode.ReadOnly, 11)]
+    [InlineData(McpAccessMode.ReadWrite, 30)]
+    [InlineData(McpAccessMode.Full, 30)]
     public async Task ToolsList_AdvertisesOnlyTheModeSurface(McpAccessMode mode, int count)
     {
         await using var harness = await McpProtocolTestHarness.StartProductionSurfaceAsync(mode);
@@ -25,8 +27,8 @@ public class AccessModeDiscoveryTests
         var expected = mode switch
         {
             McpAccessMode.ReadOnly => Reads,
-            McpAccessMode.ReadWrite => Reads.Concat(Edits).Concat(Lifecycle),
-            McpAccessMode.Full => Reads.Concat(Edits).Concat(Lifecycle),
+            McpAccessMode.ReadWrite => Reads.Concat(Edits).Concat(Lifecycle).Concat(Online).Concat(Simulation),
+            McpAccessMode.Full => Reads.Concat(Edits).Concat(Lifecycle).Concat(Online).Concat(Simulation),
             _ => throw new ArgumentOutOfRangeException(nameof(mode))
         };
         Assert.Equal(expected.Order(), actual);
@@ -52,12 +54,28 @@ public class AccessModeDiscoveryTests
         Assert.Empty(Directory.GetFiles(directory.Path, "*", SearchOption.AllDirectories));
     }
 
+    [Fact]
+    public async Task ToolsCall_CannotReachHiddenSimulationToolsInReadOnly()
+    {
+        await using var harness = await McpProtocolTestHarness.StartProductionSurfaceAsync(McpAccessMode.ReadOnly);
+        foreach (var name in Simulation)
+        {
+            var arguments = name == "plcsim_test"
+                ? new Dictionary<string, object?> { ["instance"] = "Line1", ["steps"] = new[] { new { kind = "wait", ms = 1 } } }
+                : new Dictionary<string, object?> { ["operations"] = new[] { new { operationId = "on", operation = "power_on", instance = "Line1" } } };
+            var exception = await Assert.ThrowsAsync<McpProtocolException>(() => harness.Client.CallToolAsync(name, arguments).AsTask());
+            Assert.Equal(McpErrorCode.InvalidParams, exception.ErrorCode);
+        }
+
+        Assert.False(harness.PlcSimClient.HasStartedWorker);
+    }
+
     [Theory]
     [InlineData(McpAccessMode.ReadOnly)]
     public async Task ToolsCall_CannotReachHiddenLifecycleTools(McpAccessMode mode)
     {
         await using var harness = await McpProtocolTestHarness.StartProductionSurfaceAsync(mode);
-        foreach (var name in Lifecycle)
+        foreach (var name in Lifecycle.Concat(Online))
         {
             var arguments = name switch
             {

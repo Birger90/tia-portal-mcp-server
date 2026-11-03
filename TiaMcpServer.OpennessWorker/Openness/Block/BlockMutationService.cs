@@ -54,31 +54,26 @@ public static class BlockMutationService
         BlockAddress address,
         string blockPath)
     {
-        // Presence is not re-read: the import returned the block it created. Only the compile is checked.
+        // The created block is re-resolved by its path; it is NOT compiled. A compile of the new block right after
+        // the import made TIA Portal V21 show "Übersetzen (0125:000006) Das ausgewählte Objekt kann nicht übersetzt
+        // werden." and terminate (live 2026-11-02, K45; cause not known). TIA Portal does not compile a block it creates
+        // either; compile_check compiles on request.
         try
         {
-            var report = CompileChecker.Compile(project, address.PlcName, blockPath);
-            if (report.TotalErrorCount != 0
-                || string.Equals(report.OverallState, "Error", StringComparison.OrdinalIgnoreCase))
-            {
-                return new BlockPostconditionEvidence(
-                    compileSucceeded: false,
-                    reExportSucceeded: true,
-                    diagnosticMessage: "Compilation reported errors after block creation.");
-            }
+            var plcSoftware = PlcSoftwareLocator.FindUnique(project, address.PlcName).Software;
+            var target = BlockTargetResolver.ResolveForExport(plcSoftware, address);
+            if (target.Block is null)
+                return new BlockPostconditionEvidence(false, false, "The created block was not found at " + blockPath + ".");
         }
-        catch (Exception exception)
+        catch (Exception exception) when (exception is not NonRecoverableException)
         {
-            return new BlockPostconditionEvidence(
-                compileSucceeded: false,
-                reExportSucceeded: true,
-                diagnosticMessage: "Compilation could not complete after block creation: " + exception.Message);
+            return new BlockPostconditionEvidence(false, false, "The created block could not be re-read: " + exception.Message);
         }
 
         return new BlockPostconditionEvidence(
             compileSucceeded: true,
             reExportSucceeded: true,
-            diagnosticMessage: "Created block resolved and compiled successfully.");
+            diagnosticMessage: "Created block resolved (not compiled; run compile_check to compile it).");
     }
 
     public static BlockMutationResultInfo DeleteBlock(ProjectBase project, string blockPath)
@@ -87,6 +82,7 @@ public static class BlockMutationService
         var plcSoftware = PlcSoftwareLocator.FindUnique(project, address.PlcName).Software;
         // ResolveForExport throws target_not_found on a miss, so Block is set here.
         var target = BlockTargetResolver.ResolveForExport(plcSoftware, address);
+        Safety.PlcSafetyGate.RequireChangePermitted(project, plcSoftware.Name, target.Block, "delete_block");
 
         target.Block!.Delete();
 

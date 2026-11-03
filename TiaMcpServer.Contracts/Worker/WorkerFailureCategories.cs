@@ -98,6 +98,48 @@ public static class WorkerFailureCategories
     /// <summary>A write guard stopped the call: an unacknowledged acknowledge guard or a block guard fired.</summary>
     public const string GuardBlocked = "guard_blocked";
 
+    /// <summary>The S7-PLCSIM Advanced API could not be located or loaded (not installed, wrong directory, or a load failure).</summary>
+    public const string PlcSimApiUnavailable = "plcsim_api_unavailable";
+
+    /// <summary>
+    /// The loaded S7-PLCSIM Advanced API does not expose a member the operation needs with one of its
+    /// declared signatures; the message names the member. Run <c>plcsim_read probe_api</c> for the full surface.
+    /// </summary>
+    public const string PlcSimApiMemberMissing = "plcsim_api_member_missing";
+
+    /// <summary>
+    /// The S7-PLCSIM Advanced API raised <c>SimulationRuntimeException</c> or
+    /// <c>SimulationInitializationException</c>; the message carries the exception type, the
+    /// <c>ERuntimeErrorCode</c> value when readable, and the API message.
+    /// </summary>
+    public const string PlcSimRuntimeError = "plcsim_runtime_error";
+
+    /// <summary>
+    /// The S7-1500 Web API endpoint of a configured target could not be reached: connection, DNS or TLS
+    /// failure (including a rejected server certificate) or the configured per-request timeout.
+    /// </summary>
+    public const string WebApiUnreachable = "webapi_unreachable";
+
+    /// <summary>
+    /// <c>Api.Login</c> failed for a configured target, or the credential environment variables the
+    /// configuration names are not set. Credentials are never echoed.
+    /// </summary>
+    public const string WebApiAuthenticationFailed = "webapi_authentication_failed";
+
+    /// <summary>The PLC refused the call for the logged-in (or anonymous) user: Web API error code 2.</summary>
+    public const string WebApiPermissionDenied = "webapi_permission_denied";
+
+    /// <summary>The PLC answered with another Web API error or HTTP status; the message carries its code and text.</summary>
+    public const string WebApiRejected = "webapi_rejected";
+
+    /// <summary>
+    /// A TIA Openness member an operation binds at runtime (an undocumented or only claimed member, e.g.
+    /// <c>PlcMasterSecretConfigurator.Unprotect()</c>, or a Siemens.Engineering.Safety member when the STEP 7 Safety
+    /// option is not installed) is absent from the installed V21 API or has another signature; the message names the
+    /// member and what was found. Nothing was changed.
+    /// </summary>
+    public const string ApiMemberMissing = "api_member_missing";
+
     private static readonly HashSet<string> Known = new(StringComparer.Ordinal)
     {
         ValidationError,
@@ -126,7 +168,15 @@ public static class WorkerFailureCategories
         SnapshotUnavailable,
         ResultItemTooLarge,
         ResultMetadataTooLarge,
-        GuardBlocked
+        GuardBlocked,
+        PlcSimApiUnavailable,
+        PlcSimApiMemberMissing,
+        PlcSimRuntimeError,
+        WebApiUnreachable,
+        WebApiAuthenticationFailed,
+        WebApiPermissionDenied,
+        WebApiRejected,
+        ApiMemberMissing
     };
 
     private static readonly HashSet<string> PreconditionRefusalSet = new(StringComparer.Ordinal)

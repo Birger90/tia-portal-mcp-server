@@ -9,7 +9,7 @@ using TiaMcpServer.OperationBatches;
 namespace TiaMcpServer.Hmi;
 
 /// <summary>Pure request validation and normalization before any worker activity.</summary>
-public static class HmiWriteCatalog
+public static partial class HmiWriteCatalog
 {
     private sealed record Spec(string[] Required, string[] Optional);
     private static Spec Op(string required, string optional = "") =>
@@ -26,6 +26,39 @@ public static class HmiWriteCatalog
         ["create_alarm"] = Op("alarmKind alarmName triggerTag", "condition conditionValue alarmClass priority eventText infoText bitNumber triggerMode"),
         ["update_alarm"] = Op("alarmKind alarmName", "newName triggerTag condition conditionValue alarmClass priority eventText infoText bitNumber triggerMode"),
         ["delete_alarm"] = Op("alarmKind alarmName"),
+        ["create_screen"] = Op("screenName", "groupPath width height"),
+        ["delete_screen"] = Op("screenName", "groupPath"),
+        ["rename_screens"] = Op("renames"),
+        ["create_screen_item"] = Op("screenName itemName itemType", "groupPath left top width height"),
+        ["delete_screen_item"] = Op("screenName itemName", "groupPath"),
+        ["set_screen_item_property"] = Op("screenName propertyName value", "groupPath itemName culture"),
+        ["set_dynamization_tag"] = Op("screenName propertyName tagName", "groupPath itemName"),
+        ["replace_in_scripts"] = Op("replacements", "screenName groupPath"),
+        ["rename_tags"] = Op("renames"),
+        ["export_text_lists"] = Op("directoryPath", "textListNames overwrite"),
+        ["import_text_lists"] = Op("filePath", "overwrite"),
+        // Classic WinCC objects (issue #28).
+        ["export_classic_objects"] = Op("classicKind directoryPath", "groupPath tableName objectNames overwrite"),
+        ["import_classic_objects"] = Op("classicKind filePath", "groupPath tableName overwrite"),
+        ["delete_classic_object"] = Op("classicKind objectName", "groupPath tableName"),
+        ["create_classic_folder"] = Op("classicKind groupPath"),
+        ["delete_classic_folder"] = Op("classicKind groupPath"),
+        // WinCC Unified events and dynamizations (issue #29).
+        ["set_event_script"] = Op("screenName eventType scriptCode", "groupPath itemName propertyName globalDefinitionAreaScriptCode async"),
+        ["delete_event_script"] = Op("screenName eventType", "groupPath itemName propertyName"),
+        ["set_dynamization_script"] = Op("screenName propertyName scriptCode", "groupPath itemName globalDefinitionAreaScriptCode async triggerType triggerTags customDuration"),
+        ["set_dynamization_flashing"] = Op("screenName propertyName", "groupPath itemName color alternateColor flashingCondition flashingRate"),
+        ["delete_dynamization"] = Op("screenName propertyName", "groupPath itemName"),
+        // WinCC Unified audit classes, runtime settings and plant objects (issue #29).
+        ["create_audit_class"] = Op("auditClassName"),
+        ["delete_audit_class"] = Op("auditClassName"),
+        ["set_audit_class_property"] = Op("auditClassName propertyName value", "culture"),
+        ["set_runtime_setting"] = Op("propertyName value", "settingsSection culture"),
+        ["create_plant_view"] = Op("plantViewName"),
+        ["delete_plant_view"] = Op("plantViewName"),
+        ["create_plant_view_node"] = Op("plantViewName nodeName", "nodePath plantObjectType"),
+        ["delete_plant_view_node"] = Op("plantViewName nodePath"),
+        ["set_plant_object_interface_property"] = Op("plantViewName nodePath interfaceName propertyName value", "culture"),
     };
 
     private static readonly (string Name, Func<HmiWriteOperationRequest, object?> Get)[] Fields =
@@ -51,6 +84,43 @@ public static class HmiWriteCatalog
         ("bitNumber", r => r.BitNumber),
         ("priority", r => r.Priority),
         ("conditionValue", r => r.ConditionValue),
+        ("screenName", r => r.ScreenName),
+        ("itemName", r => r.ItemName),
+        ("itemType", r => r.ItemType),
+        ("propertyName", r => r.PropertyName),
+        ("value", r => r.Value),
+        ("culture", r => r.Culture),
+        ("width", r => r.Width),
+        ("height", r => r.Height),
+        ("left", r => r.Left),
+        ("top", r => r.Top),
+        ("renames", r => r.Renames),
+        ("replacements", r => r.Replacements),
+        ("directoryPath", r => r.DirectoryPath),
+        ("filePath", r => r.FilePath),
+        ("textListNames", r => r.TextListNames),
+        ("overwrite", r => r.Overwrite),
+        ("classicKind", r => r.ClassicKind),
+        ("objectName", r => r.ObjectName),
+        ("objectNames", r => r.ObjectNames),
+        ("eventType", r => r.EventType),
+        ("scriptCode", r => r.ScriptCode),
+        ("globalDefinitionAreaScriptCode", r => r.GlobalDefinitionAreaScriptCode),
+        ("async", r => r.Async),
+        ("triggerType", r => r.TriggerType),
+        ("triggerTags", r => r.TriggerTags),
+        ("customDuration", r => r.CustomDuration),
+        ("color", r => r.Color),
+        ("alternateColor", r => r.AlternateColor),
+        ("flashingCondition", r => r.FlashingCondition),
+        ("flashingRate", r => r.FlashingRate),
+        ("auditClassName", r => r.AuditClassName),
+        ("settingsSection", r => r.SettingsSection),
+        ("plantViewName", r => r.PlantViewName),
+        ("nodeName", r => r.NodeName),
+        ("nodePath", r => r.NodePath),
+        ("plantObjectType", r => r.PlantObjectType),
+        ("interfaceName", r => r.InterfaceName),
     };
 
     public static IReadOnlyList<string> OperationNames { get; } = Specs.Keys.ToArray();
@@ -108,6 +178,10 @@ public static class HmiWriteCatalog
             if (r.Priority is < 0 or > 255) Error("'priority' must be 0 to 255.");
             if (r.BitNumber is < 0) Error("'bitNumber' must be nonnegative.");
             if (r.ConditionValue is { } number && !TryNumber(number, out _)) Error("'conditionValue' must be a finite JSON number.");
+            ValidateScreenItem(r, Error);
+            ValidateClassic(r, Error);
+            ValidateEvents(r, Error);
+            ValidateConfiguration(r, Error);
             foreach (var (name, texts) in new[] { ("comment", r.Comment), ("displayName", r.DisplayName), ("eventText", r.EventText), ("infoText", r.InfoText) })
             {
                 if (texts is null) continue;
@@ -184,6 +258,45 @@ public static class HmiWriteCatalog
             EventText = r.EventText?.Select(t => new HmiText(t.Culture, WrapEventText(t.Text))).ToList(),
             BitNumber = r.BitNumber,
             Priority = r.Priority,
+            ScreenName = r.ScreenName,
+            ItemName = r.ItemName,
+            ItemType = r.ItemType,
+            PropertyName = r.PropertyName,
+            Value = r.Value,
+            Culture = r.Culture,
+            Width = r.Width,
+            Height = r.Height,
+            Left = r.Left,
+            Top = r.Top,
+            Renames = r.Renames,
+            Replacements = r.Replacements,
+            DirectoryPath = r.DirectoryPath,
+            FilePath = r.FilePath,
+            TextListNames = r.TextListNames,
+            Overwrite = r.Overwrite,
+            ClassicKind = r.ClassicKind,
+            ObjectName = r.ObjectName,
+            ObjectNames = r.ObjectNames,
+            EventType = r.EventType,
+            ScriptCode = r.ScriptCode,
+            GlobalDefinitionAreaScriptCode = r.GlobalDefinitionAreaScriptCode,
+            Async = r.Async,
+            TriggerType = r.TriggerType,
+            TriggerTags = r.TriggerTags,
+            CustomDuration = r.CustomDuration,
+            Color = r.Color,
+            AlternateColor = r.AlternateColor,
+            FlashingCondition = r.FlashingCondition,
+            FlashingRate = r.FlashingRate,
+            AuditClassName = r.AuditClassName,
+            SettingsSection = r.SettingsSection,
+            PlantViewName = r.PlantViewName,
+            NodeName = r.NodeName,
+            NodePath = r.NodePath,
+            PlantObjectType = r.PlantObjectType,
+            InterfaceName = r.InterfaceName,
+            // A fresh stamp per attempt keeps the temporary names of a batch rename unique.
+            TemporaryStamp = r.Operation is "rename_screens" or "rename_tags" ? Guid.NewGuid().ToString("N").Substring(0, 8) : null,
         };
         if (r.ConditionValue is { } number)
         {

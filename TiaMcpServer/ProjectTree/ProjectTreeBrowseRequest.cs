@@ -1,6 +1,7 @@
+using System.Security.Cryptography;
+using System.Text;
 using TiaMcpServer.Json;
 using TiaMcpServer.Contracts.Project;
-using TiaMcpServer.Contracts.Shared;
 using TiaMcpServer.Contracts.Worker;
 
 namespace TiaMcpServer.ProjectTree;
@@ -79,7 +80,8 @@ internal sealed record ProjectTreeBrowseRequest(
     internal static string CreateQueryHash(ProjectTreeQuery query)
     {
         ArgumentNullException.ThrowIfNull(query);
-        return ContentHashRules.Sha256Hex(CanonicalJson.Serialize(query));
+        var bytes = Encoding.UTF8.GetBytes(CanonicalJson.Serialize(query));
+        return Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
     }
 
     private static bool SameSelector(

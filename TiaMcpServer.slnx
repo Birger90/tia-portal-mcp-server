@@ -7,6 +7,7 @@
   <Project Path="TiaMcpServer.Contracts/TiaMcpServer.Contracts.csproj" />
   <Project Path="TiaMcpServer.FakeWorker/TiaMcpServer.FakeWorker.csproj" />
   <Project Path="TiaMcpServer.OpennessWorker/TiaMcpServer.OpennessWorker.csproj" />
+  <Project Path="TiaMcpServer.PlcSimWorker/TiaMcpServer.PlcSimWorker.csproj" />
   <Project Path="TiaMcpServer.Tests/TiaMcpServer.Tests.csproj" />
   <Project Path="TiaMcpServer/TiaMcpServer.csproj" />
 </Solution>

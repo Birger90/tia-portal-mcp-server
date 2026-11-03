@@ -112,6 +112,24 @@ public class HmiVerificationPolicyTests
         Assert.True(verification.Success);
     }
 
+    /// <summary>K59: an export writes files and changes no HMI object; it supersedes only a later export to the same directory.</summary>
+    [Fact]
+    public async Task TextListExport_NeitherSupersedesNorIsSupersededByChangesOfTheLists()
+    {
+        HmiWriteOperationRequest Export(string id, string directory) => new() { OperationId = id, Operation = "export_text_lists", DirectoryPath = directory };
+        var checks = await Verify(
+            (Item("import", "import_text_lists"), Effect("TextLists", "*")),
+            (Export("export", @"C:\Out"), Effect("TextLists", "*")),
+            (Item("again", "import_text_lists"), Effect("TextLists", "*")),
+            (Export("same", "C:/out/"), Effect("TextLists", "*")));
+        Assert.Equal([WriteVerificationChecks.Superseded, WriteVerificationChecks.Superseded, WriteVerificationChecks.Trusted, WriteVerificationChecks.Trusted], checks);
+        var verification = await new TrustedWriteVerifier<HmiWriteOperationRequest>(
+                new[] { Item("import", "import_text_lists"), Export("export", @"C:\Out") },
+                new HmiVerificationPolicy(new Dictionary<string, HmiWriteEffect> { ["import"] = Effect("TextLists", "*"), ["export"] = Effect("TextLists", "*") }))
+            .VerifyAsync(StructuredOperationBatch.FromItems([Succeeded(Item("import", "import_text_lists")), Succeeded(Export("export", @"C:\Out"))]));
+        Assert.Equal([WriteVerificationChecks.Trusted, WriteVerificationChecks.Trusted], verification.Operations.Select(o => o.Check));
+    }
+
     private static async Task<string[]> Verify(params (HmiWriteOperationRequest Item, HmiWriteEffect Effect)[] steps)
     {
         var items = steps.Select(s => s.Item).ToArray();

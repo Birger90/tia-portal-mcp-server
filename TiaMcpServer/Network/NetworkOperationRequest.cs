@@ -30,7 +30,7 @@ public sealed class NetworkOperationRequest : IOperationBatchItem
     [Description("Client-supplied unique identifier for this network operation; returned results are keyed by it.")]
     public string OperationId { get; set; } = string.Empty;
 
-    [Description("Network operation to run: read_hardware_config, search_equipment_catalog, add_network_device, configure_network_device, list_network_objects, inspect_network_object, create_subnet, update_subnet, or delete_subnet.")]
+    [Description("Network operation to run. Reads (network_read): read_hardware_config, search_equipment_catalog, list_network_objects, inspect_network_object, list_plug_locations, find_module_types, find_container_types, list_io_addresses, get_custom_identity, list_port_connections, list_transfer_areas. Writes (network_write): add_network_device, configure_network_device, create_subnet, update_subnet, delete_subnet, create_io_system, plug_device_item, move_device_item, copy_device_item, delete_device_item, change_device_item_type, set_hardware_attributes, set_io_address, set_custom_identity, remove_custom_identity, connect_ports, disconnect_ports, create_transfer_area, update_transfer_area, delete_transfer_area, delete_io_system, disconnect_from_io_system, export_cax, import_cax, export_io_map.")]
     public string Operation { get; set; } = string.Empty;
 
     [Description("Hardware catalog search query. Required by search_equipment_catalog.")]
@@ -39,13 +39,13 @@ public sealed class NetworkOperationRequest : IOperationBatchItem
     [Description("Optional result cap for search_equipment_catalog; must be 1 or greater when supplied.")]
     public int? MaxResults { get; set; }
 
-    [Description("Exact equipment catalog type identifier. Required by add_network_device.")]
+    [Description("Exact equipment catalog type identifier (OrderNumber:, GSD: or System:). Required by add_network_device, plug_device_item, change_device_item_type and find_container_types; find_module_types takes a partial identifier (OrderNumber: at least one part, GSD: at least two, System: at least one).")]
     public string? TypeIdentifier { get; set; }
 
     [Description("Name for the new network device or device-scoped filter for list_network_objects. Required by add_network_device; for list_network_objects it is allowed only when every requested kind is deviceItem, networkInterface, node, or communicationConnection. For read_hardware_config: optional ordinal-ignore-case device filter — exactly one match reads only that device; zero or multiple matches report a non-fatal message and no devices. As a filter it names the station/root device as reported in read_hardware_config devices[].name, not a PLC/CPU device-item name; use plcName only for tag matching.")]
     public string? DeviceName { get; set; }
 
-    [Description("Optional device item name for add_network_device; defaults to deviceName when omitted.")]
+    [Description("Optional device item name. add_network_device: defaults to deviceName when omitted. plug_device_item: the new item's name; omitted lets TIA Portal choose it. Blank when supplied is rejected.")]
     public string? DeviceItemName { get; set; }
 
     [Description("Optional PLC software name for read_hardware_config tag matching. Exact ordinal match; when omitted, tag matching uses a PLC only when exactly one PLC exists. Blank when supplied is rejected.")]
@@ -57,11 +57,20 @@ public sealed class NetworkOperationRequest : IOperationBatchItem
     [Description("Optional read_hardware_config flag: when true, each channel carries tagMatches resolved against the selected PLC's tag tables. Requires includeIoDetails=true; defaults to false.")]
     public bool? IncludeTagMatches { get; set; }
 
-    [Description("Exact existing object to configure or inspect. Required by configure_network_device and inspect_network_object.")]
+    [Description("Exact existing object to configure, inspect or change. Required by configure_network_device, create_io_system (kind 'node': the CPU's PROFINET node with deviceName, nodeId and interfacePath as read_hardware_config reports it), inspect_network_object and every hardware-module operation. Hardware-module operations take kind 'deviceItem' (a selector from read_hardware_config or list_network_objects) or, where documented, kind 'device' with only deviceName: list_plug_locations, plug_device_item (the container), set_hardware_attributes, get/set/remove_custom_identity and list_port_connections accept both; connect_ports and disconnect_ports (the port device item), list_transfer_areas, create/update/delete_transfer_area and disconnect_from_io_system (the device item providing the NetworkInterface), list_io_addresses, move_device_item, copy_device_item, delete_device_item, change_device_item_type and set_io_address need a deviceItem. delete_io_system takes kind 'ioSystem' (subnetId, number, optional ioSystemIndex and ioSystemName as read_hardware_config reports the IO system).")]
     public NetworkObjectTarget? Target { get; set; }
+
+    [Description("User-defined custom identity key of get_custom_identity, set_custom_identity and remove_custom_identity (CustomIdentityProvider of the target device or device item). Required by those; nonblank.")]
+    public string? Key { get; set; }
+
+    [Description("User-defined custom identity value of set_custom_identity (CustomIdentityProvider.Set(key, value)). Required by set_custom_identity; any string, also empty.")]
+    public string? Value { get; set; }
 
     [Description("Settings to change on the target. Required by configure_network_device; at least one change must be requested.")]
     public NetworkDeviceChanges? Changes { get; set; }
+
+    [Description("Optional definition of the PROFINET IO system create_io_system creates: { name } (nonblank, passed to IoController.CreateIoSystem). Omitted passes an empty name and the result reports the name TIA Portal assigned. Only valid for create_io_system.")]
+    public NetworkIoSystemDefinition? IoSystem { get; set; }
 
     // ------------------------------------------------------------------
     // Phase 3 introspection fields
@@ -88,6 +97,55 @@ public sealed class NetworkOperationRequest : IOperationBatchItem
 
     [Description("Settings to change on the targeted subnet. Required by update_subnet; at least one change must be requested.")]
     public NetworkSubnetChanges? SubnetChanges { get; set; }
+
+    // ------------------------------------------------------------------
+    // Hardware-module fields (racks, slots, parameters, I/O addresses)
+    // ------------------------------------------------------------------
+
+    [Description("Destination container (kind 'device' with deviceName, or kind 'deviceItem') for move_device_item and copy_device_item. Optional; omitted means the target's current parent (the item path without its last segment, or the device for a top-level item).")]
+    public NetworkObjectTarget? Destination { get; set; }
+
+    [Description("The partner of connect_ports and disconnect_ports (kind 'deviceItem', the other port device item as read_hardware_config or list_port_connections reports it; required) and of create_transfer_area in the multicastable collection (kind 'deviceItem', the device item providing the partner NetworkInterface; required there).")]
+    public NetworkObjectTarget? Partner { get; set; }
+
+    [Description("The transfer area of create_transfer_area, update_transfer_area and delete_transfer_area: { collection, index?, name?, type?, positionNumber?, dataLength?, templateIndex? }. Required by those three.")]
+    public NetworkTransferAreaRequest? TransferArea { get; set; }
+
+    [Description("Position number (slot) in the container. Required and nonnegative for plug_device_item, move_device_item and copy_device_item; list free positions with list_plug_locations.")]
+    public int? PositionNumber { get; set; }
+
+    [Description("Attributes to write with set_hardware_attributes and update_transfer_area (on the selected transfer area; read its attributes with list_transfer_areas): 1-100 entries with unique case-sensitive names, each { name, kind, value } where kind is string, boolean, integer, number or enum (value is the exact member name). Read names, access and supportedTypes first with inspect_network_object.")]
+    public IReadOnlyList<HardwareAttributeAssignment>? Attributes { get; set; }
+
+    [Description("Optional set_hardware_attributes answer to TIA Portal's AttributeDelegate: abort (default, fail closed) or ignore (skip a rejected attribute and apply the others; partial update).")]
+    public string? AttributeErrorPolicy { get; set; }
+
+    [Description("Optional set_hardware_attributes write mode: bulk (default, one SetAttributes call that orders dependent attributes) or sequential (one SetAttribute per attribute in caller order, stops at the first failure).")]
+    public string? AttributeWriteMode { get; set; }
+
+    [Description("The existing Address of the target device item to change with set_io_address: { ioType, startAddress, length? } as list_io_addresses reports it.")]
+    public HardwareAddressSelector? Address { get; set; }
+
+    [Description("What set_io_address changes on the selected Address: { startAddress?, processImage?, isochronousMode?, interruptObNumber? }; at least one member.")]
+    public HardwareAddressChanges? AddressChanges { get; set; }
+
+    [Description("Absolute path of the CSV file export_io_map writes (must end in .csv), of the AutomationML file export_cax writes and import_cax reads (must end in .aml; import_cax: the file must exist). Required by those; the directory must exist.")]
+    public string? FilePath { get; set; }
+
+    [Description("Optional export_io_map, export_cax and import_cax flag: true replaces an existing file (export_cax: the export is staged next to the target and moved over it; export_cax and import_cax: an existing logFilePath is replaced); omitted or false refuses to overwrite.")]
+    public bool? Overwrite { get; set; }
+
+    [Description("Optional absolute log file path of export_cax and import_cax: selects the documented CaxProvider overload with a log file (it returns only true/false; the details are in the log). Omitted uses the overload that returns a TransferResult with state, counts and messages. An existing log file is refused unless overwrite:true; device paths are refused and a link or network location on the way is reported.")]
+    public string? LogFilePath { get; set; }
+
+    [Description("import_cax: how the import merges with existing devices, a CaxImportOptions member: MoveToParkingLot, OverwriteTiaDevice or RetainTiaDevice. Required by import_cax.")]
+    public string? ImportOption { get; set; }
+
+    [Description("Optional export_io_map field separator: ',' (default), ';' or a tab character.")]
+    public string? CsvDelimiter { get; set; }
+
+    [Description("Optional export_io_map flag: true writes cell values exactly as read. Omitted or false prefixes a single quote to a value starting with =, +, -, @, a tab or a carriage return so spreadsheet programs do not evaluate it as a formula.")]
+    public bool? RawCells { get; set; }
 }
 
 /// <summary>
@@ -247,6 +305,14 @@ public sealed class NetworkSubnetDefinition
 
     [Description("Bus transmission speed. Applicable only to Profibus subnets; optional even then.")]
     public string? TransmissionSpeed { get; set; }
+}
+
+/// <summary>What to create as a new PROFINET IO system; its number is assigned by TIA Portal and read back.</summary>
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+public sealed class NetworkIoSystemDefinition
+{
+    [Description("Name of the new IO system. Required and nonblank when ioSystem is supplied.")]
+    public string? Name { get; set; }
 }
 
 /// <summary>

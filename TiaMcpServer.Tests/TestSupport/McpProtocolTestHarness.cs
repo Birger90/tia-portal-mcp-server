@@ -114,19 +114,25 @@ internal sealed class McpProtocolTestHarness : IAsyncDisposable
         => StartCoreAsync(accessMode, registerTools, auditDirectory, startupProjectPath,
             skipHardwarePreverification: skipHardwarePreverification);
 
+    /// <param name="workerExecutablePath">
+    /// Overrides the FakeWorker for calls that must never reach a worker (tool discovery, argument-shape
+    /// and validation rejections); a path that cannot start makes any worker launch fail loudly.
+    /// </param>
     public static Task<McpProtocolTestHarness> StartProductionSurfaceAsync(
         McpAccessMode accessMode,
         string? auditDirectory = null,
         string? startupProjectPath = null,
         McpClientOptions? clientOptions = null,
-        TimeSpan? requestTimeout = null)
+        TimeSpan? requestTimeout = null,
+        string? workerExecutablePath = null)
         => StartCoreAsync(
             accessMode,
             builder => builder.WithAccessModeTools(accessMode),
             auditDirectory,
             startupProjectPath,
             clientOptions,
-            requestTimeout: requestTimeout);
+            requestTimeout: requestTimeout,
+            workerExecutablePath: workerExecutablePath);
 
     private static IMcpServerBuilder RegisterToolType<TTools>(IMcpServerBuilder builder)
         where TTools : class
@@ -139,7 +145,8 @@ internal sealed class McpProtocolTestHarness : IAsyncDisposable
         string? startupProjectPath,
         McpClientOptions? clientOptions = null,
         bool skipHardwarePreverification = false,
-        TimeSpan? requestTimeout = null)
+        TimeSpan? requestTimeout = null,
+        string? workerExecutablePath = null)
     {
         var clientWrites = new AnonymousPipeServerStream(PipeDirection.Out, HandleInheritability.None);
         var serverReads = new AnonymousPipeClientStream(
@@ -150,13 +157,34 @@ internal sealed class McpProtocolTestHarness : IAsyncDisposable
 
         var binding = new ProjectSessionBinding(skipHardwarePreverification ? startupProjectPath : null);
         var accessPolicy = new OperationAccessPolicy(accessMode);
-        var workerClient = FakeWorkerClients.Create(accessPolicy.Mode, binding: binding, requestTimeout: requestTimeout);
+        var workerClient = new OpennessWorkerClient(
+            binding,
+            logger: null,
+            workerExecutablePath: workerExecutablePath ?? FakeWorkerLocator.Locate(),
+            requestTimeout: requestTimeout,
+            accessPolicy: accessPolicy);
 
         var collection = new ServiceCollection();
         collection.AddLogging();
         collection.AddSingleton(binding);
         collection.AddSingleton(accessPolicy);
         collection.AddSingleton(workerClient);
+        // PLCSIM tools run against the in-memory fake runtime through the real worker dispatcher, so
+        // no PLCSIM Advanced installation or worker process is needed. Audit records stay out of
+        // the real per-user audit directory even when the caller passes none.
+        var plcSimRuntime = TiaMcpServer.Tests.PlcSim.PlcSimTestHost.Standard();
+        collection.AddSingleton(plcSimRuntime);
+        collection.AddSingleton(new TiaMcpServer.PlcSim.PlcSimWorkerClient(accessPolicy, requestTimeout,
+            channelFactory: () => new TiaMcpServer.Tests.PlcSim.InProcessPlcSimChannel(accessMode, plcSimRuntime, plcSimRuntime.Clock)));
+        collection.AddSingleton(new TiaMcpServer.PlcSim.PlcSimAudit(new JsonlWriteAuditSink(
+            auditDirectory ?? Path.Combine(Path.GetTempPath(), "tia-plcsim-audit-" + Guid.NewGuid().ToString("N")))));
+        // plc_online_* run against the in-memory FakePlcWebApiWorld through the real service and pipeline.
+        var plcWebApiWorld = new TiaMcpServer.Tests.PlcWebApi.FakePlcWebApiWorld();
+        collection.AddSingleton(plcWebApiWorld);
+        collection.AddSingleton(new TiaMcpServer.PlcWebApi.PlcWebApiService(TiaMcpServer.Tests.PlcWebApi.FakePlcWebApiWorld.Configuration(),
+            accessPolicy, plcWebApiWorld, new JsonlWriteAuditSink(
+                auditDirectory ?? Path.Combine(Path.GetTempPath(), "tia-plconline-audit-" + Guid.NewGuid().ToString("N"))),
+            TiaMcpServer.Tests.PlcWebApi.FakePlcWebApiWorld.Environment));
         collection.AddSingleton(new TiaMcpServer.Vci.VciBreadcrumbLocation(Path.Combine(Path.GetTempPath(), "vci-test-" + Guid.NewGuid().ToString("N") + ".json")));
         collection.AddSingleton(sp => new WriteExecution(
             new OpennessWriteBindingGate(sp.GetRequiredService<OpennessWorkerClient>()),
@@ -228,6 +256,10 @@ internal sealed class McpProtocolTestHarness : IAsyncDisposable
 
     internal TiaMcpServer.Vci.VciBreadcrumbLocation BreadcrumbLocation => _services.GetRequiredService<TiaMcpServer.Vci.VciBreadcrumbLocation>();
 
+    internal TiaMcpServer.PlcSim.PlcSimWorkerClient PlcSimClient => _services.GetRequiredService<TiaMcpServer.PlcSim.PlcSimWorkerClient>();
+
+    internal TiaMcpServer.Tests.PlcWebApi.FakePlcWebApiWorld PlcWebApiWorld => _services.GetRequiredService<TiaMcpServer.Tests.PlcWebApi.FakePlcWebApiWorld>();
+
     public async ValueTask DisposeAsync()
     {
         _cancellation.Cancel();
@@ -242,6 +274,7 @@ internal sealed class McpProtocolTestHarness : IAsyncDisposable
         }
 
         WorkerClient.Dispose();
+        PlcSimClient.Dispose();
         TiaMcpServer.Contracts.Vci.VciBreadcrumbFile.TryDelete(BreadcrumbLocation.Path);
         _clientWrites.Dispose();
         _serverReads.Dispose();

@@ -433,6 +433,35 @@ public sealed class ActiveProjectContextSessionTests
         f.AssertNoLifecycle();
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(null)]
+    public void SecondaryOrUnreadableIsPrimary_IsNeverABindingCandidate(bool? isPrimary)
+    {
+        // Security review U3: only IsPrimary == true is a binding candidate; an unreadable value is treated like a secondary project.
+        using var f = new Fixture();
+        foreach (var project in f.A.Portal.Projects.Items) project.IsPrimary = isPrimary;
+        try
+        {
+            f.Session.Connect(f.PathA);
+        }
+        catch (WorkerOperationException)
+        {
+            // Refusing the selection is as good as selecting nothing.
+        }
+
+        Assert.Null(f.Session.Project);
+        Assert.Null(f.Session.ActiveContext);
+    }
+
+    [Fact]
+    public void PrimaryProject_IsABindingCandidate()
+    {
+        using var f = new Fixture();
+        f.Session.Connect(f.PathA);
+        Assert.NotNull(f.Session.Project);
+    }
+
     private static void AssertCategory(string category, Action action)
         => Assert.Equal(category, Assert.Throws<WorkerOperationException>(action).FailureCategory);
 

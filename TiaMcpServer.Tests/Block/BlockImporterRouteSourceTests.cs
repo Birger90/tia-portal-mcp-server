@@ -1,4 +1,3 @@
-using TiaMcpServer.Tests.TestSupport;
 using Xunit;
 
 namespace TiaMcpServer.Tests.Block;
@@ -9,8 +8,10 @@ public class BlockImporterRouteSourceTests
     [Fact]
     public void AllThreeTargetCallsAreBracketedInOrderAndUseOneOutcomeRunner()
     {
-        var source = RepositoryFiles.ReadSource(
-            "TiaMcpServer.OpennessWorker", "Openness", "Block", "BlockImporter.cs");
+        // The SIMATIC SD call (shared by format sd and the implicit route) lives in the partial BlockImporter.SimaticSd.cs.
+        var source = ReadRepositorySource(
+            "TiaMcpServer.OpennessWorker", "Openness", "Block", "BlockImporter.cs")
+            + ReadRepositorySource("TiaMcpServer.OpennessWorker", "Openness", "Block", "BlockImporter.SimaticSd.cs");
 
         AssertBracketed(source,
             "target.Group.Blocks.Import(new FileInfo(xmlPath), ImportOptions.Override);",
@@ -27,7 +28,7 @@ public class BlockImporterRouteSourceTests
 
         Assert.Contains("BlockImportCoordinator.Execute(", source, StringComparison.Ordinal);
         Assert.Contains("BlockImportCoordinator.ExecuteSource(", source, StringComparison.Ordinal);
-        var coordinator = RepositoryFiles.ReadSource(
+        var coordinator = ReadRepositorySource(
             "TiaMcpServer.OpennessWorker", "Openness", "Block", "BlockImportCoordinator.cs");
         Assert.Equal(1, Count(coordinator, "private static BlockImportResult RunOutcome"));
         Assert.Equal(3, Count(source, "boundary.BeforeSiemensCall();"));
@@ -37,7 +38,7 @@ public class BlockImporterRouteSourceTests
     [Fact]
     public void ExternalSourceLifecycleCallbacksBracketCreationAndRecordDeletion()
     {
-        var source = RepositoryFiles.ReadSource(
+        var source = ReadRepositorySource(
             "TiaMcpServer.OpennessWorker", "Openness", "Plc", "ExternalSourceScope.cs");
 
         AssertBefore(source, "observer?.BeforeCreateFromFile();", "ExternalSources.CreateFromFile(");
@@ -49,7 +50,7 @@ public class BlockImporterRouteSourceTests
     [Fact]
     public void CompileObservedPreservesBlockNamedAndAllPlcSelectionWithoutProseParsing()
     {
-        var source = RepositoryFiles.ReadSource(
+        var source = ReadRepositorySource(
             "TiaMcpServer.OpennessWorker", "Openness", "Block", "CompileChecker.cs");
 
         Assert.Contains("CompileObserved(", source, StringComparison.Ordinal);
@@ -64,7 +65,7 @@ public class BlockImporterRouteSourceTests
     [Fact]
     public void XmlAndSourceRoutesUseTheCommonFreshFinalReader()
     {
-        var source = RepositoryFiles.ReadSource(
+        var source = ReadRepositorySource(
             "TiaMcpServer.OpennessWorker", "Openness", "Block", "BlockImporter.cs");
 
         Assert.Equal(2, Count(source, "compileAllowed => ObservePostconditions("));
@@ -79,7 +80,7 @@ public class BlockImporterRouteSourceTests
     [Fact]
     public void XmlAndSourcePreflightDecorationEndsBeforeCoordinatorEntry()
     {
-        var source = RepositoryFiles.ReadSource(
+        var source = ReadRepositorySource(
             "TiaMcpServer.OpennessWorker", "Openness", "Block", "BlockImporter.cs");
 
         Assert.Equal(2, Count(source, "BlockImportCoordinator.ExecuteWithPreTargetOutcome("));
@@ -112,7 +113,7 @@ public class BlockImporterRouteSourceTests
     [Fact]
     public void OutcomeProjectionBudgetIncludesNullsLikeTheHostValidator()
     {
-        var source = RepositoryFiles.ReadSource(
+        var source = ReadRepositorySource(
             "TiaMcpServer.OpennessWorker", "Openness", "Block", "BlockImportOutcomeProjection.cs");
 
         Assert.Contains("PropertyNamingPolicy = JsonNamingPolicy.CamelCase", source,
@@ -154,5 +155,18 @@ public class BlockImporterRouteSourceTests
             index += value.Length;
         }
         return count;
+    }
+
+    private static string ReadRepositorySource(params string[] pathSegments)
+    {
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (root is not null && !File.Exists(Path.Combine(root.FullName, "TiaMcpServer.slnx")))
+            root = root.Parent;
+
+        if (root is null)
+            throw new DirectoryNotFoundException("Could not locate the repository root.");
+
+        return File.ReadAllText(Path.Combine(new[] { root.FullName }.Concat(pathSegments).ToArray()))
+            .Replace("\r\n", "\n");
     }
 }

@@ -25,6 +25,18 @@ public class ReadToolCancellationTests
     private const string PlcScenario = "plc-read-roundtrip";
 
     // Bound first, so the bind-first precheck passes and the cancellation check is what stops the call.
+    private static async Task<OpennessWorkerClient> CreateClientAsync()
+    {
+        var binding = new ProjectSessionBinding(null);
+        var client = new OpennessWorkerClient(
+            binding,
+            logger: null,
+            workerExecutablePath: FakeWorkerLocator.Locate(),
+            accessPolicy: new OperationAccessPolicy(McpAccessMode.ReadOnly));
+        await FakeWorkerBinding.BindVerifiedAsync(client, binding, PlcScenario);
+        return client;
+    }
+
     private static CancellationToken Cancelled()
     {
         var cts = new CancellationTokenSource();
@@ -38,7 +50,7 @@ public class ReadToolCancellationTests
         using var audit = new TempAuditDirectory();
         Directory.CreateDirectory(audit.Path);
         using var log = new FakeWorkerRequestLog(audit.Path);
-        using var client = await FakeWorkerClients.CreateBoundAsync(PlcScenario, McpAccessMode.ReadOnly);
+        using var client = await CreateClientAsync();
         var operations = new[]
         {
             new PlcOperationRequest
@@ -66,7 +78,7 @@ public class ReadToolCancellationTests
         using var audit = new TempAuditDirectory();
         Directory.CreateDirectory(audit.Path);
         using var log = new FakeWorkerRequestLog(audit.Path);
-        using var client = await FakeWorkerClients.CreateBoundAsync(PlcScenario, McpAccessMode.ReadOnly);
+        using var client = await CreateClientAsync();
         using var protector = AuthenticatedCursorProtector.CreateProcessScoped();
         var executor = NetworkReadTestFactory.Create(client, protector);
         var before = log.Methods().Length;
@@ -87,7 +99,7 @@ public class ReadToolCancellationTests
         using var audit = new TempAuditDirectory();
         Directory.CreateDirectory(audit.Path);
         using var log = new FakeWorkerRequestLog(audit.Path);
-        using var client = await FakeWorkerClients.CreateBoundAsync(PlcScenario, McpAccessMode.ReadOnly);
+        using var client = await CreateClientAsync();
         var before = log.Methods().Length;
         var codec = new HmiPageCursorCodec(AuthenticatedCursorProtector.CreateProcessScoped());
 
@@ -107,7 +119,7 @@ public class ReadToolCancellationTests
         using var audit = new TempAuditDirectory();
         Directory.CreateDirectory(audit.Path);
         using var log = new FakeWorkerRequestLog(audit.Path);
-        using var client = await FakeWorkerClients.CreateBoundAsync(PlcScenario, McpAccessMode.ReadOnly);
+        using var client = await CreateClientAsync();
         var before = log.Methods().Length;
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>

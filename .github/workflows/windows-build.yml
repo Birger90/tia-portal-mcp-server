@@ -1,0 +1,79 @@
+name: Windows build
+
+# A ready-to-run Windows build of every main commit, as a workflow artifact: no NuGet push, no
+# release. It is the standalone publish of publish.yml (self-contained win-x64, single-file host,
+# openness-worker\, plcsim-worker\ and password-manager\ beside it), built against the reference
+# stubs in ref/ like CI. The stubs keep the V21 assembly identity and are never shipped: at runtime
+# the workers load the installed TIA Portal V21 and PLCSIM Advanced assemblies, exactly as for the
+# upstream release zip. A build against the installed V21 assemblies (scripts/fork-verify.ps1)
+# remains the compile-time signature check; this artifact does not replace it.
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  windows-build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup .NET 10.0
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore
+        run: dotnet restore TiaMcpServer.slnx -m:1
+
+      - name: Restore reference stubs
+        run: dotnet restore reference-stubs/TiaMcpServer.ReferenceStubs.sln -m:1
+
+      - name: Publish standalone build
+        run: dotnet publish TiaMcpServer/TiaMcpServer.csproj -m:1 -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true /p:PackAsTool=false /p:UseTiaPortalReferenceStubs=true -o ./publish-bin
+
+      - name: Check contents
+        shell: pwsh
+        run: |
+          foreach ($path in @('TiaMcpServer.exe', 'openness-worker/TiaMcpServer.OpennessWorker.exe', 'plcsim-worker/TiaMcpServer.PlcSimWorker.exe', 'password-manager/TiaMcpPasswortverwaltung.exe')) {
+            if (-not (Test-Path (Join-Path ./publish-bin $path))) { throw "Standalone publish is missing $path." }
+          }
+          $siemens = Get-ChildItem ./publish-bin -Recurse -Filter 'Siemens.*.dll' | Where-Object { $_.Name -ne 'Siemens.Simatic.S7.Webserver.API.dll' }
+          if ($siemens) { throw "Standalone publish contains Siemens assemblies: $($siemens.FullName -join ', ')" }
+          "commit=$env:GITHUB_SHA" | Out-File ./publish-bin/BUILD-INFO.txt -Encoding utf8
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tia-mcp-windows-x64-${{ github.sha }}
+          path: publish-bin/
+          retention-days: 30
+
+      # The framework-dependent build output (TiaMcpServer.dll started with "dotnet"), the layout of
+      # TiaMcpServer\bin\Release\net10.0 in a source checkout, for installations whose client
+      # configuration starts "dotnet ...\TiaMcpServer.dll".
+      - name: Build framework-dependent output
+        run: dotnet build TiaMcpServer/TiaMcpServer.csproj -m:1 -c Release --no-restore /p:UseTiaPortalReferenceStubs=true
+
+      - name: Check framework-dependent output
+        shell: pwsh
+        run: |
+          $out = './TiaMcpServer/bin/Release/net10.0'
+          foreach ($path in @('TiaMcpServer.dll', 'TiaMcpServer.runtimeconfig.json', 'openness-worker/TiaMcpServer.OpennessWorker.exe', 'plcsim-worker/TiaMcpServer.PlcSimWorker.exe', 'password-manager/TiaMcpPasswortverwaltung.exe')) {
+            if (-not (Test-Path (Join-Path $out $path))) { throw "Framework-dependent output is missing $path." }
+          }
+          $siemens = Get-ChildItem $out -Recurse -Filter 'Siemens.*.dll' | Where-Object { $_.Name -ne 'Siemens.Simatic.S7.Webserver.API.dll' }
+          if ($siemens) { throw "Framework-dependent output contains Siemens assemblies: $($siemens.FullName -join ', ')" }
+          "commit=$env:GITHUB_SHA" | Out-File (Join-Path $out 'BUILD-INFO.txt') -Encoding utf8
+
+      - name: Upload framework-dependent artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tia-mcp-windows-dotnet-${{ github.sha }}
+          path: TiaMcpServer/bin/Release/net10.0/
+          retention-days: 30

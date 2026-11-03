@@ -1,12 +1,14 @@
 # TIA Portal Project and Portal Operations
 
+**Language:** English · [Deutsch](PROJECT_OPERATIONS_SUMMARY.de.md)
+
 ## Read operations
 
 | Entry point | Operation | Inputs and behavior |
 |---|---|---|
 | `get_project_status` | `get_project_status` | No arguments; reads status and metadata without opening, binding, or switching in any mode. |
 | `browse_project_tree` | `browse_project_tree` | v3: typed `startSelector`, `depth`, and `pageSize`; use `cursor` to continue an immutable snapshot. |
-| `compile_check` | `compile_check` | Optional `plcName` and `blockPath`; compiles the selected scope and returns compiler messages. Available in read-write and full modes. |
+| `compile_check` | `compile_check` | Optional `plcName`, `blockPath` and `scope` (`software` default: the PLC program or one block, **no hardware**; `hardware`: the hardware configuration of each PLC's CPU device item, report `scope` `hardware`, not combinable with `blockPath`); returns compiler messages. Available in read-write and full modes. See [CPU protection](PLC_SECURITY_SUMMARY.md#hardware-compile-compile_check-scope-hardware). |
 
 ### Explicit binding (`bind_project`)
 
@@ -14,7 +16,7 @@
 serverAlias?:string, group?:object, serverProjectName?:string)` is available in all three modes.
 Omitted/null action or `action:"bind"` retains the existing behavior and JSON shape described below.
 It changes server session selection without opening, creating, saving or closing a project.
-Only `open_project` and `create_project` open projects; no request implicitly opens one.
+Only `open_project`, `create_project` and `retrieve_project` open projects; no request implicitly opens one.
 Read-only never opens, creates, saves or closes, but explicit binding can switch its session.
 
 With an unbound session, omit the path to adopt the sole open project or receive typed
@@ -34,7 +36,40 @@ The canonical standalone envelope (`tool`, `contractVersion:"1.0"`, `success`, `
 (`bound`, `unchanged`, `switched`, or `none`), non-null `binding` and `previousBinding`, nullable
 `project` status with `metadata:null`, and always-present `portals`. Binding state is `unbound`,
 `configured_unverified`, `verified`, or `invalidated`; path and Portal PID can be null. Portal entries
-contain `processId`, nullable `projectPath`, `hasUserInterface`, and `isBound`.
+contain `processId`, nullable `projectPath`, `hasUserInterface`, `isBound` and nullable
+`otherClientCount` (attached Openness client sessions other than this server's worker, from
+`TiaPortalProcess.AttachedSessions`; null when unreadable).
+
+The Portal listing (`list_tia_portal_processes`, used by `list_portals` and the candidate listings;
+roadmap row 21) reads `TiaPortal.GetProcesses()` and, per process, `Id`, `ProjectPath`, `Mode` and
+`AttachedSessions` (`TiaPortalSession.ProcessId`), all declared in the compile stubs. It never calls
+`TiaPortalProcess.Attach()` and never disposes a process handle. Sources: the Siemens
+`licensing-and-firewall` skill (`tia-portal-ai-extensions`) places the Openness firewall prompt at
+connecting, that is creating or attaching a `TiaPortal`; the Siemens `session-and-project` skill
+documents `GetProcesses()`/`Attach()` and that disposing a `GetProcesses()` handle tears down the live
+instance in V21; rickgaiser/TiaMcp (`src/TiaMcp.Openness/TiaConnection.cs`, `ListRunningInstances`,
+idea only) reads the same members without attaching for the same reason. Reading `AttachedSessions` on
+a process that is not attached was already part of the temporary-target check of explicit `bind`
+(before its `Attach()`); that the listing alone raises no dialog is not live-tested (live case L11 of
+[V21 pitfalls](V21_PITFALLS.md#live-acceptance-list)).
+
+Starting a TIA Portal with its user interface (the second half of row 21, rickgaiser's
+`tia_connect startPortal`) is left out; start TIA Portal yourself, then use `open_project`. Reasons:
+
+- `new TiaPortal(TiaPortalMode.WithUserInterface)` is documented (Siemens `session-and-project` skill),
+  but the started instance belongs to this server's worker, which the host recycles after a timeout or
+  crash. Whether it survives that is unverified and the sources disagree: `totally-integrated-claude`
+  `skills/tia-csharp-common` says `Dispose()` of a UI instance only disconnects, rickgaiser
+  (`StartPortal` comment in `TiaConnection.cs`) reports that such an instance closes with its owner,
+  unsaved work included. The compile stubs also have no constructor (`TiaPortal` is abstract there).
+- rickgaiser's own route starts `Bin\Siemens.Automation.Portal.exe` below the registry install path
+  as a process of its own, waits up to five minutes and then attaches. That is no Openness API; the
+  executable path comes only from non-Siemens sources (rickgaiser, the `totally-integrated-claude`
+  doctor probe). The wait plus the project open can exceed the default worker request timeout
+  (5 minutes), and the `Attach()` that follows can raise the Openness access dialog a human must
+  answer.
+- Either way it is a new lifecycle surface (read-write confirmation, audit, dry run) that cannot be
+  checked on V21 here.
 
 Bad input and unforced foreign-path requests reject with top-level error and null result before
 worker activity. The headless refusal follows one selection round trip, whose wire `guard_blocked`
@@ -53,7 +88,7 @@ Results add conditional `result.value.inspection`, with observed PID and typed n
 `transition:"none"` and `project:null`. Whole-value omission includes the inventory. See the
 [Multiuser reference](MULTIUSER_OPERATIONS_SUMMARY.md) for selectors, examples, current-user scope,
 lock/error/omission limits and scoped live evidence. PR3 discovery was 7/17/17;
-current discovery is 8/19/19 with the standalone VCI tools.
+current discovery is 11/30/30 with the standalone VCI and library tools, `plc_download`, `plc_tia_online`, `plc_station_upload`, the S7-PLCSIM Advanced tools and the S7-1500 Web API tools.
 
 ### Local-session identity and basic status
 
@@ -193,7 +228,7 @@ All project-tree failures retain the same envelope with `status: "failed"`, `res
 
 Per-item Openness degradation is retained in the envelope `warnings` array rather than changing a failure into success.
 
-`compile_check` is a standalone engineering operation. It is not marked read-only and is exposed in read-write and full modes.
+`compile_check` is a standalone engineering operation. It is not marked read-only and is exposed in read-write and full modes. The report `scope` is `plc`, `block` or `hardware`; an unknown `scope` argument or `hardware` with `blockPath` is rejected with `validation_error` before any worker call. The default program compile never compiles the hardware configuration, so hardware errors a download reports (defect D9) appear only with `scope:"hardware"`.
 
 ### Standalone status and compilation contract
 
@@ -220,7 +255,7 @@ For compilation, `success` means the selected compilation passed, including warn
         "deviceName": null,
         "diagnosticNotes": [],
         "errorCount": 1,
-        "messages": [{"description": "Invalid expression", "path": "Main", "severity": "Error"}],
+        "messages": [{"description": "Invalid expression", "path": "PLC_1/Program blocks/Main", "severity": "Error"}],
         "plcName": "PLC_1",
         "state": "Error",
         "warningCount": 0
@@ -238,6 +273,19 @@ For compilation, `success` means the selected compilation passed, including warn
 
 The complete canonical value has a 60,000-character limit; the final document, including escaped strings, warnings and omission metadata, has a 180,000-character limit. Oversized values are replaced whole: `status:omitted`, `value:null`, `success:false`, `error:null`, and `isError:false`. `omission` reports `reason` (`resultExceededItemCharLimit` or `responseExceededDocumentCharLimit`), `limitChars`, `originalChars`, `retryTool`, and `guidance`. Compile retries can narrow `plcName` or `blockPath`; status has no metadata selector, so its guidance directs users to reduce metadata or inspect it in TIA Portal. Whole warning entries may be removed to fit the document, with a bounded count notice. Failure prose is shortened only as a last resort and marked explicitly.
 
+Compiler messages (since 2026-11-02, defect K04; shape and contract version `1.0` unchanged): TIA Portal returns
+its diagnostics as a tree whose container nodes (the PLC, `Hardware configuration`, a rack, a block folder) have an
+empty or blank description and repeat the worst severity below them. Live on 2026-11-02 the hardware compile of a
+fail-safe CPU listed `{"",PLC_F1,Error}`, `{"",Hardware configuration,Error}`, `{" ",PLC_F1,Error}`,
+`{" ",Profilschiene_0,Error}` before the three real error texts, which had an empty path. Such containers are no
+longer reported as messages. Every reported message has a non-blank description (or an unreadable one, reported
+empty with a diagnostic note) and its `path` is the chain of the non-blank TIA Portal paths of its containers and
+its own, outermost first, joined with `/` (for example `PLC_F1/Hardware configuration/Profilschiene_0`); a path
+equal to the chain's last segment adds nothing, and one that already starts with the chain's first segment and `/`
+replaces it. The segments are TIA Portal's values, not escaped, so the path is display context, not a selector.
+`errorCount`, `warningCount`, the totals and the states are TIA Portal's and never recounted from the delivered
+messages. The rule is offline-tested only (stand-in message trees); not live-tested.
+
 Strict decoding precedes budgeting: malformed or inconsistent worker success payloads become a fixed-message `protocol_error` outcome and are never echoed. Producer diagnostic limits are separate: a compiler report's `diagnosticNotes` can disclose omitted/shortened messages, and counts need not equal the number of delivered messages. A passing compilation does not prove diagnostics were exhaustive, a project was saved, or PLC code was downloaded.
 
 ### `get_project_status` metadata surface
@@ -253,7 +301,7 @@ object carrying the extended read-only project metadata:
 | `languageSettings` | `languages` and `activeLanguages` as culture-name lists; `editingLanguage` and `referenceLanguage` culture names (null when unset). |
 | `historyEntries` | Text and date-time of each history entry, in Openness order, verbatim and not deduplicated. Capped at `200` entries (oldest first); when Openness reports more, `historyTruncated` is `true`. When history could not be read, both `historyEntries` and `historyTruncated` are explicit `null` — `historyTruncated` is `false` only when history was read completely. |
 | `usedProducts` | `{ name, version }` for every product Openness records, no inference and no deduplication. |
-| `compilationSettings` | V21 block-compilation toggles read through `PlcSimulationSettingsProvider` and `VirtualPlcSettingsProvider`: `isSimulationDuringBlockCompilationEnabled` and `isVirtualPlcDuringBlockCompilationEnabled`. A value is explicit `null` when its provider or value is unavailable, reported as a response warning — never a fabricated `false`. |
+| `compilationSettings` | V21 block-compilation toggles read through `PlcSimulationSettingsProvider` and `VirtualPlcSettingsProvider`: `isSimulationDuringBlockCompilationEnabled` and `isVirtualPlcDuringBlockCompilationEnabled`. A value is explicit `null` when its provider or value is unavailable, reported as a response warning — never a fabricated `false`. Set them with `plc_write` `set_project_compilation_settings` (see [PLC operations](PLC_OPERATIONS_SUMMARY.md#project-block-compilation-settings); not live-tested). |
 
 All metadata is readable in all three access modes; metadata inspection never closes, switches, saves, or
 confirms anything. Unavailable sections degrade to a warning and `null` output rather than a
@@ -265,8 +313,8 @@ the plain project status only — it never enumerates history or the extended me
 
 ## Lifecycle operations
 
-All six lifecycle tools are available in read-write and full; the complete mode counts are
-8/19/19. Read-write requires one confirmation form per actual call; full executes under policy
+All seven lifecycle tools are available in read-write and full; the complete mode counts are
+11/30/30. Read-write requires one confirmation form per actual call; full executes under policy
 without server elicitation. Block guards stop a call in every mode. Ordinary reads never bind,
 switch or open; use `bind_project` for already-open projects and open/create for deliberate opening.
 
@@ -274,12 +322,19 @@ switch or open; use `bind_project` for already-open projects and open/create for
 |---|---|---|
 | `open_project` | Opens a standalone project or existing local session and binds its verified engineering identity. | Absolute `.ap21` or existing file-only `.als21` `projectPath`; optional `forceRebind`. |
 | `create_project` | Creates a project and binds the session to it. | Absolute `projectDirectory`, `projectName`; optional `author`, `comment`. |
+| `retrieve_project` | Retrieves a project archive into a directory and binds the session to the retrieved project (not live-tested; see [Retrieving an archive](#retrieving-an-archive-retrieve_project)). | Absolute existing `archivePath`, existing absolute `targetDirectory`; optional `upgrade`, `forceRebind`. |
 | `save_project` | Saves the active project. | No operation inputs (acts on the bound project). |
 | `save_project_as` | Saves a copy and rebinds the session to the copy. | `targetDirectory`, `targetName`; `rebind` must remain `true`. |
 | `archive_project` | Archives a project. | `archiveDirectory`, `archiveName`; optional `mode`, `saveBeforeArchive`. |
 | `close_project` | Closes the project and clears the session binding. | Optional `saveBeforeClose`. |
 
 Supported archive modes are `None`, `DiscardRestorableData`, `Compressed`, and `DiscardRestorableDataAndCompressed`. Lifecycle tools are single-tool operations and cannot be included in a batch.
+
+Every lifecycle file and directory input (`projectPath`, `projectDirectory`, `targetDirectory`, `archiveDirectory`,
+`archivePath`) gets the shared caller-path rules of the file exports (security review 2026-11-03, F5; not live-tested): Win32
+device and NT object paths (`\\?\`, `\\.\`, `\??\`), reserved device names (`NUL`, `CON`, `COM1` ... with any extension) and
+segments ending in a space or a dot are refused with `validation_error`, on the host (`LifecycleWriteDomain.PathRefusal`) and
+again in the worker (`ProjectLifecycleService.RequireCallerPathShape`), before TIA Portal sees the path. UNC shares stay allowed.
 
 ### Argument strictness
 
@@ -324,10 +379,56 @@ Generic `close_project` is not a local-session cleanup operation. After an uncer
 inspect exact AMC status and Portal inventory before another intentional request; never replay.
 
 Installed V21 acceptance observed that `create_project` requires no project open in that TIA
-process; close the current project explicitly before creating another. Siemens also rejects archive
+process; close the current project explicitly before creating another. Live again on 2026-11-02
+(standalone `MCP_Livetest_01` open, one TIA Portal instance, English UI): TIA Portal refused with
+"Unable to open project '...'. Another project is already open." (K30). Since then planning
+reports `effects.openProject` (create_project only): `source` `binding` (the verified bound project,
+read by the lifecycle probe), `portalInventory` (the non-attaching `list_tia_portal_processes` of an
+already started worker: the attached Portal, else the only running one) or `notChecked` (with
+`note`: no worker started yet, which planning never does, several Portals and none attached, or a
+failed listing), plus `portalProcessId`, `openProjectPath` and `isModified`. An observed open project
+fires the acknowledge guard `create_project_requires_no_open_project` (below). A failure whose
+engineering message (or worker error after "TIA Portal operation failed: ") is exactly that English
+message is reported as `engineering_rejected` naming save_project/close_project; when the
+destination did not exist before and still does not, the "may already have changed" warnings are
+dropped because nothing was created. Another wording (another UI language) keeps the generic
+mapping; message text is matched only for this one recognised case. Siemens also rejects archive
 of a modified project with `saveBeforeArchive:false`; save first or use `saveBeforeArchive:true`
 before archiving. These are typed
 attempted-operation failures, so inspect state before a new call.
+
+### Retrieving an archive (`retrieve_project`)
+
+> **Not live-tested** (GitHub issue #4). Evidence: the V21 IntelliSense file `Siemens.Engineering.Base.xml`,
+> `M:Siemens.Engineering.ProjectComposition.Retrieve(System.IO.FileInfo,System.IO.DirectoryInfo)` ("Retrieves an archived
+> project") and `.RetrieveWithUpgrade(System.IO.FileInfo,System.IO.DirectoryInfo)` ("Retrieves a project from an archive and
+> upgrades it to the current version"), both returning `Siemens.Engineering.Project`, both documented to throw
+> `EngineeringTargetInvocationException` and `MissingProductsException`.
+
+`retrieve_project(archivePath, targetDirectory, upgrade=false, forceRebind=false, dryRun=false)` is a lifecycle tool like
+`create_project`: read-write confirms every actual call, full runs under policy, `dryRun:true` previews without retrieving.
+`archivePath` must be an absolute existing file (no extension is required: none is documented), `targetDirectory` an existing
+absolute directory. A bound session needs `forceRebind:true` (like `open_project`). The worker binds the documented
+two-argument overload by exact name and parameter types on the live `ProjectComposition` (no stub; missing:
+`api_member_missing`), calls `Retrieve` or, with `upgrade:true`, `RetrieveWithUpgrade`, tracks the returned project as
+worker-opened and the host binds to the path TIA Portal reports (it must lie inside `targetDirectory`), then verifies it with
+the project status, exactly as after `create_project`. Planning reports `effects.archivePath`, `effects.destinationDirectory`
+and `effects.openProject` (as for create_project) and fires `retrieve_project_requires_no_open_project` when a project is
+observed open. The recognised refusal "Unable to open project '...'. Another project is already open." (K30/K51) maps to
+`engineering_rejected`; because it is not known whether TIA Portal extracted anything before refusing, the "may already have
+changed" warnings stay. The three-argument overloads with `UmacDelegate` and the `ProjectOpenMode` overloads are left out
+(the UMAC credentials of a protected project are not in scope). **Live acceptance still required:** what TIA Portal creates in
+`targetDirectory`, which archive extensions it accepts, the upgrade path from an older version, and the refusal while a project
+is open.
+
+### Secondary projects (issue #20)
+
+A second project can be opened read-only next to the bound one (`ProjectOpenMode.Secondary`) through `library_write`
+`open_secondary_project` / `retrieve_secondary_project` / `close_secondary_project`, listed by `library_read` `list_secondary_projects`,
+copied from with `create_master_copy` `source.project` and compared with `plc_read` `compare_software` `compareTarget: secondary_plc`
+([library reference](LIBRARY_OPERATIONS_SUMMARY.md#secondary-read-only-reference-projects-issue-20)). The binding rules do not change: a
+project whose `ProjectBase.IsPrimary` reads false is never a binding candidate, and content tools act only on the bound project.
+Not live-tested.
 
 ### Guards and confirmation
 
@@ -338,8 +439,10 @@ attempted-operation failures, so inspect state before a new call.
 | `discards_unsaved_changes` | Close with `saveBeforeClose:false` would discard modified project state. | `acknowledge` |
 | `archive_without_save` | Archive with `saveBeforeArchive:false` observes modified project state. | `info` |
 | `archive_discards_restorable_data` | Archive mode is `DiscardRestorableData` or `DiscardRestorableDataAndCompressed`. | `info` |
-| `archive_inside_project_folder` | Archive destination is the project folder or a descendant. | `block` |
-| `target_exists` | Create or save-as destination directory exists. | `block` |
+| `archive_inside_project_folder` | Archive destination is the project folder or a descendant; TIA Portal decides (block until 2026-11-01). | `info` |
+| `target_exists` | Create or save-as destination directory exists; TIA Portal decides (block until 2026-11-01). | `info` |
+| `create_project_requires_no_open_project` | create_project while a project is open in the TIA Portal it would use (`effects.openProject`); TIA Portal V21 refused this live on 2026-11-02. Acknowledge, not block: the refusal was observed once (standalone project, one TIA Portal instance); that TIA Portal always refuses (local sessions, other Portal states) is not shown, so TIA Portal decides. The read-write prompt shows it. Not live-tested as a guard. | `acknowledge` |
+| `retrieve_project_requires_no_open_project` | retrieve_project while a project is open in the TIA Portal it would use (`effects.openProject`, observed as for create_project); TIA Portal V21 refused opening a second project for create_project and open_project live on 2026-11-02. Acknowledge, not block: TIA Portal decides. Not live-tested. | `acknowledge` |
 | `local_session_requires_terminal_operation` | A different open would replace a worker-owned local session, including a clean one. | `block` |
 | `local_session_source_preservation_unproved` | A borrowed local source or duplicate destination cannot be proved preserved. | `block` |
 
@@ -361,7 +464,7 @@ elicitation; full policy confirmation does not establish absence of vendor UI.
 
 ### Structured lifecycle response
 
-All six tools declare a concrete output schema with `tool`, `contractVersion:"1.0"`, `success`,
+All seven tools declare a concrete output schema with `tool`, `contractVersion:"1.0"`, `success`,
 `error`, `warnings`, `phase`, `guards`, `effects`, `result`, and `verification`. One canonical
 serialization supplies both MCP text and `structuredContent`. Read objects directly; the old
 `operationResult` and `verification.result` JSON strings are removed.
@@ -425,7 +528,7 @@ completing the separate human observation. The report preserves runtime/client/a
 
 ### MCP client hints
 
-All six lifecycle tools advertise mutating MCP hints: `readOnlyHint: false` and
+All seven lifecycle tools advertise mutating MCP hints: `readOnlyHint: false` and
 `destructiveHint: true`. `open_project` advertises `openWorldHint: true` because opening a local
 session can contact its Project Server; the other five advertise `openWorldHint: false`.
 These client-facing hints do not bypass the safety model. A client may still show its own permission prompt for a destructive

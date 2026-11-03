@@ -4,6 +4,7 @@ using TiaMcpServer.Contracts.Safety;
 using TiaMcpServer.Contracts.Worker;
 using TiaMcpServer.Safety;
 using TiaMcpServer.Tests.TestSupport;
+using TiaMcpServer.Tests.TestUtilities;
 using TiaMcpServer.Tests.Worker;
 using TiaMcpServer.Tools;
 using TiaMcpServer.Worker;
@@ -37,14 +38,15 @@ public sealed class ProjectWriteToolsBehaviorTests
     {
         using var audit = new TempAuditDirectory();
         var binding = new ProjectSessionBinding(null);
-        using var client = FakeWorkerClients.Create(McpAccessMode.Full, binding: binding);
+        using var client = new OpennessWorkerClient(binding, workerExecutablePath: FakeWorkerLocator.Locate(),
+            accessPolicy: new OperationAccessPolicy(McpAccessMode.Full));
         await FakeWorkerBinding.BindVerifiedAsync(client, binding, "save-as-uncertain-state");
         Directory.CreateDirectory(audit.Path);
 
         var result = await ProjectWriteTools.SaveProjectAs(client,
             LifecycleTestCalls.Execution(client, audit),
             targetDirectory: audit.Path, targetName: "Copy");
-        var document = CanonicalToolDocument.Read(result);
+        var document = LifecycleTestCalls.Document(result);
 
         Assert.True(result.IsError != true, document.GetRawText());
         Assert.False(document.GetProperty("success").GetBoolean());

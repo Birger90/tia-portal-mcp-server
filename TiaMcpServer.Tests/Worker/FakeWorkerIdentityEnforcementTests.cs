@@ -117,7 +117,11 @@ public sealed class FakeWorkerIdentityEnforcementTests
             {
                 "get_project_status", "list_tia_portal_processes", "list_server_connections",
                 "list_server_groups", "list_server_projects", "list_local_sessions", "get_lock_state"
-            });
+            })
+            // PLCSIM reads go to the separate PLCSIM worker, never to the Openness worker.
+            .Except(TiaMcpServer.Contracts.PlcSim.PlcSimMethods.All)
+            // S7-1500 Web API reads run in the host against a configured controller.
+            .Except(TiaMcpServer.Contracts.PlcWebApi.PlcWebApiMethods.All);
 
         foreach (var method in reads)
         {

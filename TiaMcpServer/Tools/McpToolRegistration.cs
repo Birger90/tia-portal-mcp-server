@@ -48,6 +48,8 @@ public static class McpToolRegistration
                 (_, tool, message) => Standalone<CrossReferenceReport>(tool, message), closeNestedSchemas: false),
             [typeof(Vci.VciReadTools)] = builder => builder.WithClosedTools(typeof(Vci.VciReadTools),
                 (_, _, message) => Vci.VciReadTools.Error(ValidationError, message), closeNestedSchemas: true),
+            [typeof(Library.LibraryReadTools)] = builder => builder.WithClosedTools(typeof(Library.LibraryReadTools),
+                (_, _, message) => Library.LibraryReadTools.Error(ValidationError, message), closeNestedSchemas: true),
             [typeof(ProjectEngineeringTools)] = builder => builder.WithClosedTools(typeof(ProjectEngineeringTools),
                 (_, tool, message) => Standalone<CompileCheckReport>(tool, message), closeNestedSchemas: false),
             [typeof(NetworkWriteTools)] = builder => builder.WithClosedTools(typeof(NetworkWriteTools),
@@ -64,24 +66,55 @@ public static class McpToolRegistration
                 (services, _, message) => WriteRejection(new Vci.VciWriteDomain(Client(services),
                     services.GetRequiredService<Vci.VciBreadcrumbLocation>()), message),
                 closeNestedSchemas: true),
+            [typeof(Library.LibraryWriteTools)] = builder => builder.WithClosedTools(typeof(Library.LibraryWriteTools),
+                (services, _, message) => WriteRejection(new Library.LibraryWriteDomain(Client(services)), message),
+                closeNestedSchemas: true),
+            [typeof(PlcSim.PlcSimReadTools)] = builder => builder.WithClosedTools(typeof(PlcSim.PlcSimReadTools),
+                (_, _, message) => PlcSim.PlcSimReadTools.Error(ValidationError, message), closeNestedSchemas: true),
+            [typeof(PlcSim.PlcSimWriteTools)] = builder => builder.WithClosedTools(typeof(PlcSim.PlcSimWriteTools),
+                (_, _, message) => PlcSim.PlcSimWriteTools.Error(ValidationError, message), closeNestedSchemas: true),
+            [typeof(PlcSim.PlcSimTestTools)] = builder => builder.WithClosedTools(typeof(PlcSim.PlcSimTestTools),
+                (_, _, message) => PlcSim.PlcSimTestTools.Error(ValidationError, message), closeNestedSchemas: true),
             [typeof(ProjectWriteTools)] = builder => builder.WithClosedTools(typeof(ProjectWriteTools),
                 (services, tool, message) => WriteRejection(new LifecycleWriteDomain(Client(services), new LifecycleWriteItem(tool)), message),
                 closeNestedSchemas: false),
+            [typeof(PlcDownload.PlcDownloadTools)] = builder => builder.WithClosedTools(typeof(PlcDownload.PlcDownloadTools),
+                (services, _, message) => WriteRejection(new PlcDownload.PlcDownloadWriteDomain(Client(services)), message),
+                closeNestedSchemas: true, transformSchemaNode: PlcDownload.PlcDownloadToolRegistration.TransformSchema),
+            [typeof(PlcWebApi.PlcWebApiReadTools)] = builder => builder.WithClosedTools(typeof(PlcWebApi.PlcWebApiReadTools),
+                (_, _, message) => PlcWebApi.PlcWebApiReadTools.Error(ValidationError, message), closeNestedSchemas: true),
+            [typeof(PlcWebApi.PlcWebApiWriteTools)] = builder => builder.WithClosedTools(typeof(PlcWebApi.PlcWebApiWriteTools),
+                (services, _, message) => WriteRejection(new PlcWebApi.PlcWebApiWriteDomain(services.GetRequiredService<PlcWebApi.PlcWebApiService>()), message),
+                closeNestedSchemas: true),
+            [typeof(PlcOnline.PlcOnlineConnectionTools)] = builder => builder.WithClosedTools(typeof(PlcOnline.PlcOnlineConnectionTools),
+                (services, _, message) => WriteRejection(new PlcOnline.PlcOnlineConnectionWriteDomain(Client(services)), message),
+                closeNestedSchemas: true, transformSchemaNode: PlcOnline.PlcOnlineConnectionToolRegistration.TransformSchema),
+            [typeof(PlcOnline.PlcStationUploadTools)] = builder => builder.WithClosedTools(typeof(PlcOnline.PlcStationUploadTools),
+                (services, _, message) => WriteRejection(new PlcOnline.PlcStationUploadWriteDomain(Client(services)), message),
+                closeNestedSchemas: true, transformSchemaNode: PlcOnline.PlcOnlineConnectionToolRegistration.TransformSchema),
         };
 
     public static IMcpServerBuilder WithAccessModeTools(this IMcpServerBuilder builder, McpAccessMode mode)
     {
         _ = McpAccessModeNames.ToName(mode); // Reject an invalid configuration before registration.
         foreach (var type in new[] { typeof(ProjectReadTools), typeof(ProjectBindingTools), typeof(NetworkReadTools), typeof(PlcReadTools),
-                     typeof(Hmi.HmiReadTools), typeof(CrossReferences.CrossReferenceReadTools), typeof(Vci.VciReadTools) })
+                     typeof(Hmi.HmiReadTools), typeof(CrossReferences.CrossReferenceReadTools), typeof(Vci.VciReadTools), typeof(PlcSim.PlcSimReadTools),
+                     typeof(PlcWebApi.PlcWebApiReadTools), typeof(Library.LibraryReadTools) })
             builder.WithProductionTools(type);
         if (OperationPolicyCatalog.IsCapabilityAllowed(mode, OperationCapability.Compile))
             builder.WithProductionTools(typeof(ProjectEngineeringTools));
         if (OperationPolicyCatalog.IsCapabilityAllowed(mode, OperationCapability.ProjectMutation))
-            foreach (var type in new[] { typeof(NetworkWriteTools), typeof(PlcWriteTools), typeof(Hmi.HmiWriteTools), typeof(Vci.VciWriteTools) })
+            foreach (var type in new[] { typeof(NetworkWriteTools), typeof(PlcWriteTools), typeof(Hmi.HmiWriteTools), typeof(Vci.VciWriteTools),
+                         typeof(PlcOnline.PlcStationUploadTools), typeof(Library.LibraryWriteTools) })
                 builder.WithProductionTools(type);
         if (OperationPolicyCatalog.IsCapabilityAllowed(mode, OperationCapability.ProjectLifecycle))
             builder.WithProductionTools(typeof(ProjectWriteTools));
+        if (OperationPolicyCatalog.IsCapabilityAllowed(mode, OperationCapability.OnlineControl))
+            foreach (var type in new[] { typeof(PlcDownload.PlcDownloadTools), typeof(PlcWebApi.PlcWebApiWriteTools), typeof(PlcOnline.PlcOnlineConnectionTools) })
+                builder.WithProductionTools(type);
+        if (OperationPolicyCatalog.IsCapabilityAllowed(mode, OperationCapability.SimulationControl))
+            foreach (var type in new[] { typeof(PlcSim.PlcSimWriteTools), typeof(PlcSim.PlcSimTestTools) })
+                builder.WithProductionTools(type);
         return builder;
     }
 
@@ -106,9 +139,12 @@ public static class McpToolRegistration
             WritePhases.Error, false, new WriteToolError(ValidationError, message), [], [], [], null, default))), isError: true);
 }
 
-/// <summary>The one production guard catalog: lifecycle, Network, PLC, HMI and VCI guard definitions.</summary>
+/// <summary>The one production guard catalog: lifecycle, Network, PLC, HMI, VCI, PLC-download, PLC-online and library guard definitions.</summary>
 public static class WriteGuardRegistration
 {
     public static WriteGuardCatalog ProductionCatalog()
-        => new(LifecycleWriteDomain.GuardDefinitions.Concat(NetworkGuardDefinitions.Definitions).Concat(PlcGuardDefinitions.Definitions).Concat(Hmi.HmiGuardDefinitions.Definitions).Concat(Vci.VciGuardDefinitions.Definitions));
+        => new(LifecycleWriteDomain.GuardDefinitions.Concat(NetworkGuardDefinitions.Definitions).Concat(PlcGuardDefinitions.Definitions)
+            .Concat(Hmi.HmiGuardDefinitions.Definitions).Concat(Vci.VciGuardDefinitions.Definitions)
+            .Concat(PlcDownload.PlcDownloadGuardDefinitions.Definitions).Concat(PlcOnline.PlcOnlineGuardDefinitions.Definitions)
+            .Concat(Library.LibraryGuardDefinitions.Definitions));
 }

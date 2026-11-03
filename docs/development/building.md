@@ -16,11 +16,16 @@ dotnet build TiaMcpServer.slnx -m:1
 
 The `-m:1` option serializes solution builds. The MCP host project also builds and copies the net48 Openness worker, so serialized builds avoid duplicate parallel worker builds during local development.
 
-The source build creates the .NET 10 host and copies the .NET Framework worker into:
+The source build creates the .NET 10 host and copies the .NET Framework workers into:
 
 ```text
 TiaMcpServer\bin\Debug\net10.0\openness-worker
+TiaMcpServer\bin\Debug\net10.0\plcsim-worker
 ```
+
+The S7-PLCSIM Advanced worker (`TiaMcpServer.PlcSimWorker`, net48 x64) has no compile-time Siemens
+reference, so it builds without PLCSIM Advanced installed; it loads the API at runtime (see the
+[PLCSIM reference](../SupportedOperations/PLCSIM_OPERATIONS_SUMMARY.md)).
 
 Custom .NET integrations that compile directly against the C# MCP SDK must review the
 ModelContextProtocol 2.2 migration notes and retest protocol negotiation, tool schemas, and

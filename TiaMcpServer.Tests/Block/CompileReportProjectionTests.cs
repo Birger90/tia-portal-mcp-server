@@ -59,7 +59,7 @@ public class CompileReportProjectionTests
         Assert.Equal(10, report.Plcs.Count);
         Assert.True(projected.CompileDetailsOmitted);
         Assert.InRange(projected.CompileReport!.Plcs.Count, 1, 8);
-        Assert.Null(projected.CompileReport.BlockPath);
+        Assert.InRange(projected.CompileReport.BlockPath!.Length, 1, 256);
         Assert.InRange(projected.CompileReport.Plcs.Sum(plc => plc.Messages.Count), 0, 20);
         Assert.InRange(projected.CompileReport.Plcs.Sum(plc => plc.DiagnosticNotes.Count), 0, 8);
         Assert.Equal(25, projected.CompileReport.TotalErrorCount);
@@ -72,10 +72,11 @@ public class CompileReportProjectionTests
             {
                 Assert.InRange(message.Description.Length, 0, 256);
                 Assert.InRange(message.Path.Length, 0, 256);
-                Assert.DoesNotContain("C:\\private", message.Path, StringComparison.OrdinalIgnoreCase);
-                Assert.DoesNotContain("SECRET_CONTENT", message.Description, StringComparison.Ordinal);
+                // TIA Portal's own texts are kept (shortened to the field bound), never replaced by a fixed text.
+                Assert.StartsWith("SECRET_CONTENT-", message.Description, StringComparison.Ordinal);
             });
         });
+        Assert.InRange(projected.CompileReport.Plcs.Sum(plc => plc.Messages.Count), 1, 20);
         Assert.True(TiaMcpServer.Worker.BlockImportOutcomeValidator.Validate(projected, "xml"));
     }
 
@@ -183,65 +184,85 @@ public class CompileReportProjectionTests
     }
 
     [Fact]
-    public void BlockOutcomeProjectionReplacesShortSecretsAndRelativeNodePathsDeterministically()
+    public void BlockOutcomeProjectionKeepsShortCompilerTextsPathsAndNotes()
     {
+        // K04 (live 2026-11-02): four short information messages came back as "Compiler diagnostic omitted.".
         var report = new TiaMcpServer.Contracts.Block.CompileCheckReport
         {
             Scope = "block",
-            BlockPath = "PLC/Blocks/SecretNode",
+            BlockPath = "PLC_1/Blocks/Main",
             OverallState = "Warning",
             TotalWarningCount = 1,
             Plcs =
             {
                 new TiaMcpServer.Contracts.Plc.PlcCompileInfo
                 {
-                    PlcName = "PLC A",
-                    DeviceName = "Device A",
+                    PlcName = "PLC_1",
+                    DeviceName = "Device_1",
                     State = "Warning",
                     WarningCount = 1,
                     Messages =
                     {
-                        new TiaMcpServer.Contracts.Block.CompileMessageInfo
-                        {
-                            Description = "pw",
-                            Path = "Project/PLC/Blocks/SecretNode",
-                            Severity = "Warning"
-                        }
+                        new TiaMcpServer.Contracts.Block.CompileMessageInfo { Description = "Block was compiled.", Path = "PLC_1/Program blocks/Main", Severity = "Information" },
+                        new TiaMcpServer.Contracts.Block.CompileMessageInfo { Description = "Implicit conversion.", Path = "PLC_1/Program blocks/Main", Severity = "Warning" },
+                        new TiaMcpServer.Contracts.Block.CompileMessageInfo { Description = " \u0001Padded\t", Path = "PLC_1", Severity = "Information" },
                     },
-                    DiagnosticNotes = { "submitted-snippet" }
+                    DiagnosticNotes = { "worker note" }
                 }
             }
         };
 
-        var projected = BlockImportOutcomeProjection.Project(new TiaMcpServer.Contracts.Block.BlockImportOutcomeInfo
-        {
-            ImportStage = "completed",
-            ImportResultState = "success",
-            TargetMutationCommitted = true,
-            CompileStage = "succeeded",
-            CompileReport = report,
-            FinalReadStage = "succeeded",
-            TargetPresent = true,
-            ContentRelation = "unknown",
-            TemporarySourceState = "not_applicable"
-        });
+        var projected = BlockImportOutcomeProjection.Project(Completed(report, "succeeded"));
 
         var projectedReport = Assert.IsType<TiaMcpServer.Contracts.Block.CompileCheckReport>(projected.CompileReport);
+        Assert.False(projected.CompileDetailsOmitted);
+        Assert.Equal("PLC_1/Blocks/Main", projectedReport.BlockPath);
         var plc = Assert.Single(projectedReport.Plcs);
-        var message = Assert.Single(plc.Messages);
-        var note = Assert.Single(plc.DiagnosticNotes);
-        Assert.Null(projectedReport.BlockPath);
-        Assert.Equal("PLC A", plc.PlcName);
-        Assert.Equal("Device A", plc.DeviceName);
-        Assert.Equal("Warning", message.Severity);
-        Assert.Equal("Compiler diagnostic omitted.", message.Description);
-        Assert.Equal(string.Empty, message.Path);
-        Assert.Equal("Compiler note omitted.", note);
-        var json = System.Text.Json.JsonSerializer.Serialize(projected, TiaJson.Presentation);
-        Assert.DoesNotContain("pw", json, StringComparison.Ordinal);
-        Assert.DoesNotContain("SecretNode", json, StringComparison.Ordinal);
-        Assert.DoesNotContain("submitted-snippet", json, StringComparison.Ordinal);
+        Assert.Equal(new[] { "Block was compiled.", "Implicit conversion.", "Padded" }, plc.Messages.Select(m => m.Description));
+        Assert.Equal(new[] { "PLC_1/Program blocks/Main", "PLC_1/Program blocks/Main", "PLC_1" }, plc.Messages.Select(m => m.Path));
+        Assert.Equal(new[] { "Information", "Warning", "Information" }, plc.Messages.Select(m => m.Severity));
+        Assert.Equal("worker note", Assert.Single(plc.DiagnosticNotes));
+        Assert.True(TiaMcpServer.Worker.BlockImportOutcomeValidator.Validate(projected, "xml"));
     }
+
+    [Fact]
+    public void BlockOutcomeProjectionKeepsErrorsAndWarningsBeforeInformationWhenTheBudgetIsShort()
+    {
+        var plc = new TiaMcpServer.Contracts.Plc.PlcCompileInfo { PlcName = "PLC_1", State = "Error", ErrorCount = 2, WarningCount = 1 };
+        for (var index = 0; index < 30; index++)
+            plc.Messages.Add(new TiaMcpServer.Contracts.Block.CompileMessageInfo { Description = $"info {index:D2} " + new string('i', 200), Path = "PLC_1", Severity = "Information" });
+        plc.Messages.Insert(25, new TiaMcpServer.Contracts.Block.CompileMessageInfo { Description = "late error", Path = "PLC_1/Blocks/B", Severity = "Error" });
+        plc.Messages.Insert(10, new TiaMcpServer.Contracts.Block.CompileMessageInfo { Description = "a warning", Path = "PLC_1/Blocks/A", Severity = "Warning" });
+        plc.Messages.Add(new TiaMcpServer.Contracts.Block.CompileMessageInfo { Description = "last error", Path = "PLC_1/Blocks/C", Severity = "Error" });
+        var report = new TiaMcpServer.Contracts.Block.CompileCheckReport
+        {
+            Scope = "block", BlockPath = "PLC_1/Blocks/Main", OverallState = "Error", TotalErrorCount = 2, TotalWarningCount = 1, Plcs = { plc }
+        };
+
+        var projected = BlockImportOutcomeProjection.Project(Completed(report, "failed"));
+
+        Assert.True(projected.CompileDetailsOmitted);
+        var messages = Assert.Single(projected.CompileReport!.Plcs).Messages;
+        Assert.InRange(messages.Count, 3, 20);
+        // Errors and the warning survive; information fills the rest in report order, and report order is kept.
+        Assert.Equal(new[] { "a warning", "late error", "last error" }, messages.Where(m => m.Severity != "Information").Select(m => m.Description));
+        Assert.Equal(messages.OrderBy(m => plc.Messages.FindIndex(o => o.Description == m.Description)).Select(m => m.Description), messages.Select(m => m.Description));
+        Assert.Equal(2, projected.CompileReport.TotalErrorCount);
+        Assert.True(TiaMcpServer.Worker.BlockImportOutcomeValidator.Validate(projected, "xml"));
+    }
+
+    private static TiaMcpServer.Contracts.Block.BlockImportOutcomeInfo Completed(TiaMcpServer.Contracts.Block.CompileCheckReport report, string stage) => new()
+    {
+        ImportStage = "completed",
+        ImportResultState = "success",
+        TargetMutationCommitted = true,
+        CompileStage = stage,
+        CompileReport = report,
+        FinalReadStage = "succeeded",
+        TargetPresent = true,
+        ContentRelation = "unknown",
+        TemporarySourceState = "not_applicable"
+    };
 
     [Fact]
     public void Flatten_PreservesTopLevelFields()
@@ -257,20 +278,58 @@ public class CompileReportProjectionTests
     }
 
     [Fact]
-    public void Flatten_VisitsBlankParentBeforeNestedErrorAndWarning()
+    public void Flatten_DropsBlankContainersAndCarriesTheirPathsIntoNestedMessages()
     {
-        var root = new Message("", "PLC/Blocks", "Information");
-        var error = new Message("Missing tag", "PLC/Blocks/Main", "Error");
-        error.Children.Add(new Message("Conversion", "PLC/Blocks/Helper", "Warning"));
-        root.Children.Add(error);
+        var root = new Message("", "PLC", "Information");
+        var blocks = new Message(" ", "Blocks", "Error");
+        var error = new Message("Missing tag", "Main", "Error");
+        error.Children.Add(new Message("Conversion", "", "Warning"));
+        blocks.Children.Add(error);
+        root.Children.Add(blocks);
 
         var projection = Flatten(new[] { root });
 
-        Assert.Equal(new[] { "", "Missing tag", "Conversion" }, projection.Messages.Select(m => m.Description));
-        Assert.Equal(new[] { "Information", "Error", "Warning" }, projection.Messages.Select(m => m.Severity));
-        Assert.Equal(new[] { "PLC/Blocks", "PLC/Blocks/Main", "PLC/Blocks/Helper" }, projection.Messages.Select(m => m.Path));
+        Assert.Equal(new[] { "Missing tag", "Conversion" }, projection.Messages.Select(m => m.Description));
+        Assert.Equal(new[] { "Error", "Warning" }, projection.Messages.Select(m => m.Severity));
+        Assert.Equal(new[] { "PLC/Blocks/Main", "PLC/Blocks/Main" }, projection.Messages.Select(m => m.Path));
         Assert.False(projection.WasTruncated);
     }
+
+    [Fact]
+    public void Flatten_LiveHardwareCompileShapeYieldsOnlyTheRealErrorsWithTheirContainerChain()
+    {
+        // Shape observed live 2026-11-02 (hardware compile of PLC_F1): container rows with "" / " " descriptions
+        // and the container's severity, then the real error texts with an empty path.
+        var rail = new Message(" ", "Profilschiene_0", "Error");
+        foreach (var text in new[] { "Access level needs a password.", "Confidential data protection needs a password.", "Certificate unusable." })
+            rail.Children.Add(new Message(text, "", "Error"));
+        var hardware = new Message("", "Hardware configuration", "Error");
+        hardware.Children.Add(rail);
+        var root = new Message("", "PLC_F1", "Error");
+        root.Children.Add(hardware);
+
+        var projection = Flatten(new[] { root });
+
+        Assert.Equal(3, projection.Messages.Count);
+        Assert.All(projection.Messages, m =>
+        {
+            Assert.Equal("PLC_F1/Hardware configuration/Profilschiene_0", m.Path);
+            Assert.Equal("Error", m.Severity);
+        });
+    }
+
+    [Theory]
+    [InlineData("", "PLC_1", "PLC_1")]
+    [InlineData("PLC_1", "", "PLC_1")]
+    [InlineData("PLC_1", "  ", "PLC_1")]
+    [InlineData("PLC_DP/Blocks/Main", "PLC_DP/Blocks/Helper", "PLC_DP/Blocks/Helper")]
+    [InlineData("PLC_1", "Main", "PLC_1/Main")]
+    [InlineData("PLC_1/Main", "Main", "PLC_1/Main")]
+    [InlineData("PLC_1/Blocks", "PLC_1/Blocks/Main", "PLC_1/Blocks/Main")]
+    [InlineData("PLC_1/Blocks", "PLC_1/Blocks", "PLC_1/Blocks")]
+    [InlineData("PLC_F1/Hardware configuration", "PLC_F1", "PLC_F1/Hardware configuration/PLC_F1")]
+    public void CompileMessagePaths_ExtendTheContainerChain(string context, string own, string expected)
+        => Assert.Equal(expected, TiaMcpServer.Contracts.Block.CompileMessagePaths.Extend(context, own));
 
     [Theory]
     [InlineData(16, 16, false)]
@@ -448,7 +507,7 @@ public class CompileReportProjectionTests
         Assert.Equal(stage == "children" ? 2 : 3, projection.Messages.Count);
         var child = projection.Messages[1];
         Assert.Equal(stage == "description" ? "" : "child", child.Description);
-        Assert.Equal(stage == "path" ? "" : "child-path", child.Path);
+        Assert.Equal(stage == "path" ? "parent-path" : "parent-path/child-path", child.Path);
         Assert.Equal(stage == "severity" ? "Information" : "Error", child.Severity);
         if (stage != "children")
             Assert.Equal("grandchild", projection.Messages[2].Description);

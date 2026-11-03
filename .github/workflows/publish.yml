@@ -104,6 +104,7 @@ jobs:
       - name: Zip Standalone Binary
         run: |
           if (-not (Test-Path ./publish-bin/openness-worker/TiaMcpServer.OpennessWorker.exe)) { throw "Standalone publish is missing openness-worker/TiaMcpServer.OpennessWorker.exe." }
+          if (-not (Test-Path ./publish-bin/plcsim-worker/TiaMcpServer.PlcSimWorker.exe)) { throw "Standalone publish is missing plcsim-worker/TiaMcpServer.PlcSimWorker.exe." }
           Compress-Archive -Path ./publish-bin/* -DestinationPath ./out/tia-mcp-windows-x64.zip
 
       - name: Create GitHub Release

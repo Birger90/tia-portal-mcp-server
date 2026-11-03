@@ -6,7 +6,8 @@ namespace TiaMcpServer.OpennessWorker.Worker;
 internal static class WorkerExecution
 {
     /// <param name="mutates">
-    /// True when the request's method changes project state. Only then does an
+    /// True when the request's method changes project or target-device state (ProjectMutation or
+    /// OnlineControl). Only then does an
     /// <see cref="EngineeringTargetInvocationException"/> mean "Portal rejected the mutation"
     /// (<see cref="WorkerFailureCategories.EngineeringRejected"/>); reads keep
     /// <see cref="WorkerFailureCategories.WorkerOperationFailed"/> because Openness throws the same type
@@ -26,10 +27,12 @@ internal static class WorkerExecution
             var category = Classify(ex, mutates);
             return Failure(category, FailureMessage(ex, category), Describe(ex));
         }
-        // Wrapped Siemens failures (EngineeringError: Network/PLC/HMI paths), HMI write outcomes and VCI write outcomes are re-checked for
-        // current-execution Portal disposal so portal_lost wins; only HmiWriteRun.Failure sets HmiWriteOutcome. A VCI failure that is already
-        // portal_lost is rethrown unchanged (its message and LastAttempted stand).
+        // Wrapped Siemens failures (EngineeringError: Network/PLC/HMI paths), HMI write outcomes, plc_download evidence and VCI write
+        // outcomes are re-checked for current-execution Portal disposal so portal_lost wins; only HmiWriteRun.Failure sets HmiWriteOutcome
+        // and only PlcDownloadService, PlcOnlineService (online-action evidence) and PlcRoundTrip (failed block/tag-table move evidence) set
+        // PlcDownloadOutcome. A VCI failure that is already portal_lost is rethrown unchanged (its message and LastAttempted stand).
         catch (WorkerOperationException ex) when (ex.EngineeringError is not null || ex.HmiWriteOutcome is not null
+            || ex.PlcDownloadOutcome is not null
             || (ex.VciWriteOutcome is not null && ex.FailureCategory != WorkerFailureCategories.PortalLost))
         {
             if (portalDisposalRevision() != before)
@@ -37,6 +40,7 @@ internal static class WorkerExecution
                 var response = PortalLost(ex);
                 response.ConfigureNetworkDeviceOutcome = ex.ConfigureNetworkDeviceOutcome;
                 response.HmiWriteOutcome = ex.HmiWriteOutcome;
+                response.PlcDownloadOutcome = ex.PlcDownloadOutcome;
                 response.VciWriteOutcome = ex.VciWriteOutcome;
                 return response;
             }

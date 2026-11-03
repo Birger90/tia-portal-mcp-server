@@ -1,4 +1,3 @@
-using TiaMcpServer.Tests.TestSupport;
 using Xunit;
 
 namespace TiaMcpServer.Tests.Worker;
@@ -9,7 +8,7 @@ public sealed class TiaPortalSessionBindingGuidanceSourceTests
     public void GuidanceStrings_NameBindProject()
     {
         // Source guard for user guidance, alongside source-linked session behavior tests.
-        var repositoryRoot = RepositoryFiles.Root;
+        var repositoryRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
         var source = File.ReadAllText(Path.Combine(repositoryRoot,
             "TiaMcpServer.OpennessWorker", "Openness", "Project", "TiaPortalSession.cs"));
         var methodStart = source.IndexOf("public void ValidateExpectedSessionIdentity(", StringComparison.Ordinal);
@@ -43,7 +42,7 @@ public sealed class TiaPortalSessionBindingGuidanceSourceTests
         Assert.Contains("internal McpAccessMode AccessMode { get; }", source);
         Assert.Contains("AccessMode = WorkerOperationAuthorization.ParseAccessMode(Environment.GetCommandLineArgs());", source);
         Assert.Contains("WorkerOperationAuthorization.AllowsTiaConfirmations(AccessMode)", source);
-        Assert.Equal(1, RepositoryFiles.CountOccurrences(source, "WorkerOperationAuthorization.ParseAccessMode("));
+        Assert.Equal(1, source.Split("WorkerOperationAuthorization.ParseAccessMode(").Length - 1);
         var ownerStart = source.IndexOf("internal StandaloneProjectOwner RequireStandaloneOwner()", StringComparison.Ordinal);
         var ownerEnd = source.IndexOf("public TiaPortal? TiaPortal", ownerStart, StringComparison.Ordinal);
         Assert.True(ownerStart >= 0 && ownerEnd > ownerStart);
@@ -51,7 +50,7 @@ public sealed class TiaPortalSessionBindingGuidanceSourceTests
         Assert.Contains("throw new InvalidOperationException(ProjectOpenPolicy.NoProjectOpenMessage(AccessMode))", owner);
         Assert.DoesNotContain("McpAccessMode.ReadWrite", owner);
 
-        var clientSource = File.ReadAllText(Path.Combine(repositoryRoot, "TiaMcpServer", "Worker", "OpennessWorkerClient.Binding.cs"));
+        var clientSource = File.ReadAllText(Path.Combine(repositoryRoot, "TiaMcpServer", "Worker", "OpennessWorkerClient.cs"));
         var refusalStart = clientSource.IndexOf("An invalidated source can be re-grounded", StringComparison.Ordinal);
         Assert.True(refusalStart >= 0);
         var refusalEnd = clientSource.IndexOf("));", refusalStart, StringComparison.Ordinal);

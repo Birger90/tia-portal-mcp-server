@@ -16,12 +16,16 @@ internal sealed class LifecycleProtocolFixture : IDisposable
         DestinationPath = Path.Combine(destination, "Fixture B.ap21");
         File.WriteAllText(SourcePath, "scripted fixture");
         File.WriteAllText(DestinationPath, "scripted fixture");
+        Directory.CreateDirectory(Path.Combine(Root, "RetrieveSource"));
+        ArchiveFile = Path.Combine(Root, "RetrieveSource", "Fixture.zap21");
+        File.WriteAllText(ArchiveFile, "scripted fixture archive");
     }
 
     public string Root { get; }
     public string SourcePath { get; }
     public string DestinationPath { get; }
     public string ArchiveDirectory { get; }
+    public string ArchiveFile { get; }
 
     public Dictionary<string, object?> Arguments(string tool, bool reject = false) => tool switch
     {
@@ -31,6 +35,7 @@ internal sealed class LifecycleProtocolFixture : IDisposable
         "save_project_as" => new() { ["targetDirectory"] = Root, ["targetName"] = "Copy", ["rebind"] = !reject },
         "archive_project" => new() { ["archiveDirectory"] = reject ? " " : ArchiveDirectory, ["archiveName"] = "Fixture" },
         "close_project" => new(),
+        "retrieve_project" => new() { ["archivePath"] = reject ? " " : ArchiveFile, ["targetDirectory"] = Root },
         _ => throw new ArgumentOutOfRangeException(nameof(tool))
     };
 

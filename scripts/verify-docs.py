@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Docs checker: relative links resolve, every docs/ markdown file is reachable from docs/README.md,
-archive-tag permalinks resolve, and docs/superpowers holds no transient files on main.
+archive-tag permalinks resolve, docs/superpowers holds no transient files on main, and the bilingual set has an
+English `X.md` and a German `X.de.md` that link each other.
 
-Usage: python scripts/verify-docs.py [--repo DIR] [--archive-tag TAG] [--fail-on-transient]
+Usage: python scripts/verify-docs.py [--repo DIR] [--archive-tag TAG] [--fail-on-transient] [--bilingual]
 Exit code 1 when any error is found. Standard library only.
 """
 import argparse
@@ -17,6 +18,10 @@ INLINE = re.compile(r"\[(?:[^\[\]]|\[[^\]]*\])*\]\(\s*(<[^>]*>|[^()\s]*(?:\([^()
 CODE_SPAN = re.compile(r"`[^`\n]*`")
 FENCE = re.compile(r"^\s{0,3}(```+|~~~+)")
 INDEX = "docs/README.md"
+# Documents that must exist in English (X.md) and German (X.de.md): these files and every *.md directly in these directories.
+BILINGUAL_ROOT = ("README.md", "CONTRIBUTING.md", "SECURITY.md", "ROADMAP.md", "THIRD_PARTY_NOTICES.md",
+                  "docs/README.md", "docs/FORK_FEATURES.md")
+BILINGUAL_DIRS = ("docs/guides", "docs/SupportedOperations")
 
 
 def listed(repo, *pathspec):
@@ -54,7 +59,7 @@ def tag_has(repo, tag, path):
     return subprocess.run(["git", "-C", repo, "cat-file", "-e", f"{tag}:{path}"], capture_output=True).returncode == 0
 
 
-def check(repo, archive_tag, fail_on_transient):
+def check(repo, archive_tag, fail_on_transient, bilingual_set=False):
     errors, warnings = [], []
     docs = listed(repo, "*.md")
     graph = {}
@@ -94,7 +99,35 @@ def check(repo, archive_tag, fail_on_transient):
     for rel in docs:
         if rel.startswith("docs/") and not rel.startswith(TRANSIENT_DIRS) and rel not in reachable:
             errors.append(f"{rel}: not reachable from {INDEX}")
+    errors.extend(bilingual(repo, docs, graph, bilingual_set))
     return errors, warnings
+
+
+def bilingual(repo, docs, graph, require_set):
+    """Every X.de.md has its English X.md and the two link each other; with require_set, every document of the
+    bilingual set has both."""
+    errors, present = [], set(docs)
+
+    def links_to(source, target):
+        if target in graph.get(source, ()):
+            return True
+        # README.md is also the NuGet readme and links absolutely.
+        with open(os.path.join(repo, source), encoding="utf-8") as handle:
+            return REPO_URL.replace("Czarnak/tia-portal-mcp", "Birger90/tia-portal-mcp-server") + "blob/main/" + target in handle.read()
+
+    for rel in docs:
+        if rel.endswith(".de.md"):
+            english = rel[:-len(".de.md")] + ".md"
+            if english not in present:
+                errors.append(f"{rel}: German version without its English {english}")
+            else:
+                for source, target in ((rel, english), (english, rel)):
+                    if not links_to(source, target):
+                        errors.append(f"{source}: no language switch link to {target}")
+        elif require_set and (os.path.dirname(rel) in BILINGUAL_DIRS or rel in BILINGUAL_ROOT):
+            if rel[:-len(".md")] + ".de.md" not in present:
+                errors.append(f"{rel}: German version {rel[:-3]}.de.md is missing (bilingual set)")
+    return errors
 
 
 def main():
@@ -102,8 +135,9 @@ def main():
     parser.add_argument("--repo", default=os.getcwd())
     parser.add_argument("--archive-tag", default="")
     parser.add_argument("--fail-on-transient", action="store_true")
+    parser.add_argument("--bilingual", action="store_true", help="require the German version of every bilingual-set document")
     args = parser.parse_args()
-    errors, warnings = check(args.repo, args.archive_tag, args.fail_on_transient)
+    errors, warnings = check(args.repo, args.archive_tag, args.fail_on_transient, args.bilingual)
     for message in warnings:
         print("warning:", message)
     for message in errors:

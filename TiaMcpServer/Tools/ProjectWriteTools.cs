@@ -42,6 +42,23 @@ public class ProjectWriteTools
             { ProjectDirectory = projectDirectory, ProjectName = projectName, Author = author, Comment = comment },
             Confirmation(server), dryRun, cancellationToken);
 
+    [McpServerTool(Name = "retrieve_project", ReadOnly = false, Destructive = true, OpenWorld = false,
+        UseStructuredContent = true, OutputSchemaType = typeof(LifecycleWriteResponse))]
+    [Description("Retrieve a TIA Portal project archive into a directory and bind this MCP session to the retrieved project "
+        + "(ProjectComposition.Retrieve, or RetrieveWithUpgrade with upgrade:true; not live-tested). TIA Portal V21 refuses to open "
+        + "a second project while one is open; save_project and close_project it first." + Flow)]
+    public static Task<CallToolResult> RetrieveProject(
+        OpennessWorkerClient workerClient, WriteExecution execution,
+        [Description("Absolute path to an existing project archive file.")] string archivePath,
+        [Description("Existing absolute directory the archive is retrieved into.")] string targetDirectory,
+        [Description("Retrieve with upgrade to the current TIA Portal version (RetrieveWithUpgrade).")] bool upgrade = false,
+        [Description("Allow rebinding from the currently bound project.")] bool forceRebind = false,
+        [Description("Inspect effects and guards without mutation or confirmation.")] bool dryRun = false,
+        McpServer? server = null, CancellationToken cancellationToken = default)
+        => ExecuteAsync(workerClient, execution, new("retrieve_project")
+            { ArchivePath = archivePath, TargetDirectory = targetDirectory, Upgrade = upgrade, ForceRebind = forceRebind },
+            Confirmation(server), dryRun, cancellationToken);
+
     [McpServerTool(Name = "save_project", ReadOnly = false, Destructive = true, OpenWorld = false,
         UseStructuredContent = true, OutputSchemaType = typeof(LifecycleWriteResponse))]
     [Description("Save the active verified TIA Portal project." + Flow)]

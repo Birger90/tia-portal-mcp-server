@@ -156,6 +156,7 @@ namespace Siemens.Engineering
     }
     public abstract class MultilingualTextItemComposition : global::Siemens.Engineering.IEngineeringComposition, global::Siemens.Engineering.IEngineeringInstance, global::System.Collections.Generic.IEnumerable<global::Siemens.Engineering.MultilingualTextItem>
     {
+        public global::Siemens.Engineering.MultilingualTextItem Find(global::Siemens.Engineering.Language language) => throw new global::System.NotSupportedException();
         public global::System.Collections.Generic.IEnumerator<global::Siemens.Engineering.MultilingualTextItem> GetEnumerator() => throw new global::System.NotSupportedException();
         global::Siemens.Engineering.IEngineeringObject global::Siemens.Engineering.IEngineeringComposition.Create(global::System.Type type, global::System.Collections.Generic.IEnumerable<global::System.Collections.Generic.KeyValuePair<string, object>> parameters) => throw new global::System.NotSupportedException();
         global::Siemens.Engineering.IEngineeringObject global::Siemens.Engineering.IEngineeringInstance.Parent => throw new global::System.NotSupportedException();
@@ -174,6 +175,7 @@ namespace Siemens.Engineering
     }
     public abstract class Project : global::Siemens.Engineering.ProjectBase, global::Siemens.Engineering.IEngineeringObject, global::Siemens.Engineering.IEngineeringInstance
     {
+        public global::Siemens.Engineering.Library.ProjectLibrary ProjectLibrary { get => throw new global::System.NotSupportedException(); }
         public void Save() => throw new global::System.NotSupportedException();
         public void SaveAs(global::System.IO.DirectoryInfo targetFolderPath) => throw new global::System.NotSupportedException();
         public void Archive(global::System.IO.DirectoryInfo targetDirectory, string targetName, global::Siemens.Engineering.ProjectArchivationMode archivationMode) => throw new global::System.NotSupportedException();

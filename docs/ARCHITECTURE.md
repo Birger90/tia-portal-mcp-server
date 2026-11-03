@@ -25,6 +25,42 @@ TiaMcpServer.OpennessWorker (net48 worker)
 TIA Portal V21
 ```
 
+S7-PLCSIM Advanced runs in a third, optional process with the same envelope and transport:
+
+```text
+TiaMcpServer (net10.0 host) -- PlcSimWorkerClient, started on the first PLCSIM call
+    |
+    | newline-delimited JSON (handshake plcsim-v1)
+    v
+TiaMcpServer.PlcSimWorker (net48 x64 worker)
+    |
+    | Assembly.LoadFile + reflection (no compile-time Siemens reference)
+    v
+S7-PLCSIM Advanced Runtime API -> virtual S7-1500 instances
+```
+
+The S7-1500 Web API tools (`plc_online_read`, `plc_online_write`) need no worker (except
+`read_watch_table_live`, which reads its table offline through the Openness worker first): the host itself
+talks JSON-RPC over HTTPS to the PLCs the user configured, through Siemens' official .NET client
+(NuGet `Siemens.Simatic.S7.Webserver.API` 3.3.92, MIT), the only Siemens assembly the host
+references:
+
+```text
+TiaMcpServer (net10.0 host) -- PlcWebApiService, one session per configured target
+    |
+    | HTTPS JSON-RPC (api/jsonrpc), per-target certificate policy, no proxy
+    v
+S7-1500 CPU web server (or a PLCSIM Advanced instance with the web server enabled)
+```
+
+The PLCSIM worker never touches TIA Portal, the Openness worker or the project binding. The host
+recycles it when the worker sets `WorkerResponse.WorkerRestartRequired` (or a probe reports a failed
+API initialization): .NET keeps a failed type initializer for the process lifetime. A missing DLL
+does not recycle it. PLCSIM calls are serialized by the shared transport, so a running
+`plcsim_test` scenario blocks every other PLCSIM call for up to its duration. See the
+[PLCSIM reference](SupportedOperations/PLCSIM_OPERATIONS_SUMMARY.md) for API resolution, the
+member catalog and its provenance.
+
 The host owns the MCP protocol, dependency injection, tool registration,
 access policy, session binding, batching, diagnostics, and the guarded write pipeline.
 The worker owns every Siemens API call and keeps one long-lived TIA Portal
@@ -36,9 +72,11 @@ shared by both processes.
 
 The source-owned references under `reference-stubs/` generate the two compile-only `ref/`
 assemblies and retain version `21.0.0.0` and public-key token `29bfe5fdf4ba5d3b` using a
-public-only delay-signing key. Only the net48 worker and compile-only probe reference Siemens;
-the host and shared contracts remain Siemens-free. Generated stubs are never runtime inputs,
-and all Siemens binaries are excluded from packages; the worker loads installed real DLLs.
+public-only delay-signing key. Only the net48 worker and compile-only probe reference Siemens
+Openness; the shared contracts remain Siemens-free, and the host's only Siemens reference is the
+Web API client package (confined to `PlcWebApi/SiemensPlcWebApiClient.cs`). Generated stubs are never runtime inputs,
+and all Siemens Openness and PLCSIM binaries are excluded from packages (the MIT Web API client ships
+as an ordinary NuGet dependency of the host); the worker loads installed real DLLs.
 The worker's active project context supplies typed standalone/local ownership. PR4 selects
 already-open local owners by exact `.amc21` engineering identity and opens existing `.als21`
 files explicitly through the existing guarded lifecycle pipeline. Content/compile/local-save
@@ -58,10 +96,18 @@ The access mode is resolved once at startup with this precedence:
 
 1. `--access-mode read-only|read-write|full`, `--read-only`, or `--read-write`
 2. `TIA_MCP_ACCESS_MODE`
-3. `read-write` by default
+3. `accessMode` in the owner's server settings file (`%APPDATA%\TiaMcpServer\settings.json`
+   or `TIA_MCP_SETTINGS`; Contracts `Shared/ServerSettingsFile`), written only by the password
+   manager's tab "Zugriffsmodus"
+4. `read-write` by default
 
 Malformed explicit access-mode arguments are rejected instead of silently
-falling back to another mode.
+falling back to another mode. The settings file is read once before the access mode
+(`ServerSettingsFile.Read`) and passed to `Cli/AccessModeParser`; a refused file (closed schema
+version 1, an unreadable file, or a `TIA_MCP_SETTINGS` path that does not exist) exits with an
+error even when an argument or the environment decides the mode. The host never writes it and no
+MCP tool reads or changes it. The resolved source (`cli`, `environment`, `settingsFile`,
+`default`) and the settings file are logged at startup.
 
 The structured response budgets are resolved next by `Cli/PayloadBudgetParser`, per value:
 `--max-item-chars`/`--max-document-chars`, then `TIA_MCP_MAX_ITEM_CHARS`/`TIA_MCP_MAX_DOCUMENT_CHARS`,
@@ -72,6 +118,13 @@ before the host is built, so every budget reads the effective `MaxItemChars`/`Ma
 properties; `DefaultItemChars`/`DefaultDocumentChars` keep the defaults. The worker is unaffected,
 and project-tree pages, hardware pages and the compile report keep their own fixed 60,000 limits.
 See [response size limits](guides/mcp-client-configuration.md#response-size-limits).
+
+`PlcWebApi/PlcWebApiConfigOption` resolves `--plc-webapi-config <absolute path>` (separate or `=` form),
+then `TIA_MCP_PLC_WEBAPI_CONFIG`, then none, and loads the target file strictly once at startup; an
+invalid path or file exits with every problem listed. The resulting `PlcWebApiConfiguration` (targets,
+addresses, certificate rules, credential variable names, timeouts) is registered in DI with
+`PlcWebApiService`; startup stderr reports the target count. Credential values are read only at login
+time. See the [PLC online reference](SupportedOperations/PLC_ONLINE_WEBAPI_SUMMARY.md#configuration).
 
 `Cli/WorkerTimeoutParser` resolves `--worker-timeout-minutes` (separate or `=` form), then
 `TIA_MCP_WORKER_TIMEOUT_MINUTES`, then the default of 5 minutes, once at startup. Whole minutes
@@ -84,23 +137,27 @@ for client limits and mutation recovery.
 
 ### Read-write mode
 
-Read-write exposes nineteen tools: seven observation tools, `bind_project`, `compile_check`,
-`network_write`, `plc_write`, `hmi_write`, `vci_write`, and six lifecycle tools. It permits `Observe`, `TemporaryExport`,
-`SessionSelection`, `Compile`, `ProjectMutation`, and `ProjectLifecycle`. The four domain write tools
-never elicit; every actual lifecycle call asks once through client form elicitation.
+Read-write exposes thirty tools: ten observation tools (including `plcsim_read`, `plc_online_read` and `library_read`), `bind_project`,
+`compile_check`, `network_write`, `plc_write`, `hmi_write`, `vci_write`, `library_write`, `plcsim_write`, `plcsim_test`, seven
+lifecycle tools, `plc_download`, `plc_online_write`, `plc_tia_online` and `plc_station_upload`. It permits `Observe`, `TemporaryExport`, `SessionSelection`, `Compile`,
+`ProjectMutation`, `ProjectLifecycle`, `OnlineControl`, `SimulationControl` and `OnlineObserve`. The four domain write tools and the
+PLCSIM tools never elicit; every actual lifecycle, `plc_download`, `plc_online_write`, `plc_tia_online` and `plc_station_upload` call asks once through client form elicitation,
+and so does every actual `library_write` call that contains a global-library lifecycle item (its content items never prompt).
 Reads never bind, switch, or open; `bind_project` selects an already-open project.
 
 ### Full mode
 
-Full exposes the same nineteen tools and permits the same capabilities; it adds no tools or
-operations. Lifecycle runs under policy without server elicitation. Block guards stop the call in
-every mode. PLC run/stop (`start_plc`/`stop_plc`) was removed; `OperationCapability.OnlineControl`
-remains as a reserved value with no operation and is permitted in no mode.
+Full exposes the same thirty tools and permits the same capabilities; it adds no tools or
+operations. Lifecycle, `plc_download`, `plc_online_write`, `plc_tia_online`, `plc_station_upload` and global-library lifecycle items of `library_write` run under policy without server elicitation. Block guards stop the call in
+every mode. The Openness PLC run/stop (`start_plc`/`stop_plc`) was removed. `OperationCapability.OnlineControl`
+classifies `plc_download` (PLCSIM or real hardware; the access mode is the only control) and the seven `webapi_*` control
+methods of `plc_online_write` (real controllers the user configured) and `plc_go_online`/`plc_go_offline` (`plc_tia_online`), permitted in
+read-write and full; `OperationCapability.OnlineObserve` classifies `compare_to_online`, permitted in every mode.
 
 ### Confirmation configuration
 
 Confirmation derives from the binding gate's access mode. Read-write asks once for every actual
-lifecycle call, even with no guards or only info guards; form acceptance needs `accept` and boolean
+lifecycle, `plc_download`, `plc_online_write`, `plc_tia_online` and `plc_station_upload` call, even with no guards or only info guards; form acceptance needs `accept` and boolean
 `confirm:true`. Unsupported capability, decline, cancel, timeout, or transport failure denies with
 `access_denied`. Full uses policy satisfaction without server elicitation. Dry runs and block guards
 never elicit. Lifecycle has no agent confirmation list, and no tool uses safety tokens. `plc_write`,
@@ -119,8 +176,8 @@ archives, or closes a project; never compiles;
 and never performs project-data mutations. It operates only on a project that
 is already open in the attached TIA Portal instance.
 
-The read-only surface contains eight tools: seven observations and `bind_project` for explicit
-session selection. Binding can switch the selected Portal/project without project mutation.
+The read-only surface contains eleven tools: ten observations (including `plcsim_read`,
+`plc_online_read` and `library_read`) and `bind_project` for explicit session selection. Binding can switch the selected Portal/project without project mutation.
 
 Content tools act on the bound project only; with no verified binding (a configured `--project` is grounded by status first) they fail closed with `binding_conflict`; call `bind_project` first.
 Only `bind_project` and `open_project` accept a public `projectPath`; ordinary observation/read tools reject it as an unknown member and never use a path to open or switch projects.
@@ -136,13 +193,19 @@ Tool registration is explicit and mode-dependent. The host always registers:
 - `CrossReferenceReadTools`
 - `HmiReadTools`
 - `VciReadTools`
+- `PlcSimReadTools`
+- `PlcWebApiReadTools` (`plc_online_read`)
 
 The shared `McpToolRegistration.WithAccessModeTools` helper registers these in read-write and full:
 
 - `ProjectEngineeringTools` (when the mode permits `Compile`)
 - `NetworkWriteTools`, `PlcWriteTools`, `HmiWriteTools` and `VciWriteTools` (when the mode permits `ProjectMutation`)
 
-`ProjectWriteTools` is registered when the mode permits `ProjectLifecycle` (read-write and full).
+`ProjectWriteTools` is registered when the mode permits `ProjectLifecycle` (read-write and full), and
+`PlcDownloadTools` (`plc_download`), `PlcWebApiWriteTools` (`plc_online_write`) and `PlcOnlineConnectionTools`
+(`plc_tia_online`) when it permits `OnlineControl` (read-write and full), and `PlcStationUploadTools`
+(`plc_station_upload`) when it permits `ProjectMutation`.
+`PlcSimWriteTools` and `PlcSimTestTools` when it permits `SimulationControl` (read-write and full).
 
 This prevents project mutation and lifecycle tools from appearing in MCP discovery when the server is
 read-only. Decorated tool classes that are not explicitly registered are not
@@ -150,7 +213,7 @@ part of the active tool surface.
 
 `Program.cs` and production-surface protocol tests use the same registration helper, and
 `WriteGuardRegistration.ProductionCatalog()` builds the one guard catalog (lifecycle, Network,
-PLC, HMI and VCI). The generic batch tools (`preview_write_batch`, `apply_write_batch`, `execute_read_batch`),
+PLC, HMI, VCI and PLC download). The generic batch tools (`preview_write_batch`, `apply_write_batch`, `execute_read_batch`),
 the `BatchTools` wrapper and every token path were removed; their operations moved to `plc_read`
 and `plc_write`. The earlier registered-surface delegation and
 preview-only live V21 evidence are recorded in the
@@ -168,6 +231,9 @@ preview-only live V21 evidence are recorded in the
 | `network_read` | Execute up to 50 validated network observation operations. |
 | `hmi_read` | Execute up to 50 validated read-only WinCC Unified HMI operations on the structured contract. |
 | `vci_read` | Inspect standalone VCI workspaces, mappings and supported leaf formats. |
+| `plcsim_read` | Up to 50 S7-PLCSIM Advanced reads (`probe_api`, instances, tags) in the separate PLCSIM worker. |
+| `plc_online_read` | Up to 50 independent S7-1500 Web API observations of configured PLCs (state, tags, diagnostics, alarms, modules, syslog) from the host. |
+| `library_read` | Up to 50 independent reads of the project library and the open global libraries (tree, types, versions, instances, update check, compare). |
 
 `execute_read_batch` was retired; its four operations moved to `plc_read` (`get_block_content`,
 `get_type_content`, `list_tag_tables`) and the standalone `read_cross_references`. See the
@@ -220,6 +286,13 @@ A deeper direct-Openness selector resolver and depth-pruned traversal remains a 
 | `plc_write` | Preview or apply up to 50 ordered PLC software writes (blocks, types, block groups, tag tables, tags, user constants) through the guarded pipeline. |
 | `hmi_write` | Preview or apply ordered Unified HMI tag and alarm writes. |
 | `vci_write` | Preview or apply ordered standalone VCI workspace, export, sync and mapping writes. |
+| `library_write` | Preview or apply up to 50 ordered library writes (global library lifecycle, master copies, type versions, renames); a call with a global-library lifecycle item is confirmed once in read-write (see §8). |
+| `plc_download` | Guarded single-call download of the bound standalone PLC to PLCSIM or real hardware, confirmed per call in read-write (see §8). |
+| `plc_tia_online` | Guarded single-call TIA Portal `go_online`/`go_offline` on the exact download path, confirmed per call in read-write (see §8). |
+| `plc_station_upload` | Guarded single-call station upload into the offline project with caller callback decisions, confirmed per call in read-write (see §8). |
+| `plcsim_write` | Plan or apply up to 50 ordered S7-PLCSIM Advanced control operations (power, run/stop, memory reset, tag-list refresh, tag writes, scale factor). |
+| `plcsim_test` | Run one write/wait/expect scenario against a PLCSIM instance inside the PLCSIM worker. |
+| `plc_online_write` | Up to 50 ordered online changes of configured S7-1500 CPUs over the Web API (operating mode, tags, alarms, LEDs, system time, backup/restore), confirmed per call in read-write (see §8). |
 
 ### Lifecycle tools in read-write and full
 
@@ -246,12 +319,17 @@ discover or invoke them through the normal protocol surface.
 `OperationAccessPolicy` checks each worker operation before the child process is
 started or a request is written. The shared `OperationPolicyCatalog` classifies
 all known worker operations as observation, temporary export, session selection, compilation,
-project lifecycle, or project mutation.
+project lifecycle, project mutation, online control (`plc_download`, `plc_go_online`/`plc_go_offline` and the `webapi_*`
+control methods), simulation control (`plcsim_*` control methods), or online observation (`compare_to_online`: reaches
+the device, changes neither device nor project; allowed in every mode and kept apart from `Observe` so the network
+reach stays explicit). `SimulationControl` (7) and then `OnlineObserve` (8) were appended last to `OperationCapability`,
+so existing numeric values are stable. The `webapi_*` methods never reach a worker: the online tools check them
+with `OperationPolicyCatalog.IsAllowed` before any network activity.
 
 Read-only allows observation, temporary export, and session selection. Read-write and full both
-add compilation, project mutation and lifecycle; full permits nothing more. `SafetyRead` was
-retired with the token core, and `OnlineControl` is a reserved value with no operation. Unknown
-operations are denied in every mode, including full.
+add compilation, project mutation, lifecycle, online control (`plc_download`, `plc_online_write` and `plc_tia_online`) and simulation control;
+full permits nothing more. `SafetyRead` was retired with the token core. Unknown operations, including the removed
+`start_plc`/`stop_plc`, are denied in every mode, including full.
 
 ### 4.3 Worker authorization
 
@@ -265,8 +343,27 @@ argument-propagation defect cannot silently enable mutations.
 
 In read-only mode the Siemens-facing `TiaPortalSession` also refuses automatic
 confirmation dialogs. Read-write and full modes may accept Siemens confirmations where the
-existing write workflow explicitly allows them.
+existing write workflow explicitly allows them, except while `plc_download` runs: a scope
+(`TiaPortalSession.AnswerConfirmations`, closed in a `finally`) then answers every confirmation
+by the call's `portalConfirmations` policy (No by default, Yes for `accept`, never Yes in read-only)
+and records it as download evidence until `Download` returns and the evidence is collected; a later
+confirmation keeps the call's answer: the closed scope lingers until the next worker request starts
+(`TiaPortalSession.EndLingeringConfirmations` via `PlcOnlineConfirmationScope.BeginRequest`, before every request, under the
+session's confirmation lock; a new scope also ends it), logs each late dialog and reports them as a warning on that
+next response; it is not in the call's evidence. `plc_tia_online` go_online likewise leaves a fail-closed
+`OnlineLegitimation` handler registered until the next request (`DeferredUntilNextRequest`). `plc_tia_online` and `plc_station_upload` open the same
+scope with their own `portalConfirmations` policy; `compare_to_online` opens it with a fixed No (a read never accepts a
+dialog) and fails the item when a dialog was declined.
 These Siemens dialogs are independent of MCP user-confirmation elicitation.
+
+TIA Portal `Notification` events (information messages such as "Export erfolgreich abgeschlossen. (0032:000002)", which
+blocked `export_project_texts` live until a human clicked OK, K75) are handled for every operation in every access mode: the
+session's handler reads `Caption`, `Text`, `DetailText` and `Icon` and sets `IsHandled = true`, all by reflection through the
+Siemens-free `PortalNotificationHandling` (Contracts `Worker/PortalNotifications.cs`; the stubs declare only `Text`). While a
+worker request runs (`TiaPortalSession.BeginRequestNotifications`/`EndRequestNotifications` around every request) each one is
+recorded for the request and written as a warning of its response; the project language operations also copy them into the
+item's `result.portalNotifications`. A notification between requests is logged at once and reported as a warning on the next
+response, like a late confirmation. Not live-tested: V21 documents `IsHandled` but not that setting it closes the message.
 
 ## 5. Project attachment and binding
 
@@ -297,7 +394,7 @@ is followed by a PID postcondition check. Every bound request carries
 handles and immediately before the operation body. In read-only mode it reuses
 only the uniquely identified project discovered during attachment.
 
-Only `open_project` and `create_project` open projects; no request implicitly opens one.
+Only `open_project`, `create_project` and `retrieve_project` open projects; no request implicitly opens one.
 Default/null/explicit `action:"bind"` on `bind_project(projectPath?, forceRebind=false, portalProcessId?)`
 selects an exact advertised open `.ap21` standalone or typed `.amc21` local owner. An explicit
 Portal PID must match that engineering owner; `.als21` and inventory directories are never
@@ -375,7 +472,7 @@ null and active connection observation `unknown` without a supported owner/endpo
 Explicit endpoint inventory has separate attachment/endpoint-scoped history; refresh timestamps
 do not create identity churn or prove an active-session reconnection. Capability descriptions
 grant no permission. Strict required-member/coherence decoding precedes existing 60,000-value
-and 180,000-document budgets. Current counts are 8/19/19 (read-only/read-write/full).
+and 180,000-document budgets. Current counts are 11/30/30 (read-only/read-write/full).
 PR4's [scoped live report](superpowers/acceptance/reports/2026-10-08-multiuser-pr4-live-verification.md)
 retains both failed noninteractive offline opens, UI-assisted success, restoration and
 unexecuted rows. Content/session/markings/mutations remain undelivered; see the
@@ -390,7 +487,10 @@ terminates the worker; the next request starts a fresh process.
 
 Before the first engineering request reaches a newly started worker, the host
 sends a `hello` request and requires an exact protocol version and capability
-set. A missing or incompatible handshake terminates that worker and returns
+set. The expected answer is a `WorkerHandshake`: the Openness default
+(`WorkerProtocol`), or `plcsim-v1` and the PLCSIM capabilities for the PLCSIM worker (including
+`plcsim-restart-flag-v1`, so a worker build that cannot request its own recycling is refused), which
+reuses this transport unchanged otherwise. A missing or incompatible handshake terminates that worker and returns
 `protocol_error`; the original engineering request is never forwarded to it.
 
 `TiaMcpServer.Contracts/Json/WorkerJson.cs` is the single definition of the wire
@@ -398,10 +498,11 @@ format, used by the worker, `PersistentWorkerTransport`, and the FakeWorker.
 `WorkerJson.Envelope` reads `WorkerRequest` and `WorkerResponse` (camelCase,
 case-insensitive) and writes responses with null members omitted;
 `WorkerJson.Request` writes requests with every member, null or not.
-`WorkerJson.SerializePayload` renders the `payload` document with `ExplicitNullPayload`,
-writing null members except those explicitly declared conditional with
-`[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]`. This applies to
-object roots and collection elements alike (see [the JSON contract roadmap](roadmap/json-contract.md)).
+`WorkerJson.SerializePayload` renders the `payload` document and writes null
+members unless the payload root carries `[LegacyNullOmission(reason)]`; a
+collection payload follows its element type. The marked set, and the reason each
+type has not switched yet, is pinned by `WorkerPayloadNullPolicyRegisterTests`
+(see [the JSON contract roadmap](roadmap/json-contract.md)).
 
 Before the permissive envelope decode, `PersistentWorkerTransport` calls
 `NetworkPayloadContract.ValidateEnvelopeOutcome` on raw `configureNetworkDeviceOutcome` JSON.
@@ -427,7 +528,7 @@ domains. An escaping `EngineeringException` also maps to `portal_lost` when the
 session observed unexpected disposal of a current Portal attachment during that
 execution. This uses cached event evidence, without native liveness calls or
 message matching. Deliberate detach, stale callbacks and earlier disposal do not
-qualify. For a mutation worker method (`ProjectMutation` in `OperationPolicyCatalog`, passed to
+qualify. For a mutation worker method (`ProjectMutation` or `OnlineControl` in `OperationPolicyCatalog`, passed to
 `WorkerExecution.Execute` as `mutates`), an `EngineeringTargetInvocationException` maps to
 `engineering_rejected`; the flag spans the entire method, including connection, identity and target checks before a native write. It does not prove a setter or create was reached. Any other engineering error, and a target-invocation error from a read
 method, remains `worker_operation_failed`. VCI's read-only `create_workspace` planning recheck
@@ -475,8 +576,13 @@ directories and remove them in `finally` blocks.
 
 ## 7. Batch and network execution
 
-`PlcOperationCatalog` and `PlcWorkerInvoker` own the PLC read operations and the 14 `plc_write`
-operations, sharing one `PlcOperationRequest` between read and write.
+`PlcOperationCatalog` and `PlcWorkerInvoker` own the 54 `plc_read` operations and the 202 `plc_write`
+operations, sharing one `PlcOperationRequest` between read and write. The granular block edits
+(`PlcBlockEditMethods`) keep that split: interface member edits are planned by
+`PlcInterfaceEditPlanner` on the exported SimaticML with the Siemens-free
+`Contracts/Plc/Interface` model and mutate through the existing `update_block_logic` /
+`update_type_content` worker methods with the export's hash; the native and round-trip block
+operations are worker methods taking `WorkerRequest.PlcBlockEdit` (`PlcBlockEditDispatch`).
 `NetworkOperationCatalog` and `NetworkWorkerInvoker` own the nine dedicated network
 operations, including the Phase 4 subnet lifecycle operations (`create_subnet`,
 `update_subnet`, `delete_subnet`). Each domain validates against its own request type and
@@ -529,10 +635,12 @@ registered tool is now structured; the three batch tools were removed rather tha
   runs an optional semantic validator). It applies the strict rules above plus
   `RespectNullableAnnotations` and a rule that every settable member is required, except a member
   declared `[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]`. A rejected payload
-  throws `JsonException`, which the decoders turn into `protocol_error`. Required-member checks
-  also apply inside nested objects and collection elements. Nullable annotation enforcement does
-  not check collection elements, dictionary values or generic arguments, so the typed validators
-  keep their null-element checks alongside their semantic rules.
+  throws `JsonException`, which the decoders turn into `protocol_error`. The rule applies to a
+  payload whose root writes explicit nulls, so the reader refuses (`InvalidOperationException`) a
+  root type, or an array root's element type, that carries `[LegacyNullOmission]`: that payload
+  omits nulls on the wire and cannot be read with required members. The reader does not check
+  collection elements, dictionary values or generic arguments, so the typed validators keep their
+  null-element checks alongside their semantic rules.
 - A member the worker legitimately omits is conditional, marked `WhenWritingNull` and described
   in `ConditionalMemberRegisterTests`. This includes optional I/O/pagination and Network connection
   evidence, and the carried partial `ConfigureNetworkDeviceOutcome` and `HmiWriteOutcome`;
@@ -1096,10 +1204,58 @@ work can use the preserved evidence, but cannot call the retired qualification r
 hardware compile was induced in that qualification; a known post-commit failure must not be
 reported as rollback.
 
+### PROFINET IO-system creation (`create_io_system`, not live-tested)
+
+`create_io_system` is a classic `network_write` operation, not a hardware-module one: the catalog
+spec and `ValidateCreateIoSystem` (kind `node`, optional `ioSystem: { name }`), node resolution by
+`NetworkIdentityResolver` exactly as for `configure_network_device`, info guards in
+`NetworkIoSystemGuards`, dispatch through `OpennessWorkerClient.CreateIoSystemAsync` (worker method
+`NetworkIoSystemMethods.CreateIoSystem`, `WorkerRequest.NewIoSystemName`), the typed result
+`CreateIoSystemResultInfo` in `NetworkPayloadContract`. The worker's `IoSystemCreationService` takes
+the node's owning interface, its first `IoController` and binds `IoController.CreateIoSystem(String)`
+at runtime (`api_member_missing` when absent), then reads the new IO system back from its subnet.
+
+### Hardware-module seam (racks, slots, parameters, I/O addresses)
+
+The hardware-module operations reuse `network_read`/`network_write` and the guarded pipeline;
+they add no tool. `HardwareModuleMethods` (Contracts) lists their worker methods, which feed
+`OperationPolicyCatalog` (reads `Observe`, writes and `export_io_map` `ProjectMutation`),
+`ProjectCapabilityCatalog.OperationFor` (mapped to `network_read`/`network_write`, so local
+sessions are covered by the existing rows) and one worker dispatch line. Parameters travel in
+`WorkerRequest.HardwareModule`. On the host, `NetworkOperationCatalog.HardwareModules.cs`
+validates, `HardwareModuleInvoker` maps requests (move/copy default their destination to the
+current parent), `HardwareModuleWritePlanner` plans from the call's hardware snapshot plus the
+planning reads `probe_hardware_plug`, `read_hardware_attributes` and `list_io_addresses` and fires
+the info guards, `HardwareModulePayloadContract` declares one result type per operation, and
+`NetworkWriteEffect.Hardware` (conditional) carries the effect evidence. The worker's
+`HardwareModuleService` resolves devices through `ProjectDeviceNameMatcher` and device items through
+`NetworkObjectSelectorResolver`, calls the documented typed members declared in the stubs, binds
+`DeviceItem.ChangeType`, `SetAttributes(..., AttributeDelegate)`, `Project.HwUtilities` and the
+`PlugLocation` properties by reflection (their return, declaring or property types are not
+documented) and reads every result back. `export_io_map` is a host-only file write over
+`read_hardware_config`. `read_address_occupancy`/`find_free_address` (`plc_read`) are host
+computations in `PlcAddressSpace` over `list_tag_tables` and `read_hardware_config`; `move_tag`
+(`plc_write`, worker method of the same name, `WorkerRequest.TagMove`) is a guarded re-create in
+`TagMutationService`. See the [hardware-modules reference](SupportedOperations/HARDWARE_MODULES_SUMMARY.md);
+none of it is live-tested.
+
+The `plc_read` program analysis (`get_call_tree`, `find_call_paths`, `find_unused_blocks`,
+`find_orphaned_instance_dbs`, `analyze_change_impact`; `PlcAnalysisMethods` in Contracts, `Observe`,
+no worker method of their own) is a host computation in `TiaMcpServer/PlcAnalysis/`. A
+`PlcAnalysisSession` per `plc_read` call reads the evidence once through existing worker methods —
+`browse_project_tree_v3_snapshot` (the inventory, `PlcProgramInventory`), one `read_cross_references`
+sweep per root block folder (PLC and software units; type folders for a type target, the tag member for
+a tag target) and, for instance DBs, `get_block_content` `xml` (`InstanceDbXml` reads `InstanceOfName`).
+`PlcProgramGraph` turns locations into edges only by `PlcAnalysisPolicy` (direction from `referenceType`
+`Uses`/`UsedBy`, relation from `access`; anything else is undirected evidence), and `PlcProgramAnalyzer`
+runs the bounded traversals (reachability from the OBs, then a second pass that marks what undetermined
+blocks lead to as undetermined, never unused). Pure and Siemens-free, so the tests run it on fixture data; not
+live-tested; see the [PLC operations reference](SupportedOperations/PLC_OPERATIONS_SUMMARY.md#program-analysis-plc_read).
+
 ## 8. Write safety
 
-Lifecycle, Network, PLC and HMI writes use the guarded single-call pipeline described below.
-Lifecycle read-write confirms every actual call; Network, PLC and HMI have no server elicitation. No
+Lifecycle, Network, PLC, HMI writes, `plc_download`, `plc_online_write`, `plc_tia_online` and `plc_station_upload` use the guarded single-call
+pipeline described below. Lifecycle, `plc_download`, `plc_online_write`, `plc_tia_online` and `plc_station_upload` read-write confirm every actual call; Network, PLC and HMI have no server elicitation. No
 tool uses safety tokens. Client permission prompts and accepted elicitation do not establish that a
 human saw the consequence.
 
@@ -1140,10 +1296,10 @@ creates, and one export per content item. It applies earlier items to an in-call
 
 | Guard | Severity | Fires when |
 | --- | --- | --- |
-| `plc_state_unverifiable` | block | The PLC inventory is incomplete, the update or delete target or what a delete removes is unreadable, the user-constant value an update replaces is unreadable, or the content cannot be exported |
+| `plc_state_unverifiable` | info (info since 2026-11-01: never stricter than TIA Portal; the item runs and TIA Portal decides) | The PLC inventory is incomplete, the update or delete target or what a delete removes is unreadable, the user-constant value an update replaces is unreadable, or the content cannot be exported |
 | `plc_ob_singleton_exists` | block | `create_block` creates an OB of a singleton event class whose number an OB already holds, or an earlier item in the call creates (kept: Portal's own rejection was not reachable through the tool) |
 | `plc_deletes_block` | info | `delete_block` removes the block and its content |
-| `plc_deletes_group_contents` | info | `delete_block_group` removes every block and group inside it |
+| `plc_deletes_group_contents` | info | `delete_block_group`, `delete_type_group`, `delete_tag_table_group` and `delete_software_unit` remove every object and group inside the group or unit |
 | `plc_deletes_table_contents` | info | `delete_tag_table` removes its tags and user constants |
 | `plc_address_overlap` | info | The requested logical address is already used by another tag (exact string match) |
 
@@ -1183,16 +1339,237 @@ devices and fails `target_ambiguous` on several matches; the shared target resol
 [PLC operations summary](SupportedOperations/PLC_OPERATIONS_SUMMARY.md#plc-writes-plc_write) has the
 operation fields and known limits.
 
+For TIA Portal V21 pitfalls reported by rickgaiser/TiaMcp (not verified on V21), block overwrites
+carry three informative guards (`plc_s7dcl_import_may_alter`, `plc_textual_interface_overwrite_may_terminate`,
+`plc_save_before_write_recommended`). The worker's `BlockExportLedger` counts block exports per
+binding (reset by `TiaPortalSession.SetActiveContext`; known zero only for a root the worker opened);
+planning reads it through the Observe worker method `get_block_export_state` (gated as `plc_write`,
+no public operation). A SIMATIC SD import with findings gets an `s7dclConstructs` verification entry
+from the Siemens-free `S7dclImportHazards` (Contracts). See
+[V21 pitfalls](SupportedOperations/V21_PITFALLS.md).
+
 The earlier token-bound tag and project-tree safety snapshots (PR 5 and PR 6) were removed with the
 token core. Their live evidence remains historical; see the
 [tag](SupportedOperations/PLC_OPERATIONS_SUMMARY.md#tag-safety-acceptance-boundary) and
 [project-tree](SupportedOperations/PLC_OPERATIONS_SUMMARY.md#project-tree-safety-acceptance-boundary)
 acceptance boundaries.
 
+### PLC download (`plc_download`)
+
+`PlcDownloadWriteDomain` (`TiaMcpServer/PlcDownload/`) is a single-item domain with
+`ConfirmsEveryCall=true`, exactly like lifecycle: read-write asks once per actual call (re-planning
+after acceptance and refusing changed consequences), full runs under policy, and a dry run stops at
+`preview` without touching the target. Downloads to real hardware are allowed: the access mode is the
+human's control, and blocks remain only for invalid, ambiguous or unresolvable input. Planning reads
+only the offline `plc_read` operation `list_download_targets` (`Observe`); `PlcDownloadPathResolver`
+resolves mode → PC interface → target interface exactly, choosing a target only when exactly one
+exists. Guards, both acknowledge and legal because the domain confirms every call (registered like
+lifecycle, not through `WriteGuardCatalog.NonInteractive`): `download_to_hardware` (any PC interface
+other than ordinal `PLCSIM`) and `download_stops_plc`. Host validation also refuses malformed caller
+`decisions`/`passwords` (`PlcDownloadPolicy.ValidateDecisions`) and a `passwords` environment variable
+that is not set in the server's environment (the worker inherits it); binding redacts a `passwords`
+value that is not a variable name. The worker method `plc_download` (`OnlineControl`) re-validates the
+request (`PlcDownloadPolicy.ValidateWorkerRequest`), re-resolves the exact names on the same
+`DownloadProvider` instance that downloads (refusing several equally named PC interfaces when no
+number was supplied), answers callbacks through the Siemens-free `PlcDownloadCallbackRecorder`
+with `PlcDownloadDecisionSet` (password entry, else caller decision, else built-in default, else
+abort) and `PlcDownloadReflectionAccess` (generic `CurrentSelection`/`Checked`/`SetPassword(SecureString)`
+by reflection on the runtime object, fail-closed; shared with the FakeWorker), feeds the same recorder
+from an `OnlineLegitimation` handler on the download provider's `ConnectionConfiguration` (phase
+`online_legitimation`, subscribed before `Download` and removed in `finally`), where a
+`TlsVerificationConfiguration` is answered only by the Siemens-free `PlcTlsTrustPolicy` from the caller's
+`trustedCertificates` (`Trusted` only when every presented certificate's SHA-256 is listed, otherwise
+`NonTrusted` and an abort with the certificate evidence; no default trust, never
+`EnableLegacyCommunication`), answers TIA Portal confirmations raised meanwhile by the call's policy and
+records them, and never runs inside a transaction. Failure evidence after `Download` travels as `WorkerResponse.PlcDownloadOutcome`
+payload text and is decoded with the strict reader, which also checks every applied answer against
+the planned decision set and its `source`. The result never claims completion
+(`completionVerified:false`) and never contains a password. Stub enums carry no member values; the
+worker resolves selections and options by name at runtime. Not live-tested; see the
+[PLC download reference](SupportedOperations/PLC_DOWNLOAD_SUMMARY.md) for the contract, decisions,
+passwords and member provenance.
+
+### PLC online writes (`plc_online_write`)
+
+`PlcWebApiWriteDomain` (`TiaMcpServer/PlcWebApi/`) runs on its own `WriteExecution`, owned by
+`PlcWebApiService`, with `ConfirmsEveryCall=true` like lifecycle and `plc_download`: read-write asks
+once per actual call (one prompt shows the acknowledge guards, then every item's effect with its
+target, address and Web API method and the `operationId` last; tag values in full up to 512
+characters, longer ones as length and SHA-256), full runs under policy, and a dry run stops at `preview`. The call is not
+bound to a TIA project, so the domain passes `PlcWebApiWriteGate.Strategy`, which pins one fixed
+not-project-bound snapshot (`unbound`, binding id `plc-online`) without a worker call; the gate's
+lease runs one `plc_online_write` call at a time. A project rebind can therefore never invalidate a
+pending confirmation, while the re-plan after acceptance still compares the consequence document.
+Planning is offline (configured target, normalised input, local backup files with size and SHA-256),
+so a dry run never contacts a PLC. Guards are all acknowledge (`PlcWebApiGuardDefinitions`, deliberately
+not `WriteGuardCatalog.NonInteractive`): `online_changes_real_controller` on every call,
+`operating_mode_stop` for STOP and `restore_backup_replaces_program`. Items mutate in order through
+`PlcWebApiService.CallAsync` (one session per target, created once through `Lazy<Session>`; calls to one
+target run one at a time under that session's cancellable turn; one re-login and retry when a single
+request is refused for missing permission, never for the ticket download of `create_backup` or for
+`restore_backup`); the first failure stops the call and a failed item carries the PLC's error and
+partial evidence in its `result`. There is no verification read. `PlcWebApiAuditSink` writes the
+pipeline's record to the shared stream with `recordKind:"plc_online"` and null `projectPath`/`binding`.
+The Siemens client is confined to `SiemensPlcWebApiClient` behind `IPlcWebApiClient`; it builds one
+`HttpClient` per target (certificate policy, timeout, no proxy) instead of using the library's factory
+and its process-wide certificate callback, and translates every library exception by recorded error
+code, HTTP status and type. Not live-tested; see the
+[PLC online reference](SupportedOperations/PLC_ONLINE_WEBAPI_SUMMARY.md).
+
+`plc_online_read` `read_watch_table_live` (`PlcWebApiTableReader`) is the one Web API operation that
+also uses the Openness worker: the tool method takes `OpennessWorkerClient` from DI, checks the configured
+target, then `RequireVerifiedBindingAsync`, reads the table offline (`read_watch_table` or
+`list_tag_tables`, plus the PLC's tag inventory) and reads the mapped names through the `read_tags` loop
+(`PlcWebApiReader.ReadNamesAsync`). `PlcWebApiSymbolMapping` maps entries only by rules evidenced in the
+Siemens client source or the reference; others are reported unmapped and never sent.
+
+### PLC online Openness (`plc_tia_online`, `plc_station_upload`, compare, watch/force tables)
+
+`PlcOnlineWriteDomain` and `PlcStationUploadWriteDomain` (`TiaMcpServer/PlcOnline/`) are single-item domains with
+`ConfirmsEveryCall=true`. `plc_tia_online` plans from the offline `plc_read` operation `get_online_state` and resolves
+mode → required PC interface → target interface exactly (`PlcOnlinePathResolver`); the worker
+(`Openness/PlcOnline/PlcOnlineService`) re-resolves the names on the same `OnlineProvider` instance, then calls
+`ApplyConfiguration`, `GoOnline()` and polls `State` (`PlcOnlinePolicy.Wait`, 200 ms) until `Online`, a terminal
+failure state or the caller's timeout; `go_offline` calls `GoOffline()` and polls for `Offline`. `plc_station_upload`
+(`ProjectMutation`) resolves mode and PC interface on the same `StationUploadProvider`, creates the address and calls
+`StationUpload`. Both answer callbacks through the Siemens-free `PlcCallbackRecorder` (Contracts, shared with the
+FakeWorker): caller `decisions` (type short name → enum member name) and `passwords` (type short name → environment
+variable name; the value never crosses the protocol); a `TlsVerificationConfiguration` only from the caller's
+`trustedCertificates` through the same `PlcTlsTrustPolicy` as `plc_download` (also for `compare_to_online`; station
+upload registers the `OnlineLegitimation` handler on its provider's configuration and shares one recorder for both
+namespaces); anything else aborts with the available selections. Evidence travels on `WorkerResponse.PlcDownloadOutcome`, now the generic online-action evidence channel (each domain decodes it
+with its own contract). Both tools take `portalConfirmations` like `plc_download`: the dispatch opens
+`TiaPortalSession.AnswerConfirmations` with a `PlcDownloadPortalConfirmationLog`, the services close it before copying the
+evidence, declined dialogs fail the call; `compare_to_online` runs in a fixed-No scope. `passwords`/`decisions` bind
+through the download's redacting argument maps. Guards are info only
+(`online_hardware_target`, `online_disconnects`, `station_upload_adds_device`). The compare and watch/force table
+operations run through `plc_read`/`plc_write` (`Openness/PlcOnline/PlcCompareService`, `PlcWatchTableService`):
+compare trees are projected Siemens-free (`PlcOnlinePolicy.ProjectTree`) with depth/element caps; watch/force table
+entries are read by reflection and `GetAttribute` (no entry type is documented) and edited only through the SimaticML
+export/import round trip behind `expectedContentHash`. Not live-tested; see the
+[PLC online reference](SupportedOperations/PLC_ONLINE_OPENNESS_SUMMARY.md) for operations, caps and member provenance.
+
+### Libraries (`library_read`, `library_write`)
+
+`TiaMcpServer/Library/` holds the catalog (`LibraryCatalog`: field specifications, selector, path, name and enum-name
+validation; one item type for both tools like VCI), the read tool on `BatchReadTool` with one result type per
+operation (`LibraryPayloadContract`), and `LibraryWriteDomain` on the guarded pipeline. Planning sends every item to the
+worker's non-mutating `library_plan` (`Observe`); an item on a library that an earlier item of the call touches
+(`LibraryCatalog.LibraryKey`/`Key`, instantiation and updates also touch the project library) is planned with
+`DependsOn` and re-planned just before its mutation. `ConfirmsEveryCall` is computed from the validated items: true
+exactly when the call contains a global-library lifecycle item (open, retrieve, create, save, close), so read-write
+asks once for such a call and never for content items; full runs under policy. Every write item runs, like
+`plc_download`, inside `TiaPortalSession.AnswerConfirmations` opened by `Program.Library` with the item's
+`portalConfirmations` policy (`decline` default, `accept`) and a `PlcDownloadPortalConfirmationLog`
+(`LibraryConfirmationScope`); the service closes the scope before it copies the evidence into
+`LibraryWriteResultInfo`, after which it lingers until the next worker request like plc_download's (failures carry it on
+`WorkerResponse.PlcDownloadOutcome`), the host validates it with plc_download's rules, fails an item with declined
+dialogs and warns for accepted ones. Guards are info only (`LibraryGuardDefinitions`) except the block
+`library_close_unsaved_changes`: the documented `Close()` has no save-or-discard argument and no documented member
+reports unsaved changes, so the host keeps `LibraryUnsavedChanges` (per worker client, by normalized path: content
+changes this server made, forgotten on save, close or a fresh open) and refuses a close that no save covers;
+verification is the shared `TrustedWriteVerifier` with `LibraryVerificationPolicy`
+(no read-back: the worker mutation reads back renames, deletes, close and the default flag and fails
+`postcondition_failed` otherwise). The worker (`Openness/Libraries/`, dispatch in `Program.Library.cs`) resolves
+selectors on `Project.ProjectLibrary` and the enumeration of `TiaPortal.GlobalLibraries` (`WithActiveContext`,
+standalone only) and binds every member whose return, declaring or collection parameter type the sources do not
+document at runtime through the Siemens-free `LibraryRuntimeBinding` (Contracts): exact documented name and argument
+types on the live object, exactly one applicable public member, otherwise `unsupported_capability` before any call;
+stub enums declare no values and are parsed by exact name. The FakeWorker scenario `library-roundtrip` models the
+object access end to end. Not live-tested; see the [library reference](SupportedOperations/LIBRARY_OPERATIONS_SUMMARY.md)
+for operations, provenance, left-out operations and the live acceptance list.
+
+### External sources, project-tree folders, file exports and the accessible-device scan
+
+These are `plc_read`/`plc_write` operations; they add no tool. `PlcSourceFolderMethods` (Contracts) lists the worker
+methods (`list_external_sources` and `read_tag_comments` `Observe`, `scan_accessible_devices` `OnlineObserve`, fifteen
+`ProjectMutation` writes: the external-source writes, four group renames, type and tag-table group create/delete and
+software unit create/delete/rename) and the host-only operations (`find_objects` `Observe`; the four file exports `ProjectMutation`, like
+`export_io_map`); they feed `OperationPolicyCatalog`, `ProjectCapabilityCatalog.OperationFor` (worker methods map to
+`plc_read`/`plc_write`, the scan stays on the standalone list) and one dispatch line (`Program.SourcesFolders.cs`).
+Parameters travel in `WorkerRequest.PlcSourceFolder`. The host side is partial-class extensions of the PLC types
+(`PlcOperationRequest.SourcesFolders.cs`, `PlcOperationCatalog.SourcesFolders.cs`, `PlcWorkingState.SourcesFolders.cs`,
+`PlcWorkingState.Containers.cs`)
+plus `PlcSourceFolderOperations` (dispatch and the one result type per operation), `PlcObjectFinder` (find over the
+tree snapshot, `list_watch_and_force_tables` and `list_external_sources`) and `PlcFileExports` (CSV and
+`export_blocks` from existing reads, files written by the Siemens-free `PlcFileTargets` in Contracts: temporary file in
+the target directory, rename, re-read and SHA-256, UNC shares allowed, device paths refused). The planner reads the external sources and
+the PLC tree only for the items that need them and applies earlier items (imports, creates, deletes, renames) to the
+working state; later items that address a created, renamed or deleted software unit, tag table folder or PLC data type
+group carry `dependsOn` on it. The worker services (`PlcExternalSourceService`, `PlcGroupRenameService`, `PlcContainerService`, `PlcTagCommentService`,
+`PlcAccessibleDeviceService`) use the
+existing resolvers; renames go through the generic `SetAttribute("Name")` after a `GetAttributeInfos` writability check
+with read-back (`LibraryReflection.Rename`), and `GetAccessibleDevices()` with its undocumented return and member
+types is bound at runtime by the Siemens-free `PlcAccessibleDeviceProjection` (Contracts). The FakeWorker scenario
+`source-folders` models the payloads. Not live-tested; see
+[PLC_SOURCES_FOLDERS_SUMMARY.md](SupportedOperations/PLC_SOURCES_FOLDERS_SUMMARY.md).
+
+### PLC alarms, alarm classes, text lists, supervisions and ProDiag (`plc_read`, `plc_write`)
+
+The six reads and sixteen writes are `plc_read`/`plc_write` operations (`PlcAlarmMethods`, Contracts) whose worker
+methods carry the public names and whose parameters travel in `WorkerRequest.PlcAlarm`; the tool surface stays 11/30/30.
+Host code lives in `TiaMcpServer/PlcAlarms/`: the catalog partial `PlcOperationCatalog.Alarms.cs` (field sets and shape
+rules, including "a cell update cannot follow another change of the same PLC in one call"), `PlcAlarmPayloadContract`
+(one declared result type per operation; TIA Portal confirmation evidence checked and declined dialogs failing the item),
+the working-state partial `PlcWorkingState.Alarms.cs` (text list targets from one `list_text_lists` read per PLC, system
+lists refused also in a cell update's `textListNames`, rename collisions refused, dependent re-planning after an earlier
+import), `PlcAlarmPlanning` (the worker plan `plc_alarm_plan` of every write item, which binds every Siemens member before
+anything runs and reports the caller path as the worker's file system sees it; the alarm-class capability check; for cell
+updates one probe read that checks `expectedWorkbookHash` and every `expected` cell value) and `PlcAlarmVerification`
+(`textList`, `cells`, `file`, `directory`, `proDiagAssignment` read-backs; imports judged by the worker's re-export of a
+private copy: `verified`, `contradicted` (`notVerified`), `inconclusive` or `notReadBack` (`trusted` with a warning); later
+block and type changes supersede alarm-text, supervision and assignment items, later tag changes supervision and
+assignment items). Workbook reads of one `plc_read` call share the document budget (`PlcAlarmRequests.CallResultBudget`);
+`update_text_list_cells` requires `textListNames`, so its round trip never re-imports system list rows. The common
+alarm classes are project-wide: the planner resolves no PLC for them and `ProjectCapabilityCatalog` gives them their own
+`standaloneOnly` rows. The worker (`Openness/PlcAlarms/`, dispatch `Program.PlcAlarms.cs`; writes use `WithActiveContext`
+for `TiaPortal.ExclusiveAccess`) resolves and binds everything in `PlcAlarmTransfers` before the first call and answers
+TIA Portal dialogs by the item's `portalConfirmations` (reads always No). The orchestration is the Siemens-free
+`PlcAlarmWorkbookRun` (Contracts), which the FakeWorker scenario `plc-alarms-roundtrip` runs too: temporary files and
+directories (stale ones swept), result states, the cell patch of `XlsxCellWorkbook` (package parts per ISO/IEC 29500, a
+hash over cells only, budgeted paging by row and, for a row wider than the budget, by column, header-mapped row
+comparison, patches that rewrite only the edited worksheets and the shared string table, every part charged to one
+decompression budget), verification re-exports that never fail the import (the worker turns a recoverable Siemens failure
+of the re-export into an inconclusive outcome), and caller files through `PlcAlarmFiles` (lexical
+checks by the shared `LocalFilePaths`, temporary file in the target directory, move, no overwrite unless asked, never
+through a link, re-hash). Not live-tested; see the [PLC alarms and text lists reference](SupportedOperations/PLC_ALARMS_TEXTLISTS_SUMMARY.md).
+
+### Technology objects (`plc_read`, `plc_write`)
+
+Technology objects are `plc_read`/`plc_write` operations (`TechnologyObjectMethods` in
+`TiaMcpServer.Contracts/Plc/TechnologyObjects`), so the registered surface is unchanged. The host part lives in
+`TiaMcpServer/Plc/TechnologyObjects/` as partial classes of the PLC domain: the field set
+(`PlcOperationRequest.TechnologyObjects.cs`), the specifications and shape rules merged into the catalog through
+methods (no cross-file static initialization order), the documented `Connect` overload matrix
+(`TechnologyObjectPolicy.Allows`), one declared result type per operation (`PlcTechnologyObjectPayloadContract`,
+through the worker-payload reader), the working state (`PlcWorkingState.TechnologyObjects.cs`: one
+`list_technology_objects` read per PLC and call, earlier items applied, a later item on an object an earlier item
+created or an earlier import may have created carries `DependsOn`), the planning reads
+(`PlcTechnologyObjectPlanning`: the current parameter value, refused when the requested value does not convert to its
+runtime type; the current interface state, refused when missing or ambiguous; a host check of an existing export file),
+six informative guards (the shared `plc_state_unverifiable` block still applies to an incomplete inventory or a
+failed planning read) and the read-back checks of `PlcVerificationPolicy.TechnologyObjects.cs`
+(`technologyObjectParameter`, `technologyObjectConnection` with the requested target, `technologyObject`,
+`technologyObjectGroup`; a content update uses the shared `contentHash` re-export). The Siemens-free evidence rules
+(`TechnologyObjectConnectionEvidence`, `TechnologyObjectPolicy` endpoint selection, `Connect` overloads, caller-file
+rules) live in Contracts and are shared by the worker, the FakeWorker and the host. The worker (`Openness/TechnologyObjects/`, dispatch in
+`Program.TechnologyObjects.cs`, `WithEngineeringRoot`) walks `PlcSoftware.TechnologicalObjectGroup` by exact
+enumeration and binds every TO-specific member at runtime: the V21 reference names members and parameter types but no
+return or property type, so `TechnologyObjectRuntime` uses `LibraryRuntimeBinding` (exactly one applicable member or
+`unsupported_capability`) and finds connection providers among the types `IEngineeringServiceProvider.GetServiceInfos()`
+lists (taken from the interface type and checked against the documented signature at runtime), retrieving them
+with `IServiceProvider.GetService(Type)`. Parameter values are
+typed by the runtime type of the current value and written converted to exactly that type
+(`TechnologyObjectValues`, Contracts, shared with the FakeWorker); every write is read back by the worker
+(`postcondition_failed` otherwise) and again by the host verifier. The FakeWorker scenarios `technology-objects` and
+`technology-objects-silent` (writes that change nothing) model the object access end to end. Not live-tested; see the
+[technology object reference](SupportedOperations/TECHNOLOGY_OBJECTS_SUMMARY.md) for operations, provenance, left-out
+operations and the live acceptance list.
+
 ### Guarded write pipeline (foundation and lifecycle)
 
 `TiaMcpServer/Safety/Pipeline/` holds the single-call write pipeline that replaced the token flow.
-The six lifecycle tools, `network_write`, `plc_write`, `hmi_write` and `vci_write` use it. Network, PLC, HMI and VCI have no server
+The seven lifecycle tools, `network_write`, `plc_write`, `hmi_write` and `vci_write` use it. Network, PLC, HMI and VCI have no server
 elicitation; lifecycle read-write confirms every actual call.
 The pipeline is a consistency and safety mechanism. Client-returned acceptance and mode policy
 are recorded separately; client acceptance does not prove that a person saw the consequence.
@@ -1214,7 +1591,11 @@ A successful item is `superseded` by a later attempted item's equal key or conta
 that later failure was a precondition refusal with no result. A non-null failed-item result keeps
 the possibility of mutation even for a normally precondition-only category such as `target_not_found`
 (the HMI R1 case). Such a failure, or a later `engineering_rejected`, can supersede an earlier item;
-the diagnostic says that final state is unverified. Otherwise,
+the diagnostic says that final state is unverified. A superseding later item that completed says "the
+final state is verified there" only when the policy reads it back (`HasReadBack`); a later trusted item says
+the object's final state is not verified and names the read tool, unless the policy's
+`SupersessionEvidence` names what the later item means for the object (the PLC source, folder and unit
+operations: re-read at the renamed path, removed, possibly overwritten). Otherwise,
 a policy read-back runs for succeeded or failed items that have one; successful items without one
 are `trusted`, and failed items without one have no entry. Skipped items have no entry.
 `WriteVerification` contains `{success,operations,omission}` with per-entry
@@ -1248,6 +1629,16 @@ Pipeline stages, in order:
    Block guards refuse without prompting. Read-write lifecycle asks once for every actual call;
    full uses policy without server elicitation. After an accepted prompt, re-plan and re-evaluate
    under the same binding lease before dispatch: the TIA UI can edit while the prompt is visible.
+   The prompt puts the acknowledge guard messages first, one line each, then the domain's
+   `DescribeForConfirmation`, which states the effect before any caller-supplied value and quotes
+   those values with `ConfirmationText.Quote` (a JSON string literal; control, line/paragraph
+   separator and Unicode format characters such as bidirectional overrides escaped). The pipeline
+   escapes every guard line and every such character in the description except its own line feeds,
+   and an `operationId` containing them is refused as `validation_error`
+   (`WriteExecution.UnsafeOperationIdMessage`) before `Validate` when the domain confirms every call,
+   right after `Validate` (a domain such as `library_write` knows `ConfirmsEveryCall` only from its
+   validated items) and immediately before any prompt, whatever made the call ask, so no domain
+   prompts without the check.
 6. **Mutate** sequentially. The first item that does not succeed stops the call; later items are
    `skipped`. A domain that declares `DependsOn` re-plans that item just before its own mutation;
    HMI plans declare no dependencies and use their initial caller-order simulation; VCI leaves later
@@ -1264,7 +1655,7 @@ read-write or mode policy in full. Every actual read-write lifecycle call asks o
 info-only calls and calls without guards. Missing capability, decline, cancel, timeout, transport
 failure, or acceptance without boolean `confirm:true` denies with `access_denied`. Block guards
 stop mutation in every mode; dry runs report guards without mutation or prompting.
-Network, PLC, HMI and VCI guard sets are built with `WriteGuardCatalog.NonInteractive`, so an acknowledge guard there fails at type initialisation; only lifecycle uses acknowledge.
+Network, PLC, HMI and VCI guard sets are built with `WriteGuardCatalog.NonInteractive`, so an acknowledge guard there fails at type initialisation; only lifecycle, `plc_download` and `plc_online_write` (all confirming every call) use acknowledge; `plc_tia_online` and `plc_station_upload` confirm every call with info guards only.
 
 A dry run reports `acknowledged:false` for acknowledge guards in read-write and `true` in full,
 while guard audit satisfaction remains null and confirmation is `none/not_requested`. Info/block
@@ -1328,11 +1719,18 @@ is `state_changed`, and the comparison is recorded as a `contentHash` preconditi
 ## 9. Diagnostics
 
 `tia-mcp doctor` runs the environment diagnostic pipeline without starting the
-MCP host. It supports text or JSON output and reports the resolved access mode.
+MCP host. It supports text or JSON output and reports the resolved access mode
+with its source and the settings file (`accessModeSource`, `settingsFile` in JSON).
 The command accepts the same access-mode options as normal startup, in addition
-to `TIA_MCP_ACCESS_MODE`.
+to `TIA_MCP_ACCESS_MODE` and the server settings file, with the same precedence.
 
-Doctor never attaches to TIA Portal or opens a project. Its project-binding check
+Doctor never attaches to TIA Portal or opens a project, and never contacts a PLC. Its optional
+`plc-webapi-config` check parses the target file the server would load (`--plc-webapi-config` or
+`TIA_MCP_PLC_WEBAPI_CONFIG`) with the server's loader, lists the targets and reports only whether each
+target's credential variables are set; an invalid file fails, validation `none` or an unset variable
+warns. Its optional `plcsim-advanced` check reports
+the PLCSIM Advanced API directory resolution (environment override or registry plus highest version
+folder), whether the DLL exists and whether the PLCSIM worker is present, without loading the DLL. Its project-binding check
 validates an absolute, existing `.ap21` file but reports a warning because no live
 project match was inspected. Its process check uses the Windows process list:
 one detected process can pass that process-only check, while multiple processes
@@ -1347,6 +1745,16 @@ the test assembly, allowing policy, parsing, tool metadata, PLC and network
 catalog/invoker behavior, diagnostics, and IPC behavior to be tested on .NET 10 without a
 live TIA Portal installation. `TiaMcpServer.FakeWorker` covers the linked-source network
 requests and forwarded worker methods without a live TIA Portal installation.
+
+The PLCSIM worker's Siemens-free operation logic, test runner and reflection binding are linked
+too and run against an in-memory `IPlcSimRuntime` fake and stand-in API types reached through the
+same type lookup; production-surface tests route PLCSIM tools through the real worker dispatcher
+in-process. No test loads a Siemens PLCSIM assembly.
+
+The Web API domain runs against `FakePlcWebApiWorld`, an in-memory `IPlcWebApiClient` stand-in
+registered in the production-surface harness, and the real Siemens client is exercised offline
+through a scripted `HttpMessageHandler` (request shapes, parsing, error mapping, certificate policy).
+No test contacts a PLC.
 
 `TiaMcpServer.FakeWorker` exercises persistent transport behavior. Fake service
 implementations isolate filesystem, registry, process, identity, and diagnostic

@@ -74,3 +74,4 @@ mcp-inspector-tia.json
 # Isolated implementation workspaces
 .worktrees/
 .superpowers/
+.verify/

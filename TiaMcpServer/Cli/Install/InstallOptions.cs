@@ -10,5 +10,4 @@ public sealed record InstallOptions(
     bool DryRun,
     bool Json,
     bool Help,
-    string? ParseError,
-    int ParseErrorExitCode = 2);
+    string? ParseError);

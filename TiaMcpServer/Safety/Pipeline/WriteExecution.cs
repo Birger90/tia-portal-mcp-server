@@ -24,6 +24,15 @@ public sealed class WriteExecution
         "This call stopped at this operation before it was changed. Earlier operations in the same call "
         + "stay applied; no rollback was attempted. Re-read the affected objects before retrying.";
 
+    /// <summary>
+    /// The refusal of a write that prompts the human while one of its operationIds contains a character a prompt line could
+    /// be broken or reordered with. Applied before Validate when the domain confirms every call, after Validate (a domain
+    /// may decide from its validated items) and immediately before any prompt, so no domain prompts without it.
+    /// </summary>
+    public const string UnsafeOperationIdMessage =
+        "Each operationId of a confirmed write must not contain control characters (such as CR, LF or TAB), "
+        + "line or paragraph separators, or Unicode format characters (such as bidirectional or zero-width characters).";
+
     /// <summary>A successful dispatch is preserved when its required postcondition cannot be verified.</summary>
     public const string VerificationFailureMessage =
         "The write may already have changed TIA state, but its result could not be verified. "

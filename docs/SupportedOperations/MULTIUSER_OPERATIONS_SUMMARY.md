@@ -1,8 +1,10 @@
 # Multiuser local sessions, inventory and acceptance boundary
 
+**Language:** English · [Deutsch](MULTIUSER_OPERATIONS_SUMMARY.de.md)
+
 `bind_project` exposes explicit Portal discovery and five Project Server inventory actions in
 all modes. Omitted/null `action` or `action:"bind"` selects already-open standalone `.ap21`
-or typed local-session `.amc21` owners. Current discovery is **8/19/19** tools in
+or typed local-session `.amc21` owners. Current discovery is **11/30/30** tools in
 read-only/read-write/full. PR4 adds explicit existing `.als21` opening in writable modes and
 basic local status; PR5 adds local content reads and PR6 local content writes, compilation and
 `LocalSession.Save()` (see [Internal context](#internal-context)). PR1/PR2 ownership contracts remain the foundation; Issue #65 is incomplete.
@@ -19,7 +21,7 @@ multiple matches returns `target_ambiguous`, without first-target fallback.
 
 | `action` | Allowed selectors | Result |
 | --- | --- | --- |
-| `list_portals` | None | Fresh candidates in `result.value.portals`; never adopts the sole open project. |
+| `list_portals` | None | Fresh candidates in `result.value.portals` (with `otherClientCount`); never attaches to a Portal it lists nor adopts the sole open project. |
 | `list_server_connections` | Optional `portalProcessId` | Configured alias, host and port; configuration does not prove connectivity/authentication. |
 | `list_server_groups` | Optional PID; required `serverAlias` | Exact endpoint's groups and connection observation. |
 | `list_server_projects` | Optional PID; required alias and `group` | Projects within the exact root or named group. |

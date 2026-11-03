@@ -8,7 +8,7 @@ that do not apply instead of leaving them unticked.
 
 ## Summary
 
-<!-- What changed and why. Describe the design here; cite working files as commit SHAs, they are deleted before merge. -->
+<!-- What changed and why. Link the design or plan document if there is one. -->
 
 ## Related issue
 
@@ -64,10 +64,8 @@ Live TIA Portal check (tick one; the first is required when the Openness worker 
 ## Documentation
 
 - [ ] User-visible changes are documented (`docs/guides/`, `docs/SupportedOperations/`)
-- [ ] Every new file under `docs/` is reachable from `docs/README.md`
-- [ ] No plan, spec or evidence file is left under `docs/superpowers/{plans,specs,evidence}/` (pruned in the last commit; raw Openness evidence promoted to `acceptance/reports/inputs/`)
-- [ ] A lasting decision is recorded as an ADR in `docs/adr/` (or: none)
-- [ ] Links added to `README.md` are absolute `https://github.com/Czarnak/tia-portal-mcp/blob/main/...` URLs
+- [ ] Every new file under `docs/` is listed in `docs/README.md`
+- [ ] Links added to `README.md` are absolute `https://github.com/Birger90/tia-portal-mcp-server/blob/main/...` URLs
 - [ ] `docs/ARCHITECTURE.md` is updated if the design changed, and open follow-ups are recorded in `docs/IMPROVEMENT_LOG.md`
 
 ## Notes for the reviewer

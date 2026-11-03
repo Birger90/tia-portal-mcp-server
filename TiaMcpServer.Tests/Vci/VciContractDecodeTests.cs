@@ -30,6 +30,7 @@ public sealed class VciContractDecodeTests
         var type = ResultType(typeName);
         var normalized = Normalize(type, json);
         var decoded = JsonSerializer.Deserialize(normalized, type, WorkerJson.ExplicitNullPayload)!;
+        Assert.False(WorkerJson.OmitsNullMembers(type));
         Assert.True(JsonNode.DeepEquals(JsonNode.Parse(json), JsonNode.Parse(WorkerJson.SerializePayload(decoded))));
     }
 
@@ -63,7 +64,7 @@ public sealed class VciContractDecodeTests
     {
         var outcome = Activator.CreateInstance(ResultType("VciWriteOutcomeInfo"))!;
         var exception = (WorkerOperationException)Activator.CreateInstance(typeof(WorkerOperationException),
-            WorkerFailureCategories.WorkerOperationFailed, "leaf failed", null, null, null, outcome, null, null)!;
+            WorkerFailureCategories.WorkerOperationFailed, "leaf failed", null, null, null, outcome, null, null, null)!;
         var property = typeof(WorkerOperationException).GetProperty("VciWriteOutcome");
         Assert.NotNull(property);
         Assert.Same(outcome, property.GetValue(exception));

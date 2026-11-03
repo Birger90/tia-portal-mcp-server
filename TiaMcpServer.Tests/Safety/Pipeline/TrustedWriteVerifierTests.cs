@@ -54,8 +54,14 @@ public sealed class TrustedWriteVerifierTests
     {
         var result = await Verify(Policy("x", "x", "x"), Outcome("a"), Outcome("b"), Outcome("c"));
         Assert.Equal("superseded", result.Operations[0].Check);
-        Assert.Equal("Operation 'a': superseded by later operation 'c' on the same object; the final state is verified there.", result.Operations[0].Message);
+        Assert.Equal("Operation 'a': superseded by later operation 'c' on the same object; the later operation completed without rejection but is not read back, "
+            + "so the object's final state is not verified; inspect it with fake_read.", result.Operations[0].Message);
         Assert.Equal("trusted", result.Operations[2].Check);
+
+        var readBack = Policy("x", "x");
+        readBack.ReadBack.Add("b");
+        result = await Verify(readBack, Outcome("a"), Outcome("b"));
+        Assert.Equal("Operation 'a': superseded by later operation 'b' on the same object; the final state is verified there.", result.Operations[0].Message);
     }
 
     [Fact]
@@ -104,9 +110,29 @@ public sealed class TrustedWriteVerifierTests
         policy.ReadBack.Add("a");
         var failure = new StructuredOperationFailure("engineering_rejected", "rejected");
         var result = await Verify(policy, Outcome("a", "failed", failure));
-        Assert.Same(policy.Result, Assert.Single(result.Operations));
+        // K58: a failed item's read-back is never success true, whatever the domain's read-back said.
+        Assert.Equal(policy.Result with
+        {
+            Success = false,
+            Message = "Operation 'a' failed with engineering_rejected; the state read afterwards is reported, the operation is not verified.",
+        }, Assert.Single(result.Operations));
+        Assert.False(result.Success);
         Assert.Same(failure, policy.ObservedFailure);
         Assert.Equal(new[] { "a" }, policy.ReadBackCalls);
+    }
+
+    [Fact]
+    public void NeverVerifiedWhenFailed_KeepsAFailedEntryAndAnEntryOfASucceededItem()
+    {
+        var item = new FakeWriteItem("a");
+        var failure = new StructuredOperationFailure("engineering_rejected", "rejected");
+        var notVerified = new WriteOperationVerification("a", false, "read", null, "observed", "differs");
+        var verified = new WriteOperationVerification("a", true, "read", null, "observed", null);
+        var stated = new WriteOperationVerification("a", true, "read", null, "observed", "Operation 'a' failed with engineering_rejected; the state is reported.");
+
+        Assert.Same(notVerified, TrustedWriteVerifier<FakeWriteItem>.NeverVerifiedWhenFailed(item, failure, notVerified));
+        Assert.Same(verified, TrustedWriteVerifier<FakeWriteItem>.NeverVerifiedWhenFailed(item, null, verified));
+        Assert.Equal(stated with { Success = false }, TrustedWriteVerifier<FakeWriteItem>.NeverVerifiedWhenFailed(item, failure, stated));
     }
 
     [Fact]

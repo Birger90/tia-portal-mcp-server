@@ -1,4 +1,3 @@
-using System.Text.Json;
 using TiaMcpServer.Contracts.Json;
 using TiaMcpServer.Contracts.Network;
 using TiaMcpServer.Contracts.Project;
@@ -8,6 +7,7 @@ using TiaMcpServer.OpennessWorker.Openness.Network;
 using TiaMcpServer.Tests.TestSupport;
 using TiaMcpServer.Tests.Worker;
 using TiaMcpServer.Worker;
+using System.Text.Json;
 using Xunit;
 
 namespace TiaMcpServer.Tests.Network;
@@ -113,7 +113,11 @@ public sealed class NetworkConnectionEvidenceTests
     [Fact]
     public void WorkerCapture_WiresProductionDelegatesAndPreservesAllScopeOwners()
     {
-        var source = File.ReadAllText(RepositoryFiles.Path(
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName,
+            "TiaMcpServer.OpennessWorker", "Openness", "Network", "HardwareConfigReader.cs"))) directory = directory.Parent;
+        Assert.NotNull(directory);
+        var source = File.ReadAllText(Path.Combine(directory.FullName,
             "TiaMcpServer.OpennessWorker", "Openness", "Network", "HardwareConfigReader.cs"));
         Assert.Contains("result.RootDeviceCount = project.Devices.Count", source);
         Assert.Contains("NetworkConnectionEvidenceCapture.CaptureNode(", source);
@@ -164,7 +168,11 @@ public sealed class NetworkConnectionEvidenceTests
     [Fact]
     public void ProductionRelationshipDiagnostics_AreOwnedByTypedEvidence()
     {
-        var source = File.ReadAllText(RepositoryFiles.Path(
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName,
+            "TiaMcpServer.OpennessWorker", "Openness", "Network", "HardwareConfigReader.cs"))) directory = directory.Parent;
+        Assert.NotNull(directory);
+        var source = File.ReadAllText(Path.Combine(directory.FullName,
             "TiaMcpServer.OpennessWorker", "Openness", "Network", "HardwareConfigReader.cs"));
         Assert.DoesNotContain("messages.AddRange(nodeInfo.ConnectionEvidence.Messages)", source);
         Assert.DoesNotContain("messages.AddRange(subnetInfo.ConnectionEvidence.Messages)", source);
@@ -183,7 +191,8 @@ public sealed class NetworkConnectionEvidenceTests
     {
         var scenario = degraded ? "network-connection-evidence-degraded" : "network-connection-evidence";
         var binding = new ProjectSessionBinding(null);
-        using var client = FakeWorkerClients.Create(binding: binding);
+        using var client = new OpennessWorkerClient(binding, logger: null,
+            workerExecutablePath: FakeWorkerLocator.Locate());
         using var protector = AuthenticatedCursorProtector.CreateProcessScoped();
         var executor = NetworkReadTestFactory.Create(client, protector);
         await FakeWorkerBinding.BindVerifiedAsync(client, binding, scenario);

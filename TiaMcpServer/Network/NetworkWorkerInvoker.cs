@@ -26,6 +26,7 @@ public static class NetworkWorkerInvoker
             "inspect_network_object" => client.InspectNetworkObjectAsync(
                 MapSelector(operation.Target!),
                 operation.AttributeNames),
+            var name when HardwareModuleInvoker.Handles(name) => HardwareModuleInvoker.InvokeAsync(client, operation),
             _ => Task.FromResult(WorkerCallResult.Fail(
                 WorkerFailureCategories.ValidationError,
                 $"Unsupported network read operation '{operation.Operation}'.")),
@@ -109,6 +110,10 @@ public static class NetworkWorkerInvoker
                 operation.SubnetChanges?.TransmissionSpeed),
             "delete_subnet" => client.DeleteSubnetAsync(
                 operation.Target!.SubnetId!),
+            NetworkIoSystemMethods.CreateIoSystem => client.CreateIoSystemAsync(
+                MapSelector(operation.Target!),
+                operation.IoSystem?.Name),
+            var name when HardwareModuleInvoker.Handles(name) => HardwareModuleInvoker.InvokeAsync(client, operation),
             _ => Task.FromResult(WorkerCallResult.Fail(
                 WorkerFailureCategories.ValidationError,
                 $"Unsupported network write operation '{operation.Operation}'.")),

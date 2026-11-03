@@ -52,6 +52,9 @@ public sealed record WorkerCallResult(
 
     public VciWriteOutcomeInfo? VciWriteOutcome { get; init; }
 
+    /// <summary>plc_download failure evidence as worker payload text; decoded strictly by the download domain.</summary>
+    public string? PlcDownloadOutcome { get; init; }
+
     /// <summary>Host-observed request dispatch provenance; never serialized to callers.</summary>
     internal WorkerDispatchState DispatchState { get; init; } = WorkerDispatchState.Unknown;
 

@@ -543,7 +543,8 @@ public static class NetworkObjectSelectorResolver
             }
 
             if (!string.Equals(name, requestedSegment.Name, StringComparison.Ordinal)
-                || !string.Equals(typeIdentifier, requestedSegment.TypeIdentifier, StringComparison.Ordinal)
+                // K77: a null TypeIdentifier (integrated interfaces and ports) is the "" segment read_hardware_config reports.
+                || !string.Equals(typeIdentifier ?? string.Empty, requestedSegment.TypeIdentifier ?? string.Empty, StringComparison.Ordinal)
                 || requestedSegment.PositionNumber != positionNumber)
             {
                 return DeviceItemMatch.Fail(EvidenceMismatch(
@@ -554,7 +555,7 @@ public static class NetworkObjectSelectorResolver
             {
                 Index = requestedSegment.Index,
                 Name = name,
-                TypeIdentifier = typeIdentifier,
+                TypeIdentifier = typeIdentifier ?? string.Empty,
                 PositionNumber = positionNumber,
             });
             siblings = selected.DeviceItems;

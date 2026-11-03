@@ -93,14 +93,14 @@ public sealed class NetworkGuardedWriteBudgetTests(ITestOutputHelper output)
         else
         {
             var binding = new ProjectSessionBinding(null);
-            using var client = FakeWorkerClients.Create(binding: binding);
+            using var client = new OpennessWorkerClient(binding, logger: null, workerExecutablePath: FakeWorkerLocator.Locate());
             var before = CanonicalJson.Serialize(binding.CaptureSnapshot());
             reply = await NetworkGuardedWriteFixture.CreateRunner(client, audit.Path).RunAsync(new NetworkWriteDomain(client),
                 new WriteCall<NetworkOperationRequest>(operations, false));
             Assert.Equal(before, CanonicalJson.Serialize(binding.CaptureSnapshot()));
         }
         Assert.Empty(requests.Methods());
-        var root = CanonicalToolDocument.Read(reply);
+        var root = NetworkGuardedWriteMcpTests.Document(reply);
         Assert.True(reply.IsError);
         Assert.Equal("validation_error", root.GetProperty("error").GetProperty("category").GetString());
         Assert.DoesNotContain(operations[0].OperationId, root.GetRawText());
@@ -261,19 +261,61 @@ public sealed class NetworkGuardedWriteBudgetTests(ITestOutputHelper output)
         Assert.Equal("network_read", bounded.Omission.RetryTool);
         Assert.Equal(response.Batch!.Counts, bounded.Batch!.Counts);
         Assert.True(bounded.Verification!.Success);
-        Assert.False(bounded.Success);
+        // Only an omitted value (here: the verification entries over the item limit) turns success false; the diagnostic
+        // omission alone does not (K07).
+        var valueOmitted = bounded.Verification.Omission is not null || bounded.Effects.Any(e => e.Omission is not null)
+            || bounded.Batch.Operations.Any(i => i.Omission is not null);
+        Assert.Equal(!valueOmitted, bounded.Success);
         Assert.Equal(original, CanonicalJson.Serialize(response));
         Assert.InRange(CanonicalJson.Serialize(bounded).Length, 0, documentLimit);
+    }
+
+    /// <summary>
+    /// K07 (live 2026-11-02): export_io_map wrote its CSV, but its 2,362 characters of diagnostics exceeded the 512-character
+    /// diagnostic cap and the call reported success:false. A diagnostic omission keeps a succeeded call succeeded.
+    /// </summary>
+    [Fact]
+    public void DiagnosticOmissionOfASucceededItem_KeepsSuccessAndReportsTheOmission()
+    {
+        var messages = Enumerable.Range(0, 16).Select(i => $"message {i}: " + new string('x', 290)).ToArray();
+        var report = Report("small");
+        var item = report.Batch!.Operations[0] with
+        {
+            Operation = "export_io_map",
+            Result = CanonicalJson.ToElement(new { filePath = @"C:\io\map.csv", sha256 = "abc", messages }),
+        };
+        report = report with { Batch = StructuredOperationBatch.FromItems(new[] { item }) };
+
+        var bounded = Compose(report);
+
+        Assert.True(bounded.Success);
+        Assert.Equal("diagnosticDetailsOmitted", bounded.Omission!.Reason);
+        Assert.Equal(NetworkWritePayloadBudget.DiagnosticChars, bounded.Omission.LimitChars);
+        var result = bounded.Batch!.Operations[0].Result!.Value;
+        Assert.Equal("abc", result.GetProperty("sha256").GetString());
+        Assert.Equal("succeeded", bounded.Batch.Operations[0].Status);
+        Assert.Empty(result.GetProperty("messages").EnumerateArray());
+    }
+
+    [Fact]
+    public void DiagnosticOmissionOfAFailedCall_StaysFailed()
+    {
+        var bounded = Compose(Report("small") with
+        {
+            Success = false, Phase = "error", Error = new("protocol_error", new string('x', NetworkWritePayloadBudget.DiagnosticChars + 100)),
+        });
+        Assert.Equal("diagnosticDetailsOmitted", bounded.Omission!.Reason);
+        Assert.False(bounded.Success);
     }
 
     [Fact]
     public void OrdinaryDiagnosticCapRetainsItsOwnLimit()
     {
-        var response = Compose(Report("small")) with { Error = new("protocol_error", new string('x', 600)) };
+        var response = Compose(Report("small")) with { Error = new("protocol_error", new string('x', NetworkWritePayloadBudget.DiagnosticChars + 100)) };
 
         var bounded = NetworkWritePayloadBudget.Apply(response, maxDocumentChars: 20_000);
 
-        Assert.Equal(512, bounded.Omission!.LimitChars);
+        Assert.Equal(NetworkWritePayloadBudget.DiagnosticChars, bounded.Omission!.LimitChars);
         Assert.Equal("diagnosticDetailsOmitted", bounded.Omission.Reason);
         Assert.Equal("protocol_error", bounded.Error!.Category);
     }
@@ -301,7 +343,7 @@ public sealed class NetworkGuardedWriteBudgetTests(ITestOutputHelper output)
             reply = await fixture.Runner.RunAsync(new NetworkWriteDomain(fixture.Client),
                 new WriteCall<NetworkOperationRequest>(new[] { operation }, false));
         }
-        var root = CanonicalToolDocument.Read(reply);
+        var root = NetworkGuardedWriteMcpTests.Document(reply);
         var canonical = Assert.Single(reply.Content.OfType<TextContentBlock>()).Text;
         Assert.False(root.GetProperty("success").GetBoolean());
         Assert.Equal("error", root.GetProperty("phase").GetString());
@@ -335,7 +377,7 @@ public sealed class NetworkGuardedWriteBudgetTests(ITestOutputHelper output)
         var reply = await fixture.Runner.RunAsync(new NetworkWriteDomain(fixture.Client),
             new WriteCall<NetworkOperationRequest>(operations, false));
         Assert.DoesNotContain("configure_network_device", requests.Methods());
-        var document = CanonicalToolDocument.Read(reply);
+        var document = NetworkGuardedWriteMcpTests.Document(reply);
         Assert.True(reply.IsError);
         Assert.Equal("error", document.GetProperty("phase").GetString());
         Assert.Equal("validation_error", document.GetProperty("error").GetProperty("category").GetString());
@@ -382,7 +424,7 @@ public sealed class NetworkGuardedWriteBudgetTests(ITestOutputHelper output)
         operation.Target!.InterfaceName = "PROFINET interface_1";
         var reply = await fixture.Runner.RunAsync(new NetworkWriteDomain(fixture.Client),
             new WriteCall<NetworkOperationRequest>(new[] { operation }, false));
-        var response = CanonicalJson.Deserialize<NetworkGuardedWriteResponse>(CanonicalToolDocument.Read(reply).GetRawText());
+        var response = CanonicalJson.Deserialize<NetworkGuardedWriteResponse>(NetworkGuardedWriteMcpTests.Document(reply).GetRawText());
         Assert.True(response.Success);
         var path = response.Effects[0].Effect!.Target.InterfacePath!;
         Assert.Equal(operation.Target.InterfacePath![0].Name, path[0].Name);
@@ -399,7 +441,7 @@ public sealed class NetworkGuardedWriteBudgetTests(ITestOutputHelper output)
         operation.Changes = new() { IpAddress = "10.0.0.5", Subnet = new() { SubnetId = "590-3" } };
         var reply = await fixture.Runner.RunAsync(new NetworkWriteDomain(fixture.Client),
             new WriteCall<NetworkOperationRequest>(new[] { operation, NetworkGuardedWriteFixture.Delete("second") }, false));
-        var response = CanonicalJson.Deserialize<NetworkGuardedWriteResponse>(CanonicalToolDocument.Read(reply).GetRawText());
+        var response = CanonicalJson.Deserialize<NetworkGuardedWriteResponse>(NetworkGuardedWriteMcpTests.Document(reply).GetRawText());
         Assert.Single(requests.Methods(), m => m == "configure_network_device");
         Assert.DoesNotContain("delete_subnet", requests.Methods());
         Assert.Equal("failed", response.Batch!.Operations[0].Status);
@@ -420,7 +462,7 @@ public sealed class NetworkGuardedWriteBudgetTests(ITestOutputHelper output)
         operation.Changes = new() { IpAddress = "192.168.12.7", SubnetMask = "255.255.255.0" };
         var reply = await fixture.Runner.RunAsync(new NetworkWriteDomain(fixture.Client),
             new WriteCall<NetworkOperationRequest>(new[] { operation }, false));
-        var response = CanonicalJson.Deserialize<NetworkGuardedWriteResponse>(CanonicalToolDocument.Read(reply).GetRawText());
+        var response = CanonicalJson.Deserialize<NetworkGuardedWriteResponse>(NetworkGuardedWriteMcpTests.Document(reply).GetRawText());
         Assert.True(response.Success);
         Assert.Equal("succeeded", response.Batch!.Operations[0].Status);
         Assert.NotNull(response.Effects[0].Effect!.Target.InterfacePath);

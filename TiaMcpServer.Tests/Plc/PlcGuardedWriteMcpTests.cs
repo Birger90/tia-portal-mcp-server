@@ -149,7 +149,7 @@ public sealed class PlcGuardedWriteMcpTests
 
         var reply = await harness.Client.CallToolAsync("plc_write", args);
 
-        var root = CanonicalToolDocument.Read(reply);
+        var root = NetworkGuardedWriteMcpTests.Document(reply);
         Assert.False(reply.IsError == true);
         Assert.True(root.GetProperty("success").GetBoolean(), root.GetRawText());
         Assert.Equal("applied", root.GetProperty("phase").GetString());
@@ -188,7 +188,7 @@ public sealed class PlcGuardedWriteMcpTests
         var reply = await harness.Client.CallToolAsync("plc_write",
             new Dictionary<string, object?> { ["operations"] = new[] { CreateTag("l1-01", "Start") } });
 
-        var root = CanonicalToolDocument.Read(reply);
+        var root = NetworkGuardedWriteMcpTests.Document(reply);
         Assert.False(reply.IsError == true);
         Assert.Equal("applied", root.GetProperty("phase").GetString());
         Assert.False(root.GetProperty("success").GetBoolean());
@@ -212,7 +212,7 @@ public sealed class PlcGuardedWriteMcpTests
             ["operations"] = new[] { CreateTag("l10-01", "L10Tag1"), CreateTag("l10-02", "Start"), CreateTag("l10-03", "L10Tag3") },
         });
 
-        var root = CanonicalToolDocument.Read(reply);
+        var root = NetworkGuardedWriteMcpTests.Document(reply);
         Assert.False(reply.IsError == true);
         Assert.Equal("applied", root.GetProperty("phase").GetString());
         Assert.False(root.GetProperty("success").GetBoolean());
@@ -231,7 +231,8 @@ public sealed class PlcGuardedWriteMcpTests
         Assert.Equal(("partial_write_no_rollback", "info", "l10-02"), (guard.GetProperty("id").GetString(),
             guard.GetProperty("severity").GetString(), guard.GetProperty("operationId").GetString()));
         var check = Assert.Single(root.GetProperty("verification").GetProperty("operations").EnumerateArray());
-        Assert.Equal(("l10-01", "trusted"), (check.GetProperty("operationId").GetString(), check.GetProperty("check").GetString()));
+        // The applied create_tag is re-read (K24); the failed one keeps no verification entry.
+        Assert.Equal(("l10-01", "tag"), (check.GetProperty("operationId").GetString(), check.GetProperty("check").GetString()));
         Assert.Single(NetworkGuardedWriteMcpTests.AuditLines(audit.Path));
     }
 
@@ -275,7 +276,7 @@ public sealed class PlcGuardedWriteMcpTests
 
         var reply = await harness.Client.CallToolAsync("plc_write", args);
 
-        var root = CanonicalToolDocument.Read(reply);
+        var root = NetworkGuardedWriteMcpTests.Document(reply);
         Assert.False(reply.IsError == true);
         Assert.True(root.GetProperty("success").GetBoolean(), root.GetRawText());
         Assert.Equal(dryRun == true ? "preview" : "applied", root.GetProperty("phase").GetString());

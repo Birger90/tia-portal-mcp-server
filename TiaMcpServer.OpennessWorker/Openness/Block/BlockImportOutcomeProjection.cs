@@ -6,12 +6,12 @@ namespace TiaMcpServer.OpennessWorker.Openness.Block;
 
 internal static class BlockImportOutcomeProjection
 {
-    private const int MaxPlcs = 8;
-    private const int MaxMessages = 20;
-    private const int MaxNotes = 8;
-    private const int MaxFieldChars = 256;
-    private const int MaxDiagnosticChars = 1_024;
-    private const int MaxSerializedChars = 12_000;
+    private const int MaxPlcs = BlockImportOutcomeLimits.MaxPlcs;
+    private const int MaxMessages = BlockImportOutcomeLimits.MaxMessages;
+    private const int MaxNotes = BlockImportOutcomeLimits.MaxNotes;
+    private const int MaxFieldChars = BlockImportOutcomeLimits.MaxFieldChars;
+    private const int MaxDiagnosticChars = BlockImportOutcomeLimits.MaxDiagnosticChars;
+    private const int MaxSerializedChars = BlockImportOutcomeLimits.MaxSerializedChars;
 
     private static readonly JsonSerializerOptions JsonOptions = new JsonSerializerOptions
     {
@@ -32,7 +32,9 @@ internal static class BlockImportOutcomeProjection
             if (report is null)
                 throw new InvalidOperationException("Block import outcome metadata exceeds its response limit.");
 
-            if (RemoveLastNote(report) || RemoveLastMessage(report) || ShortenMetadata(report))
+            if (RemoveLastMessage(report, priority: 2) || RemoveLastNote(report)
+                || RemoveLastMessage(report, priority: 1) || RemoveLastMessage(report, priority: 0)
+                || ShortenMetadata(report))
             {
                 omitted = true;
                 result = CopyOutcome(source, report, omitted);
@@ -70,22 +72,26 @@ internal static class BlockImportOutcomeProjection
         TemporarySourceState = source.TemporarySourceState
     };
 
+    /// <summary>
+    /// A bounded copy of the compile report with TIA Portal's own texts (control characters replaced, trimmed, at most
+    /// <see cref="MaxFieldChars"/> each). Notes (the worker's own texts) are kept first; then messages are chosen by
+    /// severity (errors, then warnings, then information, each in report order) while the message count and the
+    /// diagnostic character budget allow, and are emitted in report order. Everything else is omitted and flagged.
+    /// </summary>
     private static CompileCheckReport CopyReport(CompileCheckReport source, ref bool omitted)
     {
         var report = new CompileCheckReport
         {
             Scope = SafeMetadata(source.Scope, required: true, ref omitted) ?? string.Empty,
-            BlockPath = null,
+            BlockPath = SafeMetadata(source.BlockPath, required: false, ref omitted),
             TotalErrorCount = source.TotalErrorCount,
             TotalWarningCount = source.TotalWarningCount,
             OverallState = SafeMetadata(source.OverallState, required: true, ref omitted) ?? string.Empty
         };
-        if (source.BlockPath is not null)
-            omitted = true;
 
-        var messageCount = 0;
         var noteCount = 0;
         var diagnosticChars = 0;
+        var candidates = new List<(PlcCompileInfo Plc, int Order, int Priority, CompileMessageInfo Message)>();
         var sourcePlcs = source.Plcs ?? new List<PlcCompileInfo>();
         for (var plcIndex = 0; plcIndex < sourcePlcs.Count; plcIndex++)
         {
@@ -111,58 +117,64 @@ internal static class BlockImportOutcomeProjection
                 WarningCount = sourcePlc.WarningCount
             };
 
-            foreach (var sourceMessage in sourcePlc.Messages ?? new List<CompileMessageInfo>())
+            foreach (var sourceNote in sourcePlc.DiagnosticNotes ?? new List<string>())
             {
-                if (messageCount >= MaxMessages)
+                var note = sourceNote is null ? null : SafeMetadata(sourceNote, required: true, ref omitted);
+                if (note is null || noteCount >= MaxNotes || diagnosticChars + note.Length > MaxDiagnosticChars)
                 {
                     omitted = true;
-                    break;
+                    continue;
                 }
+
+                plc.DiagnosticNotes.Add(note);
+                diagnosticChars += note.Length;
+                noteCount++;
+            }
+
+            foreach (var sourceMessage in sourcePlc.Messages ?? new List<CompileMessageInfo>())
+            {
                 if (sourceMessage is null)
                 {
                     omitted = true;
                     continue;
                 }
 
-                var description = FixedDiagnostic(
-                    "Compiler diagnostic omitted.",
-                    ref diagnosticChars,
-                    ref omitted);
-                var path = FixedDiagnostic(
-                    string.Empty,
-                    ref diagnosticChars,
-                    ref omitted);
-                plc.Messages.Add(new CompileMessageInfo
+                var message = new CompileMessageInfo
                 {
-                    Description = description,
-                    Path = path,
+                    Description = SafeMetadata(sourceMessage.Description, required: true, ref omitted) ?? string.Empty,
+                    Path = SafeMetadata(sourceMessage.Path, required: true, ref omitted) ?? string.Empty,
                     Severity = SafeMetadata(sourceMessage.Severity, required: true, ref omitted) ?? string.Empty
-                });
-                messageCount++;
-            }
-
-            foreach (var sourceNote in sourcePlc.DiagnosticNotes ?? new List<string>())
-            {
-                if (noteCount >= MaxNotes)
-                {
-                    omitted = true;
-                    break;
-                }
-                _ = sourceNote;
-                plc.DiagnosticNotes.Add(FixedDiagnostic(
-                    "Compiler note omitted.",
-                    ref diagnosticChars,
-                    ref omitted));
-                noteCount++;
+                };
+                candidates.Add((plc, candidates.Count, Priority(message), message));
             }
 
             report.Plcs.Add(plc);
         }
 
+        var selected = new HashSet<int>();
+        foreach (var candidate in candidates.OrderBy(c => c.Priority).ThenBy(c => c.Order))
+        {
+            var chars = candidate.Message.Description.Length + candidate.Message.Path.Length;
+            if (selected.Count >= MaxMessages || diagnosticChars + chars > MaxDiagnosticChars)
+            {
+                omitted = true;
+                continue;
+            }
+
+            selected.Add(candidate.Order);
+            diagnosticChars += chars;
+        }
+
+        foreach (var candidate in candidates.Where(c => selected.Contains(c.Order)))
+            candidate.Plc.Messages.Add(candidate.Message);
+
         if (sourcePlcs.Count > report.Plcs.Count)
             omitted = true;
         return report;
     }
+
+    private static int Priority(CompileMessageInfo message)
+        => message.Severity == "Error" ? 0 : message.Severity == "Warning" ? 1 : 2;
 
     private static string? SafeMetadata(string? value, bool required, ref bool omitted)
     {
@@ -175,25 +187,6 @@ internal static class BlockImportOutcomeProjection
             omitted = true;
             sanitized = TakeWithoutSplittingSurrogate(sanitized, MaxFieldChars);
         }
-        return sanitized;
-    }
-
-    private static string FixedDiagnostic(
-        string replacement,
-        ref int usedChars,
-        ref bool omitted)
-    {
-        omitted = true;
-        var sanitized = replacement;
-
-        var remaining = MaxDiagnosticChars - usedChars;
-        if (sanitized.Length > remaining)
-        {
-            sanitized = TakeWithoutSplittingSurrogate(sanitized, Math.Max(0, remaining));
-            omitted = true;
-        }
-
-        usedChars += sanitized.Length;
         return sanitized;
     }
 
@@ -229,13 +222,15 @@ internal static class BlockImportOutcomeProjection
         return false;
     }
 
-    private static bool RemoveLastMessage(CompileCheckReport report)
+    /// <summary>Removes the last message of <paramref name="priority"/> (0 error, 1 warning, 2 information).</summary>
+    private static bool RemoveLastMessage(CompileCheckReport report, int priority)
     {
         for (var index = report.Plcs.Count - 1; index >= 0; index--)
         {
             var messages = report.Plcs[index].Messages;
-            if (messages.Count == 0) continue;
-            messages.RemoveAt(messages.Count - 1);
+            var last = messages.FindLastIndex(message => Priority(message) == priority);
+            if (last < 0) continue;
+            messages.RemoveAt(last);
             return true;
         }
         return false;

@@ -44,7 +44,8 @@ internal sealed class PlcGuardedWriteFixture : IDisposable
     {
         Directory.CreateDirectory(audit.Path);
         var binding = new ProjectSessionBinding(null);
-        var client = FakeWorkerClients.Create(mode, binding: binding);
+        var client = new OpennessWorkerClient(binding, logger: null, workerExecutablePath: FakeWorkerLocator.Locate(),
+            accessPolicy: new OperationAccessPolicy(mode));
         try
         {
             await NetworkVerifiedWriteFixture.VerifyAsync(client, binding, scenario);

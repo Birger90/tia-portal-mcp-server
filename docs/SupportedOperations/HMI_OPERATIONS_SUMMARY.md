@@ -1,7 +1,9 @@
 # TIA Portal HMI Operations
 
+**Language:** English · [Deutsch](HMI_OPERATIONS_SUMMARY.de.md)
+
 `hmi_read` is the read-only WinCC Unified HMI tool. It is registered in every access mode (counts
-8/19/19), never writes, never compiles, and never opens, saves or closes a project. It runs up to
+11/30/30), never writes, never compiles, and never opens, saves or closes a project. It runs up to
 50 items per call on the structured JSON contract (`contractVersion:"1.1"`); items run
 independently, so a failing item does not stop later ones. Design background lives in the
 [hmi_read design spec](https://github.com/Czarnak/tia-portal-mcp/blob/docs-archive-2026-10-30/docs/superpowers/specs/2026-10-07-hmi-read-design.md), the
@@ -74,8 +76,9 @@ have no `language` because connection comments are plain strings and alarm class
   the `operationId` alone).
 - **Errors.** Classic WinCC (`Siemens.Engineering.Hmi.HmiTarget`) devices are listed by
   `list_hmi_devices` but every other operation fails the item `target_kind_unsupported` ("... is a
-  Classic (WinCC) HMI; only WinCC Unified HMIs are supported."). This also applies when `hmiName` is
-  omitted and the project has no Unified HMI but at least one Classic HMI. Selector misses are
+  Classic (WinCC) HMI; only WinCC Unified HMIs are supported." followed by the names of the classic operations). This also applies when `hmiName` is
+  omitted and the project has no Unified HMI but at least one Classic HMI. Classic HMIs have their own operations
+  (`list_classic_objects` and five `hmi_write` operations, issue #28); see the [Classic WinCC and Unified extensions](HMI_CLASSIC_UNIFIED_EXTENSIONS_SUMMARY.md). Selector misses are
   `target_not_found` or `target_ambiguous`.
 
 ## Cursor paging
@@ -157,6 +160,14 @@ stays fully supported; a call without `cursor` behaves as before and re-scans.
 
 ## Writes (`hmi_write`)
 
+Nine more operations for screens, screen items, properties, tag dynamizations, scripts and batch renames of screens
+and HMI tags were adopted from BetterTIA/writer; they are described, with the provenance and binding of
+every Siemens member, in the [BetterTIA operations reference](BETTERTIA_ADOPTED_OPERATIONS_SUMMARY.md#wincc-unified-screens-scripts-and-batch-renames-hmi_write).
+Two more, `export_text_lists` and `import_text_lists` (user text lists as SimaticML files; the members are not
+documented by Siemens for Unified and are bound at runtime), are described in the
+[same reference](BETTERTIA_ADOPTED_OPERATIONS_SUMMARY.md#tag-tables-and-wincc-unified-text-lists-as-files-owner-additions); 20 in all.
+The rest of this section describes the nine tag-table, tag and alarm writes.
+
 `hmi_write(operations, dryRun=false)` executes by default against one verified, already-open project.
 Set `dryRun:true` for preview. Each of 1–50 caller-ordered items carries a unique `operationId`
 (at most 256 characters), `operation`, and an optional `hmiName`. HMI selection follows
@@ -210,7 +221,7 @@ worker methods.
 
 | Guard | Level | Fires when |
 | --- | --- | --- |
-| `hmi_state_unverifiable` | block | Required evidence is incomplete or initial delete planning needs over 200 cross-reference queries. |
+| `hmi_state_unverifiable` | info | Required evidence is incomplete or initial delete planning needs over 200 cross-reference queries; the item runs and TIA Portal decides (block until 2026-11-01). |
 | `hmi_deletes_table_contents` | info | Deleting a table also deletes its inventoried tags. |
 | `hmi_deletes_referenced_tag` | info | Deleted tags have inventoried alarm/screen/script users; references can remain dangling. |
 
@@ -361,6 +372,22 @@ earlier-candidate maintainer check. Performance uses an archival baseline with n
 matched baseline-write comparisons and the three-repetition owner-transition gate remain
 unqualified; the single owner-transition observation failed the proposed 10% memory-return condition.
 
+## V21 pitfalls
+
+Reported by rickgaiser/TiaMcp and not verified on V21 here; see [V21 pitfalls](V21_PITFALLS.md) and its
+live acceptance list.
+
+- An open HMI tag editor in TIA Portal (for example "Show all tags") is reported to slow every Openness
+  call on that HMI, a read or write of its tag tables about eight times. Close it while `hmi_read` or
+  `hmi_write` work on that HMI; the server cannot detect an open editor.
+- Exporting a graphic list and reading `HmiSystemDiagnosisControl.ScriptDiagnosisOverviewText` are
+  reported to crash TIA Portal V21. No `hmi_read` operation does either: `list_text_and_graphic_lists`
+  reads graphic list names only, and `list_screen_items` reads only typed geometry, `Visible` and
+  `Enabled`. Whether `validate` with `screenItems` on a system diagnosis control reaches that property
+  inside TIA Portal is unknown (live case L9).
+- A classic screen with a duplicate `<Number>` is reported to terminate TIA Portal; `import_classic_objects` checks the
+  screen numbers before it imports screens, and a classic graphic list is never exported ([Classic WinCC and Unified extensions](HMI_CLASSIC_UNIFIED_EXTENSIONS_SUMMARY.md)).
+
 ## Cross-references of HMI tags
 
 `read_cross_references` takes a provisional `{ hmi: { hmiName, tagName } }` target for one top-level
@@ -369,8 +396,9 @@ Unified HMI tag; see
 
 ## Out of scope
 
-SiVArc, plant views, YAML or JavaScript export content, dynamizations and events, a generic attribute
-dump, HMI compile, hardware-layer connections, and reads/writes of Classic WinCC objects.
+SiVArc, YAML or JavaScript export content, a generic attribute
+dump, HMI compile and hardware-layer connections. Classic WinCC objects, Unified events and dynamizations (beyond `set_dynamization_tag`), audit classes, runtime setting writes and plant views are covered only by the operations in the
+[Classic WinCC and Unified extensions](HMI_CLASSIC_UNIFIED_EXTENSIONS_SUMMARY.md).
 Writes also exclude connection create/edit, tag-table group changes, tag moves/unbinding,
 `accessMode`, `acquisitionMode`, acknowledgment tags, `EventText1`–`EventText9`, alarm-text parameter
 fields, logging and screen changes. `compile_check` keeps its PLC-only contract.

@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using TiaMcpServer.Tests.TestSupport;
 
 namespace TiaMcpServer.Tests.Cli;
 
@@ -7,7 +6,7 @@ internal static class StartupProcess
 {
     internal static async Task<StartupResult> RunAsync(IReadOnlyDictionary<string, string>? environment, params string[] args)
     {
-        var repositoryRoot = RepositoryFiles.Root;
+        var repositoryRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
         var configuration = new DirectoryInfo(AppContext.BaseDirectory).Parent!.Name;
         var startInfo = new ProcessStartInfo("dotnet")
         {
@@ -28,6 +27,10 @@ internal static class StartupProcess
         startInfo.Environment.Remove("TIA_MCP_ACCESS_MODE");
         startInfo.Environment.Remove(TiaMcpServer.Cli.ConfiguredProjectPath.EnvVar);
         startInfo.Environment.Remove("TIA_MCP_WORKER_TIMEOUT_MINUTES");
+        startInfo.Environment.Remove(TiaMcpServer.PlcWebApi.PlcWebApiConfigOption.EnvVar);
+        // Keep the owner's own %APPDATA%\TiaMcpServer\settings.json out of the test: point the server at an empty one
+        // unless the test names its own settings file.
+        startInfo.Environment[TiaMcpServer.Contracts.Shared.ServerSettingsFile.EnvironmentVariable] = EmptySettingsFile.Value;
         if (environment is not null)
         {
             foreach (var (name, value) in environment)
@@ -54,6 +57,13 @@ internal static class StartupProcess
             }
         }
     }
+
+    private static readonly Lazy<string> EmptySettingsFile = new(() =>
+    {
+        var path = Path.Combine(Path.GetTempPath(), "tiamcp-startup-settings-" + Guid.NewGuid().ToString("N") + ".json");
+        File.WriteAllText(path, "{ \"version\": 1 }");
+        return path;
+    });
 
     internal sealed record StartupResult(int ExitCode, string StandardOutput, string StandardError);
 }

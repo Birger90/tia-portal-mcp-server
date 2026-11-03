@@ -438,8 +438,9 @@ public class PlcOperationCatalogTests
         ("update_block_logic", new[] { "blockPath", "content", "expectedContentHash" }, new[] { "format" }),
         ("create_tag_table", new[] { "tableName" }, new[] { "plcName", "folderPath" }),
         ("delete_tag_table", new[] { "tableName" }, new[] { "plcName", "folderPath" }),
-        ("create_tag", new[] { "tableName", "name", "dataType" }, new[] { "plcName", "folderPath", "logicalAddress" }),
-        ("update_tag", new[] { "tableName", "name" }, new[] { "plcName", "folderPath", "newName", "dataType", "logicalAddress", "externalAccessible", "externalVisible", "externalWritable" }),
+        // K22 (2026-11-02): the tag comment joined create_tag and update_tag.
+        ("create_tag", new[] { "tableName", "name", "dataType" }, new[] { "plcName", "folderPath", "logicalAddress", "comment", "commentCulture" }),
+        ("update_tag", new[] { "tableName", "name" }, new[] { "plcName", "folderPath", "newName", "dataType", "logicalAddress", "externalAccessible", "externalVisible", "externalWritable", "comment", "commentCulture" }),
         ("delete_tag", new[] { "tableName", "name" }, new[] { "plcName", "folderPath" }),
         ("create_user_constant", new[] { "tableName", "name", "dataType", "value" }, new[] { "plcName", "folderPath" }),
         ("update_user_constant", new[] { "tableName", "name" }, new[] { "plcName", "folderPath", "dataType", "value" }),
@@ -449,12 +450,47 @@ public class PlcOperationCatalogTests
         ("create_block_group", new[] { "blockPath" }, Array.Empty<string>()),
         ("delete_block_group", new[] { "blockPath" }, Array.Empty<string>()),
         ("update_type_content", new[] { "typePath", "content", "expectedContentHash" }, new[] { "format" }),
+        // Fork addition (not in the retired batch catalog): a guarded re-create into another table.
+        ("move_tag", new[] { "tableName", "name", "targetTableName" }, new[] { "plcName", "folderPath", "targetFolderPath" }),
+    };
+
+    /// <summary>The granular block editing operations added after the batch catalog was retired.</summary>
+    /// <summary>The plc_write operations adopted from the BetterTIA tools.</summary>
+    private static readonly string[] AdoptedWrites =
+    {
+        TiaMcpServer.Contracts.Plc.PlcBlockEditMethods.CreateDbSnapshot,
+        TiaMcpServer.Contracts.Plc.PlcBlockEditMethods.SetNetworkText,
+        TiaMcpServer.Contracts.Plc.PlcBlockEditMethods.ReplaceNetworkText,
+        TiaMcpServer.Contracts.Plc.PlcBlockEditMethods.RenameMembers,
+        TiaMcpServer.Contracts.Plc.PlcBlockEditMethods.RenameTags,
+        TiaMcpServer.Contracts.Plc.PlcBlockEditMethods.RenameObjects,
+        TiaMcpServer.Contracts.Plc.PlcBlockEditMethods.ReplaceTagComments,
+        TiaMcpServer.Contracts.Plc.PlcBlockEditMethods.ExportTagTable,
+        TiaMcpServer.Contracts.Plc.PlcBlockEditMethods.ImportTagTable,
+        // Adopted from heilingbrunner/tiaportal-mcp (MIT): the OPC UA export of a PLC.
+        TiaMcpServer.Contracts.Plc.PlcBlockEditMethods.ExportOpcUaXml,
+    };
+
+    private static readonly (string Name, string[] Required, string[] Optional)[] ExpectedBlockEditFields =
+    {
+        ("add_interface_member", new[] { "memberPath", "dataType" },
+            new[] { "blockPath", "typePath", "section", "startValue", "comment", "commentCulture", "insertBefore", "expectedContentHash" }),
+        ("update_interface_member", new[] { "memberPath" },
+            new[] { "blockPath", "typePath", "section", "newName", "dataType", "startValue", "clearStartValue", "comment", "commentCulture", "expectedContentHash" }),
+        ("delete_interface_member", new[] { "memberPath" }, new[] { "blockPath", "typePath", "section", "expectedContentHash" }),
+        ("update_db_member", new[] { "blockPath", "memberPath" }, new[] { "startValue", "externalAccessible", "externalVisible", "externalWritable", "retain", "setPoint" }),
+        ("create_instance_db", new[] { "blockPath", "instanceOfName" }, new[] { "number" }),
+        ("rename_block", new[] { "blockPath", "newName" }, Array.Empty<string>()),
+        ("renumber_block", new[] { "blockPath" }, new[] { "number", "autoNumber" }),
+        ("copy_block", new[] { "blockPath", "newName" }, new[] { "targetGroupPath", "number" }),
+        ("move_block", new[] { "blockPath", "targetGroupPath" }, Array.Empty<string>()),
+        ("move_tag_table", new[] { "tableName", "targetFolderPath" }, new[] { "plcName", "folderPath" }),
     };
 
     [Fact]
     public void WriteSpecsKeepTheRetiredBatchFieldSets()
     {
-        Assert.Equal(14, ExpectedWriteFields.Length);
+        Assert.Equal(15, ExpectedWriteFields.Length);
         foreach (var (name, expectedRequired, expectedOptional) in ExpectedWriteFields)
         {
             Assert.True(PlcOperationCatalog.TryGetWriteFields(name, out var required, out var optional), name);
@@ -462,8 +498,41 @@ public class PlcOperationCatalogTests
             Assert.Equal(expectedOptional.OrderBy(x => x), optional.OrderBy(x => x));
         }
 
-        Assert.Equal(14, PlcOperationCatalog.WriteOperationNames.Count);
-        Assert.Equal(ExpectedWriteFields.Select(e => e.Name).OrderBy(x => x), PlcOperationCatalog.WriteOperationNames.OrderBy(x => x));
+        foreach (var (name, expectedRequired, expectedOptional) in ExpectedBlockEditFields)
+        {
+            Assert.True(PlcOperationCatalog.TryGetWriteFields(name, out var required, out var optional), name);
+            Assert.Equal(expectedRequired.OrderBy(x => x), required.OrderBy(x => x));
+            Assert.Equal(expectedOptional.OrderBy(x => x), optional.OrderBy(x => x));
+        }
+
+        // The seven watch/force table and update_program writes (and move_tag, part of ExpectedWriteFields), the
+        // ten granular block edits, the nineteen external-source, group, software-unit and file-export writes, the sixteen
+        // alarm, text list, supervision and ProDiag writes, the twelve technology object writes, the two CPU protection
+        // writes, the six fail-safe writes (set_safety_runtime_group since 2026-11-02) and the operations adopted from BetterTIA (create_db_snapshot, set_network_text, replace_network_text, rename_members, rename_tags, rename_objects, replace_tag_comments), the tag table files (export_tag_table, import_tag_table)
+        // the four SIMATIC SD writes (insert_network, replace_network, delete_network, create_block_from_document), the project's
+        // set_project_compilation_settings (K10, 2026-11-02), export_opcua_xml (adopt 2026-11-02) and the system diagnostics settings
+        // export/import (issue #19, alarm family), generate_loadable (issue #26), the six block protection writes (issue #5), the
+        // three project language and project text writes (issue #8) and download_to_folder plus the two online master secret writes (issue #16) were added after the batch tools were retired;
+        // the settings family (issues #15, #13, #12, #14, #21, #25) adds its writes from PlcSettingsCatalog, the OPC UA writes (issue #24) from PlcOpcUaMethods.
+        Assert.Equal(119 + TiaMcpServer.Contracts.Plc.Settings.PlcSettingsCatalog.Write.Count + TiaMcpServer.Contracts.Plc.OpcUa.PlcOpcUaMethods.Write.Count, PlcOperationCatalog.WriteOperationNames.Count);
+        Assert.Equal(ExpectedWriteFields.Concat(ExpectedBlockEditFields).Select(e => e.Name)
+                .Concat(TiaMcpServer.Contracts.PlcOnline.PlcOnlineMethods.ContentWriteMethods)
+                .Concat(TiaMcpServer.Contracts.Plc.PlcSourceFolderMethods.AllWrites)
+                .Concat(TiaMcpServer.Contracts.PlcAlarms.PlcAlarmMethods.Write)
+                .Concat(TiaMcpServer.Contracts.Plc.TechnologyObjects.TechnologyObjectMethods.Write)
+                .Concat(TiaMcpServer.Contracts.Plc.Security.PlcSecurityMethods.Write)
+                .Concat(TiaMcpServer.Contracts.Plc.Safety.PlcSafetyMethods.Write)
+                .Concat(AdoptedWrites)
+                .Concat(TiaMcpServer.Contracts.Plc.SimaticSd.SimaticSdMethods.NetworkEdits)
+                .Append(TiaMcpServer.Contracts.Plc.SimaticSd.SimaticSdMethods.CreateBlockFromDocument)
+                .Append(TiaMcpServer.Contracts.Project.ProjectCompilationSettingsMethods.Set)
+                .Append(TiaMcpServer.Contracts.Plc.Loadable.PlcLoadableMethods.GenerateLoadable)
+                .Concat(TiaMcpServer.Contracts.Plc.BlockProtection.PlcBlockProtectionMethods.Write)
+                .Concat(TiaMcpServer.Contracts.Project.ProjectLanguageMethods.Write)
+                .Concat(TiaMcpServer.Contracts.Plc.Settings.PlcSettingsCatalog.Write)
+                .Concat(TiaMcpServer.Contracts.Plc.OpcUa.PlcOpcUaMethods.Write)
+                .Concat(TiaMcpServer.Contracts.Plc.DeviceData.PlcDeviceDataMethods.Write).OrderBy(x => x),
+            PlcOperationCatalog.WriteOperationNames.OrderBy(x => x));
     }
 
     [Theory]

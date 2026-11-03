@@ -15,6 +15,25 @@ namespace TiaMcpServer.Tests.Network;
 [Collection(RealWorkerProcessCollection.Name)]
 public class NetworkFieldForwardingTests
 {
+    private static async Task<OpennessWorkerClient> CreateClientAsync()
+    {
+        var binding = new ProjectSessionBinding(null);
+        var client = new OpennessWorkerClient(
+            binding,
+            logger: null,
+            workerExecutablePath: FakeWorkerLocator.Locate());
+        try
+        {
+            await FakeWorkerBinding.BindVerifiedAsync(client, binding, "echo");
+            return client;
+        }
+        catch
+        {
+            client.Dispose();
+            throw;
+        }
+    }
+
     /// <summary>
     /// Operations whose declared fields are all flat scalars, so one reflective sentinel sweep can
     /// prove each is forwarded. configure_network_device declares nested selectors instead and is
@@ -32,7 +51,9 @@ public class NetworkFieldForwardingTests
                 return type == typeof(string) || type == typeof(int);
             });
 
-            if (isFlat)
+            // Hardware-module operations forward inside WorkerRequest.HardwareModule (and export_io_map
+            // never reaches the worker for its write); HardwareModuleForwardingTests covers them.
+            if (isFlat && !HardwareModuleInvoker.Handles(spec.Name))
             {
                 data.Add(spec.Name);
             }
@@ -61,7 +82,7 @@ public class NetworkFieldForwardingTests
             expected[fieldName] = sentinel;
         }
 
-        using var client = await FakeWorkerClients.CreateBoundAsync("echo");
+        using var client = await CreateClientAsync();
         var result = spec.Category == NetworkOperationCategory.Read
             ? await NetworkWorkerInvoker.InvokeReadAsync(client, operation)
             : await NetworkWorkerInvoker.InvokeWriteAsync(client, operation);
@@ -83,7 +104,7 @@ public class NetworkFieldForwardingTests
     [InlineData(33024, "PROFINET interface_2")]
     public async Task ConfigureEachE1_ForwardsItsEntireSelector(int position, string owner)
     {
-        using var client = await FakeWorkerClients.CreateBoundAsync("echo");
+        using var client = await CreateClientAsync();
         var operation = new NetworkOperationRequest { OperationId = "qualified", Operation = "configure_network_device",
             Target = new() { Kind = "node", DeviceName = "S7-1500/ET200MP station_1", NodeId = "E1", NodeIndex = 0,
                 InterfaceName = owner, InterfacePath = new[] { new NetworkInterfacePathSegment { Name = "PLC_DP", PositionNumber = 1 },
@@ -112,7 +133,7 @@ public class NetworkFieldForwardingTests
             DeviceName = "PLC_1",
         };
 
-        using var client = await FakeWorkerClients.CreateBoundAsync("echo");
+        using var client = await CreateClientAsync();
         var result = await NetworkWorkerInvoker.InvokeWriteAsync(client, operation);
 
         Assert.True(result.Success, result.Error);
@@ -132,7 +153,7 @@ public class NetworkFieldForwardingTests
             DeviceItemName = "MCP_PLC",
         };
 
-        using var client = await FakeWorkerClients.CreateBoundAsync("echo");
+        using var client = await CreateClientAsync();
         var result = await NetworkWorkerInvoker.InvokeWriteAsync(client, operation);
 
         Assert.True(result.Success, result.Error);
@@ -159,7 +180,7 @@ public class NetworkFieldForwardingTests
             },
         };
 
-        using var client = await FakeWorkerClients.CreateBoundAsync("echo");
+        using var client = await CreateClientAsync();
         var result = await NetworkWorkerInvoker.InvokeWriteAsync(client, operation);
 
         Assert.True(result.Success, result.Error);
@@ -215,7 +236,7 @@ public class NetworkFieldForwardingTests
             Cursor = "page-cursor-abc",
         };
 
-        using var client = await FakeWorkerClients.CreateBoundAsync("echo");
+        using var client = await CreateClientAsync();
         var result = await NetworkWorkerInvoker.InvokeReadAsync(client, operation);
 
         Assert.True(result.Success, result.Error);
@@ -248,7 +269,7 @@ public class NetworkFieldForwardingTests
             ObjectKinds = mutableKinds,
         };
 
-        using var client = await FakeWorkerClients.CreateBoundAsync("echo");
+        using var client = await CreateClientAsync();
         // Mutate before the call hits the transport to prove the copy happened before any await.
         mutableKinds.Add(NetworkObjectKinds.Subnet);
         var result = await NetworkWorkerInvoker.InvokeReadAsync(client, operation);
@@ -281,7 +302,7 @@ public class NetworkFieldForwardingTests
             AttributeNames = new[] { "IpAddress", "SubnetMask" },
         };
 
-        using var client = await FakeWorkerClients.CreateBoundAsync("echo");
+        using var client = await CreateClientAsync();
         var result = await NetworkWorkerInvoker.InvokeReadAsync(client, operation);
 
         Assert.True(result.Success, result.Error);
@@ -327,7 +348,7 @@ public class NetworkFieldForwardingTests
             },
         };
 
-        using var client = await FakeWorkerClients.CreateBoundAsync("echo");
+        using var client = await CreateClientAsync();
         var result = await NetworkWorkerInvoker.InvokeReadAsync(client, operation);
 
         Assert.True(result.Success, result.Error);

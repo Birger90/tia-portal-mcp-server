@@ -7,7 +7,7 @@ namespace TiaMcpServer.Tests.Network;
 
 public class ConfigureNetworkDeviceResultInfoTests
 {
-    private static readonly JsonSerializerOptions JsonOptions = WorkerJson.ExplicitNullPayload;
+    private static readonly JsonSerializerOptions JsonOptions = WorkerJson.PayloadOptionsFor(typeof(ConfigureNetworkDeviceResultInfo));
 
     [Fact]
     public void SerializesEmptyResult()

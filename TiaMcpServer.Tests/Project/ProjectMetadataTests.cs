@@ -17,10 +17,16 @@ namespace TiaMcpServer.Tests.Project;
 [Collection(RealWorkerProcessCollection.Name)]
 public class ProjectMetadataTests
 {
-    private static readonly JsonSerializerOptions JsonOptions = WorkerJson.ExplicitNullPayload;
+    private static readonly JsonSerializerOptions JsonOptions = WorkerJson.PayloadOptionsFor(typeof(ProjectLifecycleResultInfo));
+
+    private static OpennessWorkerClient CreateClient(string workerPath)
+        => new(
+            new ProjectSessionBinding(null),
+            logger: null,
+            workerExecutablePath: workerPath);
 
     private static JsonElement PayloadFromEnvelope(ModelContextProtocol.Protocol.CallToolResult response)
-        => CanonicalToolDocument.Read(response).GetProperty("result").GetProperty("value");
+        => StandaloneStatusToolTests.Document(response).GetProperty("result").GetProperty("value");
 
     [Fact]
     public void StatusWithoutMetadata_WritesUnknownValuesAsExplicitNull()
@@ -157,7 +163,7 @@ public class ProjectMetadataTests
     public async Task GetProjectStatus_FullMetadata_RoundTripsOverTheRealIpcPipe()
     {
         using var uiOpen = FakeWorkerUiOpenProject.ForWorkerRelativePath("status-with-metadata");
-        using var client = FakeWorkerClients.Create();
+        using var client = CreateClient(FakeWorkerLocator.Locate());
 
         var response = await ProjectReadTools.GetProjectStatus(client);
         var status = PayloadFromEnvelope(response);

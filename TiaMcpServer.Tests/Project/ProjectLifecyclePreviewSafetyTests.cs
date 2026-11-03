@@ -6,6 +6,7 @@ using TiaMcpServer.Contracts.Worker;
 using TiaMcpServer.Safety;
 using TiaMcpServer.Safety.Pipeline;
 using TiaMcpServer.Tests.TestSupport;
+using TiaMcpServer.Tests.TestUtilities;
 using TiaMcpServer.Tests.Worker;
 using TiaMcpServer.Tools;
 using TiaMcpServer.Worker;
@@ -34,7 +35,8 @@ public sealed class ProjectLifecyclePreviewSafetyTests
             if (configured is not null)
                 _uiOpen = new FakeWorkerUiOpenProject(configured);
             Binding = new ProjectSessionBinding(configured);
-            Client = FakeWorkerClients.Create(McpAccessMode.Full, binding: Binding, workerPath: worker);
+            Client = new OpennessWorkerClient(Binding, workerExecutablePath: worker ?? FakeWorkerLocator.Locate(),
+                accessPolicy: new OperationAccessPolicy(McpAccessMode.Full));
             Execution = LifecycleTestCalls.Execution(Client, Audit);
         }
 
@@ -91,16 +93,16 @@ public sealed class ProjectLifecyclePreviewSafetyTests
             };
             foreach (var call in calls)
             {
-                var document = CanonicalToolDocument.Read(call);
+                var document = LifecycleTestCalls.Document(call);
                 LifecycleTestCalls.Phase(document, "preview");
                 Assert.Equal(source, document.GetProperty("effects").GetProperty("sourceProjectPath").GetString());
             }
-            Assert.True(CanonicalToolDocument.Read(calls[2]).GetProperty("effects").GetProperty("savesSource").GetBoolean());
-            Assert.True(CanonicalToolDocument.Read(calls[3]).GetProperty("effects").GetProperty("savesSource").GetBoolean());
+            Assert.True(LifecycleTestCalls.Document(calls[2]).GetProperty("effects").GetProperty("savesSource").GetBoolean());
+            Assert.True(LifecycleTestCalls.Document(calls[3]).GetProperty("effects").GetProperty("savesSource").GetBoolean());
             Assert.Equal(4, LifecycleTestCalls.AuditCount(fixture.Audit));
 
             var applied = await ProjectWriteTools.SaveProject(fixture.Client, fixture.Execution);
-            LifecycleTestCalls.Succeeded(CanonicalToolDocument.Read(applied));
+            LifecycleTestCalls.Succeeded(LifecycleTestCalls.Document(applied));
         }
         finally { if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true); }
     }
@@ -115,7 +117,7 @@ public sealed class ProjectLifecyclePreviewSafetyTests
         await fixture.Bind();
 
         var result = await fixture.Open(destination);
-        var document = CanonicalToolDocument.Read(result);
+        var document = LifecycleTestCalls.Document(result);
         var effects = document.GetProperty("effects");
         LifecycleTestCalls.Phase(document, "preview");
         Assert.Equal(fixture.Source, effects.GetProperty("sourceProjectPath").GetString());
@@ -143,7 +145,7 @@ public sealed class ProjectLifecyclePreviewSafetyTests
                 saveBeforeClose: false, dryRun: true);
             foreach (var call in new[] { archive, close })
             {
-                var document = CanonicalToolDocument.Read(call);
+                var document = LifecycleTestCalls.Document(call);
                 LifecycleTestCalls.Phase(document, "preview");
                 Assert.Equal(fixture.Binding.CaptureSnapshot().ProjectPath,
                     document.GetProperty("effects").GetProperty("sourceProjectPath").GetString());
@@ -151,7 +153,7 @@ public sealed class ProjectLifecyclePreviewSafetyTests
                 Assert.False(document.TryGetProperty("requestedInputHash", out _));
             }
             Assert.Equal(JsonValueKind.Object,
-                CanonicalToolDocument.Read(archive).GetProperty("effects").GetProperty("sourceStatus").ValueKind);
+                LifecycleTestCalls.Document(archive).GetProperty("effects").GetProperty("sourceStatus").ValueKind);
         }
         finally { if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true); }
     }
@@ -181,7 +183,7 @@ public sealed class ProjectLifecyclePreviewSafetyTests
         {
             var preview = await ProjectWriteTools.ArchiveProject(fixture.Client, fixture.Execution,
                 directory, "Backup", dryRun: true);
-            LifecycleTestCalls.Phase(CanonicalToolDocument.Read(preview), "preview");
+            LifecycleTestCalls.Phase(LifecycleTestCalls.Document(preview), "preview");
             Directory.Delete(directory);
             var result = await ProjectWriteTools.ArchiveProject(fixture.Client, fixture.Execution,
                 directory, "Backup");
@@ -242,7 +244,9 @@ public sealed class ProjectLifecyclePreviewSafetyTests
     public async Task RebindProbe_UsesVerifiedSourceIdentityAndKeepsBindingOnSource()
     {
         var binding = new ProjectSessionBinding(null);
-        using var client = FakeWorkerClients.Create(McpAccessMode.Full, binding: binding);
+        using var client = new OpennessWorkerClient(
+            binding,
+            workerExecutablePath: FakeWorkerLocator.Locate(), accessPolicy: new OperationAccessPolicy(McpAccessMode.Full));
         await FakeWorkerBinding.BindVerifiedAsync(client, binding, SourcePath);
         var bindingBefore = binding.CaptureSnapshot();
         var expectedIdentity = Assert.IsType<WorkerSessionIdentity>(bindingBefore.ToWorkerIdentity());
@@ -278,7 +282,9 @@ public sealed class ProjectLifecyclePreviewSafetyTests
     {
         var sourcePath = $@"C:\FakeWorker\{scenario}.ap21";
         var binding = new ProjectSessionBinding(null);
-        using var client = FakeWorkerClients.Create(McpAccessMode.Full, binding: binding);
+        using var client = new OpennessWorkerClient(
+            binding,
+            workerExecutablePath: FakeWorkerLocator.Locate(), accessPolicy: new OperationAccessPolicy(McpAccessMode.Full));
         await FakeWorkerBinding.BindVerifiedAsync(client, binding, sourcePath);
 
         var result = await client.ProbeOpenProjectRebindAsync(sourcePath, DestinationPath);
@@ -293,7 +299,9 @@ public sealed class ProjectLifecyclePreviewSafetyTests
     {
         const string sourcePath = @"C:\FakeWorker\lifecycle-rebind-probe-binding-conflict.ap21";
         var binding = new ProjectSessionBinding(null);
-        using var client = FakeWorkerClients.Create(McpAccessMode.Full, binding: binding);
+        using var client = new OpennessWorkerClient(
+            binding,
+            workerExecutablePath: FakeWorkerLocator.Locate(), accessPolicy: new OperationAccessPolicy(McpAccessMode.Full));
         await FakeWorkerBinding.BindVerifiedAsync(client, binding, sourcePath);
 
         var result = await client.ProbeOpenProjectRebindAsync(sourcePath, DestinationPath);
@@ -312,7 +320,7 @@ public sealed class ProjectLifecyclePreviewSafetyTests
             .Select(tool => tool.Name)
             .ToArray();
 
-        Assert.Equal(6, toolNames.Length);
+        Assert.Equal(7, toolNames.Length);
         Assert.DoesNotContain("probe_open_project_rebind", toolNames);
     }
 
@@ -327,7 +335,7 @@ public sealed class ProjectLifecyclePreviewSafetyTests
             fixture.Physical(@"C:\Lifecycle\B-modified.ap21"), forceRebind: true);
 
         LifecycleTestCalls.Rejected(result, WorkerFailureCategories.GuardBlocked);
-        LifecycleTestCalls.Phase(CanonicalToolDocument.Read(result), "blocked");
+        LifecycleTestCalls.Phase(LifecycleTestCalls.Document(result), "blocked");
         await AssertNoOpenProjectCallsAsync(fixture.Client, fixture.Source);
     }
 
@@ -339,11 +347,11 @@ public sealed class ProjectLifecyclePreviewSafetyTests
         const string destination = @"C:\open\Line.ap21";
 
         var preview = await fixture.Open(destination);
-        LifecycleTestCalls.Phase(CanonicalToolDocument.Read(preview), "preview");
+        LifecycleTestCalls.Phase(LifecycleTestCalls.Document(preview), "preview");
         var result = await fixture.Open(destination, dryRun: false);
 
         LifecycleTestCalls.Rejected(result, "guard_blocked");
-        Assert.Contains(CanonicalToolDocument.Read(result).GetProperty("guards").EnumerateArray(),
+        Assert.Contains(LifecycleTestCalls.Document(result).GetProperty("guards").EnumerateArray(),
             guard => guard.GetProperty("id").GetString() == "discards_unsaved_source_changes");
         Assert.Equal(fixture.Source, fixture.Binding.CaptureSnapshot().ProjectPath);
         await AssertNoOpenProjectCallsAsync(fixture.Client, fixture.Source);
@@ -357,7 +365,7 @@ public sealed class ProjectLifecyclePreviewSafetyTests
         const string destination = @"C:\Lifecycle\B-ui-owned.ap21";
 
         var result = await fixture.Open(destination, dryRun: false);
-        var document = CanonicalToolDocument.Read(result);
+        var document = LifecycleTestCalls.Document(result);
         LifecycleTestCalls.Succeeded(document);
         Assert.False(document.GetProperty("effects").GetProperty("willCloseSource").GetBoolean());
         Assert.Equal(fixture.Physical(destination), fixture.Binding.CaptureSnapshot().ProjectPath);
@@ -371,7 +379,7 @@ public sealed class ProjectLifecyclePreviewSafetyTests
         await fixture.Bind(source);
 
         var result = await fixture.Open(source, forceRebind: false, dryRun: false);
-        var document = CanonicalToolDocument.Read(result);
+        var document = LifecycleTestCalls.Document(result);
         LifecycleTestCalls.Succeeded(document);
         Assert.True(document.GetProperty("effects").GetProperty("sourceStatus").GetProperty("isModified").GetBoolean());
         Assert.False(document.GetProperty("effects").GetProperty("willCloseSource").GetBoolean());
@@ -406,7 +414,7 @@ public sealed class ProjectLifecyclePreviewSafetyTests
         using var fixture = new Fixture(worker: "worker-must-not-start.exe");
         var before = fixture.Binding.CaptureSnapshot();
         var result = await fixture.Open(@"C:\open\Line.ap21", forceRebind: false);
-        var effects = CanonicalToolDocument.Read(result).GetProperty("effects");
+        var effects = LifecycleTestCalls.Document(result).GetProperty("effects");
 
         Assert.Equal(JsonValueKind.Null, effects.GetProperty("sourceProjectPath").ValueKind);
         Assert.Equal(fixture.Physical(@"C:\open\Line.ap21"), effects.GetProperty("destinationProjectPath").GetString());
@@ -423,7 +431,7 @@ public sealed class ProjectLifecyclePreviewSafetyTests
 
         var result = await fixture.Open();
 
-        LifecycleTestCalls.Phase(CanonicalToolDocument.Read(result), "preview");
+        LifecycleTestCalls.Phase(LifecycleTestCalls.Document(result), "preview");
         var promoted = fixture.Binding.CaptureSnapshot();
         Assert.True(promoted.IsVerified);
         Assert.Equal(fixture.Source, promoted.ProjectPath);
@@ -462,7 +470,7 @@ public sealed class ProjectLifecyclePreviewSafetyTests
         var result = await fixture.Open("   ", forceRebind);
         LifecycleTestCalls.Rejected(result, WorkerFailureCategories.ValidationError);
         Assert.Contains("path",
-            CanonicalToolDocument.Read(result).GetProperty("error").GetProperty("message").GetString(),
+            LifecycleTestCalls.Document(result).GetProperty("error").GetProperty("message").GetString(),
             StringComparison.OrdinalIgnoreCase);
         Assert.True(before.SameBinding(fixture.Binding.CaptureSnapshot()));
     }
@@ -489,7 +497,7 @@ public sealed class ProjectLifecyclePreviewSafetyTests
         LifecycleTestCalls.Rejected(result, WorkerFailureCategories.ValidationError);
 
         Assert.Equal("invalid value",
-            CanonicalToolDocument.Read(result).GetProperty("error").GetProperty("message").GetString());
+            LifecycleTestCalls.Document(result).GetProperty("error").GetProperty("message").GetString());
         Assert.Equal(ProjectBindingSnapshot.InvalidatedState, fixture.Binding.CaptureSnapshot().State);
         Assert.Equal(before.ProjectPath, fixture.Binding.CaptureSnapshot().ProjectPath);
     }
@@ -517,7 +525,7 @@ public sealed class ProjectLifecyclePreviewSafetyTests
         fixture.Binding.Invalidate("Simulated stale binding");
 
         var preview = await fixture.Open();
-        LifecycleTestCalls.Phase(CanonicalToolDocument.Read(preview), "preview");
+        LifecycleTestCalls.Phase(LifecycleTestCalls.Document(preview), "preview");
         Assert.NotEqual(oldBinding.BindingId, fixture.Binding.CaptureSnapshot().BindingId);
         Assert.True(fixture.Binding.CaptureSnapshot().Revision > oldBinding.Revision);
         var dispatched = false;

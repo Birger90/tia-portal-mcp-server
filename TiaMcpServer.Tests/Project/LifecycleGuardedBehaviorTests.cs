@@ -35,7 +35,7 @@ public sealed class LifecycleGuardedBehaviorTests
         var message = new LifecycleWriteDomain(null!, item).DescribeForConfirmation([item], [ItemPlan<LifecycleEffects>.Resolved(effect)]);
         Assert.Contains(operation, message);
         Assert.Contains(target, message);
-        if (operation == "open_project") Assert.Contains("Close source project 'Source'", message);
+        if (operation == "open_project") Assert.Contains("Close source project \"Source\"", message);
         if (operation == "close_project") Assert.Contains(save ? "save" : "discard", message);
     }
 
@@ -110,9 +110,9 @@ public sealed class LifecycleGuardedBehaviorTests
     [InlineData("discards_unsaved_changes", "close_project", true, WriteGuardSeverities.Acknowledge)]
     [InlineData("archive_without_save", "archive_project", true, WriteGuardSeverities.Info)]
     [InlineData("archive_discards_restorable_data", "archive_project", false, WriteGuardSeverities.Info)]
-    [InlineData("archive_inside_project_folder", "archive_project", false, WriteGuardSeverities.Block)]
-    [InlineData("target_exists", "create_project", false, WriteGuardSeverities.Block)]
-    [InlineData("target_exists", "save_project_as", false, WriteGuardSeverities.Block)]
+    [InlineData("archive_inside_project_folder", "archive_project", false, WriteGuardSeverities.Info)]
+    [InlineData("target_exists", "create_project", false, WriteGuardSeverities.Info)]
+    [InlineData("target_exists", "save_project_as", false, WriteGuardSeverities.Info)]
     public void AcceptedGuardTable_AllSevenRulesAreRepresented(string id, string operation, bool modified, string severity)
     {
         var source = Path.Combine(Path.GetTempPath(), "guarded-source", "Source.ap21");
@@ -146,6 +146,104 @@ public sealed class LifecycleGuardedBehaviorTests
         }
     }
 
+    [Fact]
+    public async Task UnboundCreateDryRun_WithoutAWorker_ReportsTheOpenProjectCheckAsNotChecked()
+    {
+        using var fixture = new Fixture("success", configured: false, workerPath: Path.Combine(Path.GetTempPath(), "missing-lifecycle-worker.exe"));
+        var result = await ProjectWriteTools.ExecuteAsync(fixture.Client, fixture.Execution, fixture.Item("create_project"), new(null), dryRun: true);
+
+        using var document = JsonDocument.Parse(Assert.IsType<TextContentBlock>(Assert.Single(result.Content)).Text);
+        var check = document.RootElement.GetProperty("effects").GetProperty("openProject");
+        Assert.Equal(LifecycleOpenProjectCheck.NotChecked, check.GetProperty("source").GetString());
+        Assert.Contains("planning starts no worker", check.GetProperty("note").GetString());
+        Assert.DoesNotContain(document.RootElement.GetProperty("guards").EnumerateArray(),
+            guard => guard.GetProperty("id").GetString() == LifecycleWriteDomain.CreateRequiresNoOpenProject);
+    }
+
+    [Fact]
+    public async Task CreateDryRun_WithAnOpenProject_FiresTheAcknowledgeGuard_AndCreatesNothing()
+    {
+        using var fixture = new Fixture("dryRun");
+        var item = fixture.Item("create_project");
+        var result = await ProjectWriteTools.ExecuteAsync(fixture.Client, fixture.Execution, item, new(null), dryRun: true);
+
+        using var document = JsonDocument.Parse(Assert.IsType<TextContentBlock>(Assert.Single(result.Content)).Text);
+        var root = document.RootElement;
+        Assert.Equal("preview", root.GetProperty("phase").GetString());
+        var guard = Assert.Single(root.GetProperty("guards").EnumerateArray(),
+            guard => guard.GetProperty("id").GetString() == LifecycleWriteDomain.CreateRequiresNoOpenProject);
+        Assert.Equal(WriteGuardSeverities.Acknowledge, guard.GetProperty("severity").GetString());
+        Assert.Contains("Source.ap21", guard.GetProperty("message").GetString());
+        Assert.Contains("Another project is already open.", guard.GetProperty("message").GetString());
+        Assert.Contains("save_project", guard.GetProperty("message").GetString());
+        Assert.Contains("close_project", guard.GetProperty("message").GetString());
+        var check = root.GetProperty("effects").GetProperty("openProject");
+        Assert.EndsWith("Source.ap21", check.GetProperty("openProjectPath").GetString());
+        Assert.False(Directory.Exists(Path.Combine(item.ProjectDirectory!, item.ProjectName!)));
+    }
+
+    [Fact]
+    public async Task CreateRefusedBecauseAnotherProjectIsOpen_IsEngineeringRejected_WithoutMayHaveChangedWarnings()
+    {
+        using var fixture = new Fixture("another-open");
+        var item = fixture.Item("create_project");
+        var result = await ProjectWriteTools.ExecuteAsync(fixture.Client, fixture.Execution, item, new(null), dryRun: false);
+
+        using var document = JsonDocument.Parse(Assert.IsType<TextContentBlock>(Assert.Single(result.Content)).Text);
+        var root = document.RootElement;
+        Assert.Equal("applied", root.GetProperty("phase").GetString());
+        Assert.False(root.GetProperty("success").GetBoolean());
+        var failure = root.GetProperty("result").GetProperty("failure");
+        Assert.Equal(WorkerFailureCategories.EngineeringRejected, failure.GetProperty("category").GetString());
+        Assert.Contains("Another project is already open.", failure.GetProperty("message").GetString());
+        Assert.Contains("was not created", failure.GetProperty("message").GetString());
+        var warnings = root.GetProperty("warnings").EnumerateArray().Select(w => w.GetString()!).ToArray();
+        Assert.DoesNotContain(WriteExecution.VerificationFailureMessage, warnings);
+        Assert.DoesNotContain(warnings, warning => warning.Contains("may already have", StringComparison.Ordinal));
+        Assert.True(Assert.Single(root.GetProperty("guards").EnumerateArray(),
+            guard => guard.GetProperty("id").GetString() == LifecycleWriteDomain.CreateRequiresNoOpenProject).GetProperty("acknowledged").GetBoolean());
+        Assert.False(Directory.Exists(Path.Combine(item.ProjectDirectory!, item.ProjectName!)));
+    }
+
+    /// <summary>K51 (live V21 2026-11-02): open_project while another project is open is refused by TIA Portal and opens nothing.</summary>
+    [Fact]
+    public async Task OpenRefusedBecauseAnotherProjectIsOpen_IsEngineeringRejected_WithoutMayHaveChangedWarnings()
+    {
+        using var fixture = new Fixture("another-open");
+        var item = fixture.Item("open_project");
+        var result = await ProjectWriteTools.ExecuteAsync(fixture.Client, fixture.Execution, item, new(null), dryRun: false);
+
+        using var document = JsonDocument.Parse(Assert.IsType<TextContentBlock>(Assert.Single(result.Content)).Text);
+        var root = document.RootElement;
+        Assert.Equal("applied", root.GetProperty("phase").GetString());
+        Assert.False(root.GetProperty("success").GetBoolean());
+        var failure = root.GetProperty("result").GetProperty("failure");
+        Assert.Equal(WorkerFailureCategories.EngineeringRejected, failure.GetProperty("category").GetString());
+        Assert.Contains("TIA Portal rejected open_project", failure.GetProperty("message").GetString());
+        Assert.Contains("was left open", failure.GetProperty("message").GetString());
+        var warnings = root.GetProperty("warnings").EnumerateArray().Select(w => w.GetString()!).ToArray();
+        Assert.DoesNotContain(WriteExecution.VerificationFailureMessage, warnings);
+        Assert.DoesNotContain(warnings, warning => warning.Contains("may already have", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("Unable to open project 'C:\\Projekte\\Neu\\Neu.ap21'. Another project is already open.", null, true)]
+    [InlineData(null, "TIA Portal operation failed: Unable to open project 'C:\\P\\N.ap21'. Another project is already open.", true)]
+    // Live V21 2026-11-02: TIA Portal wraps the message (worker error text as seen on the real create_project call).
+    [InlineData(null, "TIA Portal operation failed: Error when calling method 'Create' of type 'Siemens.Engineering.ProjectComposition'.\r\n\r\nUnable to open project 'C:\\Users\\test\\Documents\\Code Projekte\\MCP_K16_Probe'. Another project is already open.", true)]
+    [InlineData("Error when calling method 'Create' of type 'Siemens.Engineering.ProjectComposition'.\r\n\r\nUnable to open project 'C:\\P\\N'. Another project is already open.", null, true)]
+    [InlineData("Unable to open project 'C:\\P\\N.ap21'. Another project is already open. Extra", null, false)]
+    [InlineData("Das Projekt 'C:\\P\\N.ap21' kann nicht geöffnet werden. Ein anderes Projekt ist bereits geöffnet.", null, false)]
+    [InlineData(null, "Unable to open project 'N'. Another project is already open.", false)]
+    public void OnlyTheExactLiveMessageIsRecognised(string? engineeringMessage, string? error, bool recognised)
+    {
+        var result = WorkerCallResult.Fail(WorkerFailureCategories.WorkerOperationFailed, error ?? "TIA Portal operation failed: x") with
+        {
+            EngineeringError = engineeringMessage is null ? null : new EngineeringErrorInfo { Type = "EngineeringException", Message = engineeringMessage },
+        };
+        Assert.Equal(recognised, LifecycleWriteDomain.RecognisedMessage(result) is not null);
+    }
+
     private sealed class Audit : IWriteAuditSink
     {
         public List<WriteAuditRecord> Records { get; } = new();
@@ -172,8 +270,8 @@ public sealed class LifecycleGuardedBehaviorTests
             File.WriteAllText(_source, "fixture");
             File.WriteAllText(_destination, "fixture");
             _uiOpen = new FakeWorkerUiOpenProject(configured ? _source : null);
-            Client = FakeWorkerClients.Create(McpAccessMode.Full,
-                binding: new ProjectSessionBinding(configured ? _source : null), workerPath: workerPath);
+            Client = new(new ProjectSessionBinding(configured ? _source : null), logger: null,
+                workerExecutablePath: workerPath ?? FakeWorkerLocator.Locate(), accessPolicy: new(McpAccessMode.Full));
             Execution = new(new OpennessWriteBindingGate(Client), Audit, LifecycleWriteDomain.Catalog, TimeProvider.System);
         }
 

@@ -1,5 +1,7 @@
 # TIA Portal PLC Import and Export
 
+**Language:** English · [Deutsch](IMPORT_EXPORT_OPTIONS_SUMMARY.de.md)
+
 ## Operation surface
 
 The MCP provides a focused PLC round-trip interface through four operations (reads through `plc_read`, writes through `plc_write`):
@@ -63,8 +65,8 @@ The object uses these fields and closed values:
 | `importResultState` | `success`, `non_success`, or `unavailable`. A normally returned `Blocks.Import` or `GenerateBlocksFromSource` call is `success`; a normally returned SIMATIC SD result maps to `success` or `non_success`; a call that does not return is `unavailable`. |
 | `targetMutationCommitted` | Nullable Boolean. `false` proves refusal before the target import/generation call; `true` means that call returned normally; `null` means commitment is unknown after invocation started or transport became ambiguous. Presence evidence alone never determines this field. |
 | `compileStage` | `not_started`, `succeeded`, `failed`, or `unavailable`. Warning-only reports are `succeeded`. `unavailable` is based on structured target/session/invocation evidence and takes precedence over `failed`, which takes precedence over `succeeded`. |
-| `compileReport` | A nullable bounded copy of the whole aggregate compile report. It is null when compilation did not start and may be null when no report could be established; a partial report is retained when available. Full aggregate error/warning totals are preserved even when detail is omitted. |
-| `compileDetailsOmitted` | `true` when any PLC, message, note, or string detail was omitted or shortened by the bounded projection. |
+| `compileReport` | A nullable bounded copy of the whole aggregate compile report with TIA Portal's own message texts and paths (the `compile_check` messages: container nodes are not messages, paths carry the container chain). It is null when compilation did not start and may be null when no report could be established; a partial report is retained when available. Full aggregate error/warning totals are preserved even when detail is omitted. |
+| `compileDetailsOmitted` | `true` only when a PLC, message, note, or string detail was actually omitted or shortened by the bounded projection (or the worker's compile report itself was already incomplete). |
 | `finalReadStage` | `not_started`, `succeeded`, or `unavailable`. |
 | `targetPresent` | Nullable Boolean. It is `true` or `false` when the independent fresh resolver establishes presence or absence, and null only when resolution itself is unavailable or unreliable. A later export/read failure can leave `finalReadStage=unavailable` while preserving `targetPresent=true`. Presence does not imply import commitment. |
 | `contentRelation` | Always `unknown` in this contract. The final export is not claimed to equal either the requested content or the prior content. |
@@ -80,9 +82,18 @@ the open engineering session, plant-accepted, or made byte-equivalent to the req
 Compile evidence aggregates the existing selected scope: the exact block target when `blockPath`
 is supplied, the named PLC when only `plcName` is supplied, or all discovered PLCs in deterministic
 order otherwise. The outcome retains at most 8 PLC entries, 20 message rows, 8 diagnostic notes,
-256 decoded characters per string, and 1,024 decoded diagnostic characters across message text,
-paths, and notes. The complete serialized `blockImportOutcome` is limited to 12,000 UTF-16
-characters, including JSON escape expansion and metadata.
+256 decoded characters per string, and 6,000 decoded diagnostic characters across message text,
+paths, and notes (`BlockImportOutcomeLimits`, shared by the worker projection and the host
+validator). The complete serialized `blockImportOutcome` is limited to 12,000 UTF-16
+characters, including JSON escape expansion and metadata. Within these bounds the messages are
+TIA Portal's own texts (control characters replaced by blanks, trimmed) and the report keeps its
+`blockPath`. Notes come first; messages are chosen by severity (errors, then warnings, then
+information, each in report order) and delivered in report order; only what does not fit is
+omitted, and only then is `compileDetailsOmitted` true. Until 2026-11-02 every message text was
+replaced by "Compiler diagnostic omitted." and every path by an empty string, so
+`compileDetailsOmitted` was always true (defect K04, live 2026-11-02: four short information
+messages after `set_network_text`); the I2 design had treated compiler text like exception text,
+although `compile_check` returns the same texts. Offline-tested only; not live-tested.
 
 The sequential call remains non-atomic. Processing stops at the first failed item and later items
 are marked `skipped`; the server does not retry, roll back, compensate, save, or download.
@@ -94,7 +105,14 @@ project binding, access policy, guards, and audit of the guarded pipeline apply 
 Each `update_block_logic` and `update_type_content` item's `plc_write` effect carries a structured
 `contentDiff` object, in previews and actual calls alike. It compares the current exact-format text
 read at planning with the submitted `content`; it does not predict Siemens post-write state and is
-evidence only, not part of the hash check.
+evidence only, not part of the hash check. Like is compared with like (since 2026-11-02, defect K31:
+live, one contact added by plain XML showed 157 changed lines because the whole export bundle, with
+its `--- FILE:` headers and `.s7dcl` part, was compared): in format `xml`, a submitted document
+without `--- FILE:` delimiters is compared with the `.xml` document of the current export bundle
+only, and `contentDiff.currentDocument` names that document (absent otherwise; the current side's
+hash and counts are then that document's; a trailing line break the bundle layout adds is not
+counted when the submitted document has none). A submitted bundle is compared with the whole
+bundle, and every other format with the whole export. Not live-tested.
 
 - Each eligible operation has at most 40 excerpt lines and 8,192 excerpt characters per side.
 - When a changed span exceeds 40 lines, each excerpt contains the first 20 plus last 20 lines.
@@ -107,6 +125,24 @@ evidence only, not part of the hash check.
   normalization. The response also reports `rawTextEqual`, `normalizedLinesEqual`, and
   `lineEndingOnly`; a line-ending-only difference has unequal raw text but equal normalized lines.
 - Every other operation has `contentDiff: null`.
+
+## V21 pitfalls
+
+Reported by rickgaiser/TiaMcp, not verified on V21; see [V21 pitfalls](V21_PITFALLS.md).
+
+- A bundle submitted to `update_block_logic` **without** a delimited `.xml` document but with an
+  `.s7dcl` document is imported through SIMATIC SD (`ImportFromDocuments`); this is the only `.s7dcl`
+  write path of `plc_write` (`update_type_content` never imports `.s7dcl`). That import is reported to
+  alter an array access inside an index in a LAD/FBD network, a member typed with a project FB/UDT named
+  like a system type and AT overlays without an error. Planning fires the informative guard
+  `plc_s7dcl_import_may_alter` with the constructs found, the item carries a warning, and the
+  verification entry `s7dclConstructs` compares each construct with the re-export and fails when it
+  differs. `get_block_content` (`xml`) warns about such blocks.
+- Overwriting a block with a textual interface is reported to terminate TIA Portal after more than one
+  export since the project was opened or the block was last written. The worker counts its exports per
+  block; planning fires `plc_textual_interface_overwrite_may_terminate` and
+  `plc_save_before_write_recommended` (both informative). This write path itself exports the block more
+  than once before the import.
 
 ## Format matrix
 
@@ -128,8 +164,11 @@ evidence only, not part of the hash check.
 | Know-how-protected block exchange | Partial: generic export may expose only the public interface or fail; protected import is unavailable |
 | Dedicated failsafe block exchange | Not supported; compatible consistent F-blocks may use the generic XML route |
 | System-block exchange | Not supported |
-| Tag tables, tags, and constants through import/export | Not supported; use PLC tag operations |
-| Technology objects, watch tables, and force tables | Not supported |
+| Tag tables, tags, and constants through import/export | One tag table as a SimaticML file: `plc_write export_tag_table` / `import_tag_table` (not live-tested; see [BetterTIA operations reference](BETTERTIA_ADOPTED_OPERATIONS_SUMMARY.md#tag-tables-and-wincc-unified-text-lists-as-files-owner-additions)). CSV export (not import) through `plc_write export_tag_tables_csv` |
+| External source management (list, `CreateFromFile` import, `GenerateBlocksFromSource` with `None`/`KeepOnError` into a group, delete, `GenerateSource` of several blocks/types to a caller file) | Supported (not live-tested); see [PLC_SOURCES_FOLDERS_SUMMARY.md](PLC_SOURCES_FOLDERS_SUMMARY.md#external-sources) |
+| Batch export of all blocks/types of a PLC or group to a directory (SimaticML documents or sources, per-file SHA-256) | Supported (not live-tested) through `plc_write export_blocks`, built on the reads above |
+| Technology objects | SimaticML through `plc_write` `export_technology_object`, `import_technology_object` and `update_technology_object_content`, and `plc_read` `get_technology_object_content`; see [TECHNOLOGY_OBJECTS_SUMMARY.md](TECHNOLOGY_OBJECTS_SUMMARY.md) (not live-tested) |
+| Watch tables and force tables | SimaticML through `plc_read` `get_watch_table_content`/`get_force_table_content` and `plc_write` `update_watch_table_content`/`update_force_table_content` (`Import(..., ImportOptions.Override)` behind `expectedContentHash`); see [PLC_ONLINE_OPENNESS_SUMMARY.md](PLC_ONLINE_OPENNESS_SUMMARY.md) (not live-tested); CSV export (not import) through `plc_write` `export_watch_tables_csv`/`export_force_tables_csv` |
 | PLC alarm, ProDiag, hardware CAx, project-text, and graphics exchange | Not supported |
 | HMI import/export | Not supported; see [HMI_OPERATIONS_SUMMARY.md](HMI_OPERATIONS_SUMMARY.md) |
 | Generic arbitrary-object XML import/export | Not supported |

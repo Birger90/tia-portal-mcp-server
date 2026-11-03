@@ -21,7 +21,7 @@ public static class PlcSoftwareLocator
         DiscoveredPlcSoftware? match = null;
         foreach (var device in ProjectDeviceEnumerator.Enumerate(project))
         {
-            foreach (var software in EnumerateStrict(device.DeviceItems))
+            foreach (var (host, software) in EnumerateStrict(device.DeviceItems))
             {
                 if (plcName is not null &&
                     !string.Equals(software.Name, plcName, StringComparison.OrdinalIgnoreCase) &&
@@ -37,7 +37,7 @@ public static class PlcSoftwareLocator
                         $"Several PLC software instances match{Describe(plcName)}. Specify an unambiguous plcName.");
                 }
 
-                match = new DiscoveredPlcSoftware(device.Name, software);
+                match = new DiscoveredPlcSoftware(device.Name, software, host);
             }
         }
 
@@ -46,10 +46,20 @@ public static class PlcSoftwareLocator
             $"No PLC software{Describe(plcName)} was found in the project.");
     }
 
+    /// <summary>Every PLC software of the project (root, grouped or ungrouped devices), in device order; strict like <see cref="FindUnique"/>.</summary>
+    public static IReadOnlyList<DiscoveredPlcSoftware> FindAll(ProjectBase project)
+    {
+        var found = new List<DiscoveredPlcSoftware>();
+        foreach (var device in ProjectDeviceEnumerator.Enumerate(project))
+            foreach (var (host, software) in EnumerateStrict(device.DeviceItems))
+                found.Add(new DiscoveredPlcSoftware(device.Name, software, host));
+        return found;
+    }
+
     private static string Describe(string? plcName) => plcName is null ? string.Empty : $" named '{plcName}'";
 
     /// <summary>Fails closed with a categorized error when a device item cannot be read.</summary>
-    private static IEnumerable<PlcSoftware> EnumerateStrict(DeviceItemComposition items)
+    private static IEnumerable<(DeviceItem Host, PlcSoftware Software)> EnumerateStrict(DeviceItemComposition items)
     {
         using var enumerator = FindInDeviceItemsStrict(items).GetEnumerator();
         while (true)
@@ -68,13 +78,13 @@ public static class PlcSoftwareLocator
         }
     }
 
-    private static IEnumerable<PlcSoftware> FindInDeviceItemsStrict(DeviceItemComposition items)
+    private static IEnumerable<(DeviceItem Host, PlcSoftware Software)> FindInDeviceItemsStrict(DeviceItemComposition items)
     {
         foreach (DeviceItem item in items)
         {
             if (item.GetService<SoftwareContainer>()?.Software is PlcSoftware software)
             {
-                yield return software;
+                yield return (item, software);
             }
 
             foreach (var child in FindInDeviceItemsStrict(item.DeviceItems))
@@ -97,7 +107,7 @@ public static class PlcSoftwareLocator
     {
         foreach (Device device in ProjectDeviceEnumerator.Enumerate(project))
         {
-            foreach (var plcSoftware in FindInDeviceItems(device.DeviceItems, discoveryFailures))
+            foreach (var (host, plcSoftware) in FindInDeviceItems(device.DeviceItems, discoveryFailures))
             {
                 if (plcName is not null &&
                     !string.Equals(plcSoftware.Name, plcName, StringComparison.OrdinalIgnoreCase) &&
@@ -106,7 +116,7 @@ public static class PlcSoftwareLocator
                     continue;
                 }
 
-                yield return new DiscoveredPlcSoftware(device.Name, plcSoftware);
+                yield return new DiscoveredPlcSoftware(device.Name, plcSoftware, host);
             }
         }
     }
@@ -114,10 +124,10 @@ public static class PlcSoftwareLocator
     /// <summary>Enumerates every PLC software hosted by a single device.</summary>
     public static IEnumerable<PlcSoftware> FindInDevice(Device device)
     {
-        return FindInDeviceItems(device.DeviceItems, null);
+        return FindInDeviceItems(device.DeviceItems, null).Select(found => found.Software);
     }
 
-    private static IEnumerable<PlcSoftware> FindInDeviceItems(
+    private static IEnumerable<(DeviceItem Host, PlcSoftware Software)> FindInDeviceItems(
         DeviceItemComposition items,
         ICollection<string>? discoveryFailures)
     {
@@ -138,7 +148,7 @@ public static class PlcSoftwareLocator
 
             if (plcSoftware is not null)
             {
-                yield return plcSoftware;
+                yield return (item, plcSoftware);
             }
 
             foreach (var child in FindInDeviceItems(item.DeviceItems, discoveryFailures))
@@ -150,14 +160,22 @@ public static class PlcSoftwareLocator
 
     public sealed class DiscoveredPlcSoftware
     {
-        public DiscoveredPlcSoftware(string deviceName, PlcSoftware software)
+        public DiscoveredPlcSoftware(string deviceName, PlcSoftware software, DeviceItem? hostDeviceItem = null)
         {
             DeviceName = deviceName;
             Software = software;
+            HostDeviceItem = hostDeviceItem;
         }
 
         public string DeviceName { get; }
 
         public PlcSoftware Software { get; }
+
+        /// <summary>
+        /// The device item whose <c>SoftwareContainer</c> service carries <see cref="Software"/> (the CPU
+        /// of a Step 7 PLC); its <c>DownloadProvider</c> service downloads that software. Null only for
+        /// instances constructed outside the locator.
+        /// </summary>
+        public DeviceItem? HostDeviceItem { get; }
     }
 }

@@ -7,7 +7,7 @@ namespace TiaMcpServer.Tests.Network;
 
 public class CatalogEntryInfoTests
 {
-    private static readonly JsonSerializerOptions JsonOptions = WorkerJson.ExplicitNullPayload;
+    private static readonly JsonSerializerOptions JsonOptions = WorkerJson.PayloadOptionsFor(typeof(CatalogEntryInfo));
 
     [Fact]
     public void SerializesDefaultCatalogEntry()
@@ -53,6 +53,8 @@ public class CatalogEntryInfoTests
     [Fact]
     public void NullableFieldsSerializeAsExplicitNull()
     {
+        // CatalogEntryInfo no longer carries [LegacyNullOmission(RequiredMemberEnforcement)]
+        // (Task 3): null members are now written explicitly instead of omitted.
         var entry = new CatalogEntryInfo
         {
             TypeName = "CPU 1516-3 PN/DP",

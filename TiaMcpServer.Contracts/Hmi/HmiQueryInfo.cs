@@ -32,6 +32,15 @@ public class HmiQueryInfo
 
     public string? Name { get; set; }
 
+    /// <summary>list_classic_objects: the classic WinCC object kind (<see cref="HmiClassicKinds"/>).</summary>
+    public string? ClassicKind { get; set; }
+
+    /// <summary>The screen item (screen when null) of the Unified scripting reads.</summary>
+    public string? ItemName { get; set; }
+
+    /// <summary>list_plant_views: only this plant view.</summary>
+    public string? PlantViewName { get; set; }
+
     /// <summary>The worker snapshot a continuation pages; null for a fresh scan.</summary>
     public string? SnapshotId { get; set; }
 }

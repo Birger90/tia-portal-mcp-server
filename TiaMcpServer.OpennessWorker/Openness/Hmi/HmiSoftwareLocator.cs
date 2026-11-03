@@ -137,7 +137,7 @@ public static class HmiSoftwareLocator
         {
             throw new WorkerOperationException(
                 WorkerFailureCategories.TargetKindUnsupported,
-                $"The project's HMI '{classicSeen.SoftwareName}' on device '{classicSeen.DeviceName}' is a Classic (WinCC) HMI; only WinCC Unified HMIs are supported.");
+                $"The project's HMI '{classicSeen.SoftwareName}' on device '{classicSeen.DeviceName}' is a Classic (WinCC) HMI; only WinCC Unified HMIs are supported." + ClassicHint);
         }
 
         if (match is null)
@@ -151,7 +151,7 @@ public static class HmiSoftwareLocator
         {
             throw new WorkerOperationException(
                 WorkerFailureCategories.TargetKindUnsupported,
-                $"HMI '{match.SoftwareName}' on device '{match.DeviceName}' is a Classic (WinCC) HMI; only WinCC Unified HMIs are supported.");
+                $"HMI '{match.SoftwareName}' on device '{match.DeviceName}' is a Classic (WinCC) HMI; only WinCC Unified HMIs are supported." + ClassicHint);
         }
 
         if (hmiName is not null)
@@ -177,6 +177,39 @@ public static class HmiSoftwareLocator
                 ReadTypeIdentifier(found, messages),
                 found.Software as HmiSoftware);
         }
+    }
+
+    /// <summary>Appended to the Unified operations' Classic refusal: the classic operations handle such an HMI (issue #28).</summary>
+    internal const string ClassicHint = " Classic HMIs are handled by the classic operations list_classic_objects, export_classic_objects, import_classic_objects, delete_classic_object, create_classic_folder and delete_classic_folder.";
+
+    /// <summary>
+    /// The resolver of the classic operations (issue #28): exactly one Classic (WinCC) HMI whose software or device name
+    /// equals <paramref name="hmiName"/> case-insensitively (any Classic HMI when null). The target is returned as an
+    /// untyped object: the worker never references Siemens.Engineering.WinCC.dll and binds its members at runtime.
+    /// </summary>
+    public static (string DeviceName, string SoftwareName, object Target) FindUniqueClassic(ProjectBase project, string? hmiName)
+    {
+        Found? match = null;
+        foreach (var found in Walk(project, messages: null))
+        {
+            var selected = hmiName is null
+                ? found.Kind == KindClassic
+                : string.Equals(found.SoftwareName, hmiName, StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(found.DeviceName, hmiName, StringComparison.OrdinalIgnoreCase);
+            if (!selected) continue;
+            if (match is not null)
+                throw new WorkerOperationException(WorkerFailureCategories.TargetAmbiguous,
+                    $"Several HMI software instances match{Describe(hmiName)}. Specify an unambiguous hmiName (see list_hmi_devices).");
+            match = found;
+        }
+
+        if (match is null)
+            throw new WorkerOperationException(WorkerFailureCategories.TargetNotFound,
+                $"No Classic (WinCC) HMI software{Describe(hmiName)} was found in the project. Use list_hmi_devices to see the HMI devices.");
+        if (match.Kind != KindClassic)
+            throw new WorkerOperationException(WorkerFailureCategories.TargetKindUnsupported,
+                $"HMI '{match.SoftwareName}' on device '{match.DeviceName}' is a WinCC Unified HMI; the classic operations need a Classic (WinCC) HMI. Use the Unified operations for it.");
+        return (match.DeviceName, match.SoftwareName, match.Software);
     }
 
     private static string Describe(string? hmiName) => hmiName is null ? string.Empty : $" named '{hmiName}'";

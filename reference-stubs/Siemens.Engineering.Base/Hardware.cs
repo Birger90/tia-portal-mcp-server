@@ -7,7 +7,7 @@ namespace Siemens.Engineering.HW
         public global::Siemens.Engineering.HW.Features.AddressControllerAssociation AddressControllers { get => throw new global::System.NotSupportedException(); }
         public global::Siemens.Engineering.HW.AddressIoType IoType { get => throw new global::System.NotSupportedException(); }
         public int Length { get => throw new global::System.NotSupportedException(); }
-        public int StartAddress { get => throw new global::System.NotSupportedException(); }
+        public int StartAddress { get => throw new global::System.NotSupportedException(); set => throw new global::System.NotSupportedException(); }
         object global::Siemens.Engineering.IEngineeringObject.GetAttribute(string name) => throw new global::System.NotSupportedException();
         void global::Siemens.Engineering.IEngineeringObject.SetAttribute(string name, object value) => throw new global::System.NotSupportedException();
         global::System.Collections.Generic.IList<global::Siemens.Engineering.EngineeringAttributeInfo> global::Siemens.Engineering.IEngineeringObject.GetAttributeInfos() => throw new global::System.NotSupportedException();
@@ -81,6 +81,7 @@ namespace Siemens.Engineering.HW
         public bool IsBuiltIn { get => throw new global::System.NotSupportedException(); }
         public bool IsPlugged { get => throw new global::System.NotSupportedException(); }
         public int PositionNumber { get => throw new global::System.NotSupportedException(); }
+        public void Delete() => throw new global::System.NotSupportedException();
         object global::Siemens.Engineering.IEngineeringObject.GetAttribute(string name) => throw new global::System.NotSupportedException();
         void global::Siemens.Engineering.IEngineeringObject.SetAttribute(string name, object value) => throw new global::System.NotSupportedException();
         global::System.Collections.Generic.IList<global::Siemens.Engineering.EngineeringAttributeInfo> global::Siemens.Engineering.IEngineeringObject.GetAttributeInfos() => throw new global::System.NotSupportedException();
@@ -116,6 +117,13 @@ namespace Siemens.Engineering.HW
         public global::Siemens.Engineering.HW.DeviceItemComposition DeviceItems { get => throw new global::System.NotSupportedException(); }
         public string Name { get => throw new global::System.NotSupportedException(); }
         public string TypeIdentifier { get => throw new global::System.NotSupportedException(); }
+        public bool CanPlugCopy(global::Siemens.Engineering.HW.DeviceItem deviceItem, int positionNumber) => throw new global::System.NotSupportedException();
+        public bool CanPlugMove(global::Siemens.Engineering.HW.DeviceItem deviceItem, int positionNumber) => throw new global::System.NotSupportedException();
+        public bool CanPlugNew(string typeIdentifier, string name, int positionNumber) => throw new global::System.NotSupportedException();
+        public global::System.Collections.Generic.IList<global::Siemens.Engineering.HW.Extensions.PlugLocation> GetPlugLocations() => throw new global::System.NotSupportedException();
+        public global::Siemens.Engineering.HW.DeviceItem PlugCopy(global::Siemens.Engineering.HW.DeviceItem deviceItem, int positionNumber) => throw new global::System.NotSupportedException();
+        public global::Siemens.Engineering.HW.DeviceItem PlugMove(global::Siemens.Engineering.HW.DeviceItem deviceItem, int positionNumber) => throw new global::System.NotSupportedException();
+        public global::Siemens.Engineering.HW.DeviceItem PlugNew(string typeIdentifier, string name, int positionNumber) => throw new global::System.NotSupportedException();
         public T GetService<T>() where T : global::Siemens.Engineering.IEngineeringService => throw new global::System.NotSupportedException();
         object global::Siemens.Engineering.IEngineeringObject.GetAttribute(string name) => throw new global::System.NotSupportedException();
         void global::Siemens.Engineering.IEngineeringObject.SetAttribute(string name, object value) => throw new global::System.NotSupportedException();
@@ -299,6 +307,23 @@ namespace Siemens.Engineering.HW.Features
         global::System.Collections.Generic.IList<global::Siemens.Engineering.EngineeringAttributeInfo> global::Siemens.Engineering.IEngineeringObject.GetAttributeInfos() => throw new global::System.NotSupportedException();
         global::Siemens.Engineering.IEngineeringObject global::Siemens.Engineering.IEngineeringInstance.Parent => throw new global::System.NotSupportedException();
         T global::Siemens.Engineering.IEngineeringServiceProvider.GetService<T>() => throw new global::System.NotSupportedException();
+    }
+}
+namespace Siemens.Engineering.HW.Extensions
+{
+    // PositionNumber and Label are documented without types; the worker reads them by reflection.
+    public abstract class PlugLocation
+    {
+    }
+}
+namespace Siemens.Engineering.HW.Utilities
+{
+    // Only the two documented string[] lookups are declared; the instance is found by enumerating
+    // Project.HwUtilities at runtime (declaring type of that property is not documented).
+    public abstract class ModuleInformationProvider
+    {
+        public string[] FindContainerTypes(string typeIdentifier) => throw new global::System.NotSupportedException();
+        public string[] FindModuleTypes(string partialTypeIdentifier) => throw new global::System.NotSupportedException();
     }
 }
 namespace Siemens.Engineering.HW.HardwareCatalog

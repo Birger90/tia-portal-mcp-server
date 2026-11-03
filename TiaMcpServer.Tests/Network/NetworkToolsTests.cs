@@ -31,7 +31,7 @@ public class NetworkToolsTests
         using var audit = new TempAuditDirectory();
         Directory.CreateDirectory(audit.Path);
         using var requests = new FakeWorkerRequestLog(audit.Path);
-        using var client = FakeWorkerClients.Create();
+        using var client = CreateClient();
         var name = new string('n', length);
         var operation = new NetworkOperationRequest { OperationId = "id", Operation = name };
 
@@ -39,7 +39,7 @@ public class NetworkToolsTests
 
         Assert.True(result.IsError);
         var text = ReadText(result);
-        var root = CanonicalToolDocument.Read(result);
+        var root = ReadStructured(result);
         Assert.Equal(CanonicalJson.Serialize(root), text);
         Assert.Equal("validation_error", root.GetProperty("error").GetProperty("category").GetString());
         Assert.True(text.Length < 6000);
@@ -89,6 +89,8 @@ public class NetworkToolsTests
     private static string ReadText(CallToolResult result)
         => Assert.IsType<TextContentBlock>(Assert.Single(result.Content)).Text;
 
+    private static JsonElement ReadStructured(CallToolResult result)
+        => Assert.IsType<JsonElement>(result.StructuredContent);
 
     private static async Task<CallToolResult> NetworkWrite(
         OpennessWorkerClient? client,
@@ -102,10 +104,19 @@ public class NetworkToolsTests
         return await task!;
     }
 
+    private static OpennessWorkerClient CreateClient(
+        McpAccessMode mode = McpAccessMode.ReadWrite,
+        ProjectSessionBinding? binding = null)
+        => new(
+            binding ?? new ProjectSessionBinding(null),
+            logger: null,
+            workerExecutablePath: FakeWorkerLocator.Locate(),
+            accessPolicy: new OperationAccessPolicy(mode));
+
     private static async Task<OpennessWorkerClient> CreateBoundClientAsync(string projectPath)
     {
         var binding = new ProjectSessionBinding(null);
-        var client = FakeWorkerClients.Create(binding: binding);
+        var client = CreateClient(binding: binding);
         await FakeWorkerBinding.BindVerifiedAsync(client, binding, projectPath);
         return client;
     }
@@ -116,7 +127,7 @@ public class NetworkToolsTests
         string projectPath = StableScenario)
     {
         var binding = new ProjectSessionBinding(null);
-        var client = FakeWorkerClients.Create(binding: binding);
+        var client = CreateClient(binding: binding);
         NetworkVerifiedWriteFixture.VerifyAsync(client, binding, projectPath).GetAwaiter().GetResult();
         safety = NetworkGuardedWriteFixture.CreateRunner(client, audit.Path);
         return client;
@@ -213,7 +224,7 @@ public class NetworkToolsTests
 
         Assert.True(result.IsError);
         Assert.Contains("at least one", ReadText(result));
-        var root = CanonicalToolDocument.Read(result);
+        var root = ReadStructured(result);
         Assert.Equal("1.0", root.GetProperty("contractVersion").GetString());
         Assert.Equal(JsonValueKind.Array, root.GetProperty("warnings").ValueKind);
         Assert.Equal(JsonValueKind.Null, root.GetProperty("batch").ValueKind);
@@ -248,7 +259,7 @@ public class NetworkToolsTests
 
         var result = await NetworkRead(client, new[] { ReadHardware("r1") });
 
-        var root = CanonicalToolDocument.Read(result);
+        var root = ReadStructured(result);
         Assert.Equal("1.0", root.GetProperty("contractVersion").GetString());
         Assert.Equal(JsonValueKind.Array, root.GetProperty("warnings").ValueKind);
         Assert.Empty(root.GetProperty("warnings").EnumerateArray());
@@ -276,7 +287,7 @@ public class NetworkToolsTests
         var result = await NetworkRead(client, operations);
 
         Assert.False(result.IsError, ReadText(result));
-        var root = CanonicalToolDocument.Read(result);
+        var root = ReadStructured(result);
         Assert.False(root.GetProperty("success").GetBoolean());
 
         var items = root.GetProperty("batch").GetProperty("operations");
@@ -318,7 +329,7 @@ public class NetworkToolsTests
 
         var preview = await NetworkWrite(client, safety, operations);
 
-        var root = CanonicalToolDocument.Read(preview);
+        var root = ReadStructured(preview);
         Assert.False(preview.IsError, ReadText(preview));
         Assert.Equal("network_write", root.GetProperty("tool").GetString());
         Assert.Equal("preview", root.GetProperty("phase").GetString());
@@ -356,7 +367,7 @@ public class NetworkToolsTests
             safety,
             new[] { ConfigureDevice("configure") });
 
-        var root = CanonicalToolDocument.Read(result);
+        var root = ReadStructured(result);
         Assert.True(result.IsError);
         Assert.Equal("error", root.GetProperty("phase").GetString());
         Assert.False(root.GetProperty("success").GetBoolean());
@@ -371,7 +382,7 @@ public class NetworkToolsTests
     public async Task NetworkWrite_ReadOnlyDefenseRejectsBeforeSnapshot()
     {
         using var audit = new TempAuditDirectory();
-        using var client = FakeWorkerClients.Create(McpAccessMode.ReadOnly);
+        using var client = CreateClient(McpAccessMode.ReadOnly);
 
         var result = await NetworkWrite(client, NetworkGuardedWriteFixture.CreateRunner(client, audit.Path), new[] { AddDevice("w1") });
 
@@ -379,7 +390,7 @@ public class NetworkToolsTests
         Assert.Contains("read-only mode", ReadText(result));
         Assert.Equal(
             WorkerFailureCategories.AccessDenied,
-            CanonicalToolDocument.Read(result).GetProperty("error").GetProperty("category").GetString());
+            ReadStructured(result).GetProperty("error").GetProperty("category").GetString());
     }
 
 
@@ -394,7 +405,7 @@ public class NetworkToolsTests
             safety,
             new[] { AddDevice("w1") });
 
-        var root = CanonicalToolDocument.Read(result);
+        var root = ReadStructured(result);
         Assert.True(result.IsError);
         Assert.Contains("boom", ReadText(result));
         Assert.Equal("error", root.GetProperty("phase").GetString());
@@ -411,7 +422,7 @@ public class NetworkToolsTests
         // HardwareConfigInfo: nothing may be planned against a state that failed its contract.
         var result = await NetworkWrite(client, safety, new[] { AddDevice("w1") });
 
-        var root = CanonicalToolDocument.Read(result);
+        var root = ReadStructured(result);
         Assert.True(result.IsError);
         Assert.Equal("error", root.GetProperty("phase").GetString());
         Assert.Equal(
@@ -429,7 +440,7 @@ public class NetworkToolsTests
 
         var result = await NetworkWrite(client, safety, operations, dryRun: false);
 
-        var root = CanonicalToolDocument.Read(result);
+        var root = ReadStructured(result);
         Assert.False(result.IsError, ReadText(result));
         Assert.True(root.GetProperty("success").GetBoolean(), root.GetRawText());
         Assert.Equal("network_write", root.GetProperty("tool").GetString());
@@ -455,7 +466,7 @@ public class NetworkToolsTests
 
         var result = await NetworkWrite(client, safety, operations, dryRun: false);
 
-        var root = CanonicalToolDocument.Read(result);
+        var root = ReadStructured(result);
         Assert.False(result.IsError, ReadText(result));
         Assert.False(root.GetProperty("success").GetBoolean());
 

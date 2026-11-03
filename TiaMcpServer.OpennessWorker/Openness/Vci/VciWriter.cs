@@ -26,6 +26,10 @@ public static class VciWriter
             var service = project.GetService<VersionControlInterface>()
                 ?? throw new WorkerOperationException(WorkerFailureCategories.UnsupportedCapability,
                     "The project does not expose the Version Control Interface.");
+            // VCI exports and imports block leaves without this worker counting them one by one: every block's
+            // export count becomes unknown (V21 textual-interface pitfall, BlockExportLedger).
+            if (write.Operation is "export" or "sync_to_workspace" or "sync_to_project")
+                global::TiaMcpServer.OpennessWorker.Openness.Block.BlockExportLedger.Shared.ForgetCounts();
             if (write.Operation == "create_workspace")
             {
                 outcome.Leaves = 1;
@@ -75,6 +79,9 @@ public static class VciWriter
                                 var format = VciFormats.Resolve(write.Format,
                                     workspace.GetSupportedFileFormats(leaf.Object).ToList(), leaf.IsPlc);
                                 if (format.Format is null) throw new InvalidOperationException("No safe supported export format.");
+                                if (VciSafetyExport.Refusal(format.Format, leaf.IsPlc, leaf.Path.Select(segment => segment.NodeType),
+                                        VciLeafLanguage.Read(leaf.Object), leaf.Path[leaf.Path.Count - 1].Name) is { } safetyRefusal)
+                                    throw new InvalidOperationException(safetyRefusal);
                                 Attempt(new VciLastAttemptedInfo { Path = leaf.Path, Operation = write.Operation, Format = format.Format });
                                 if (format.IsFallback) outcome.FormatFallbacks++;
                                 var key = VciMirroredPath.Build(write.RelativeDirectory, leaf.Path, leaf.IsPcStation);

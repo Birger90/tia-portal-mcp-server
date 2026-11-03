@@ -1,7 +1,6 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
-using TiaMcpServer.Tests.TestSupport;
 using Xunit;
 
 namespace TiaMcpServer.Tests.Diagnostics;
@@ -41,7 +40,7 @@ public class CiWorkflowTests
     [Fact]
     public void ReferenceStubVerificationRunsAfterRestoreAndBeforeBuild()
     {
-        var ciWorkflowPath = Path.Combine(RepositoryFiles.Root, ".github", "workflows", "ci.yml");
+        var ciWorkflowPath = Path.Combine(GetRepositoryRoot(), ".github", "workflows", "ci.yml");
         var commands = ReadRunCommandBlocks(ciWorkflowPath)
             .SelectMany(block => block.Split('\n'))
             .Select(command => command.Trim())
@@ -100,7 +99,7 @@ public class CiWorkflowTests
     public void CoverageRunsettings_UsesApprovedScope()
     {
         var runsettingsPath = Path.Combine(
-            RepositoryFiles.Root,
+            GetRepositoryRoot(),
             "TiaMcpServer.Tests",
             "coverage.runsettings");
 
@@ -130,7 +129,7 @@ public class CiWorkflowTests
     [Fact]
     public void Toolchain_UsesServicedDotNet10WithoutCrossMajorRollForward()
     {
-        var repositoryRoot = RepositoryFiles.Root;
+        var repositoryRoot = GetRepositoryRoot();
         using var globalJson = JsonDocument.Parse(
             File.ReadAllText(Path.Combine(repositoryRoot, "global.json")));
         var sdk = globalJson.RootElement.GetProperty("sdk");
@@ -152,7 +151,7 @@ public class CiWorkflowTests
     public void TestProject_DeclaresExplicitTestProjectMarkerForSdk10()
     {
         var projectPath = Path.Combine(
-            RepositoryFiles.Root,
+            GetRepositoryRoot(),
             "TiaMcpServer.Tests",
             "TiaMcpServer.Tests.csproj");
         var project = XDocument.Load(projectPath);
@@ -168,7 +167,7 @@ public class CiWorkflowTests
     [Fact]
     public void CiCoverage_CollectsThenEnforcesBeforeUpload()
     {
-        var ciWorkflowPath = Path.Combine(RepositoryFiles.Root, ".github", "workflows", "ci.yml");
+        var ciWorkflowPath = Path.Combine(GetRepositoryRoot(), ".github", "workflows", "ci.yml");
         Assert.True(File.Exists(ciWorkflowPath), $"Expected CI workflow to exist at {ciWorkflowPath}");
 
         var workflowText = File.ReadAllText(ciWorkflowPath);
@@ -216,7 +215,7 @@ public class CiWorkflowTests
     [Fact]
     public void PackagingTests_RunOnlyInPathFilteredWorkflowWithoutCoverage()
     {
-        var packagingWorkflowPath = Path.Combine(RepositoryFiles.Root, ".github", "workflows", "packaging.yml");
+        var packagingWorkflowPath = Path.Combine(GetRepositoryRoot(), ".github", "workflows", "packaging.yml");
         Assert.True(File.Exists(packagingWorkflowPath), $"Expected packaging workflow to exist at {packagingWorkflowPath}");
 
         var testCommand = Assert.Single(ReadRunCommandBlocks(packagingWorkflowPath), command =>
@@ -236,7 +235,7 @@ public class CiWorkflowTests
     [Fact]
     public void DocsWorkflow_IsPathFilteredAndRunsTheChecker()
     {
-        var docsWorkflowPath = Path.Combine(RepositoryFiles.Root, ".github", "workflows", "docs.yml");
+        var docsWorkflowPath = Path.Combine(GetRepositoryRoot(), ".github", "workflows", "docs.yml");
         Assert.True(File.Exists(docsWorkflowPath), $"Expected docs workflow to exist at {docsWorkflowPath}");
 
         var workflow = File.ReadAllText(docsWorkflowPath);
@@ -257,7 +256,7 @@ public class CiWorkflowTests
     [Fact]
     public void BuildingDoc_BuildFromSourceCommand_ContainsSingleNodeBuildFlag()
     {
-        var readmePath = Path.Combine(RepositoryFiles.Root, "docs", "development", "building.md");
+        var readmePath = Path.Combine(GetRepositoryRoot(), "docs", "development", "building.md");
         Assert.True(File.Exists(readmePath), $"Expected building.md to exist at {readmePath}");
 
         var readmeText = File.ReadAllText(readmePath);
@@ -282,7 +281,7 @@ public class CiWorkflowTests
 
     private static IEnumerable<string> EnumerateWorkflowFiles()
     {
-        var workflowsDirectory = Path.Combine(RepositoryFiles.Root, ".github", "workflows");
+        var workflowsDirectory = Path.Combine(GetRepositoryRoot(), ".github", "workflows");
 
         return Directory.EnumerateFiles(workflowsDirectory, "*.yml")
             .Concat(Directory.EnumerateFiles(workflowsDirectory, "*.yaml"))
@@ -364,7 +363,7 @@ public class CiWorkflowTests
     {
         yield return command;
 
-        var repositoryRoot = RepositoryFiles.Root;
+        var repositoryRoot = GetRepositoryRoot();
 
         foreach (Match match in RepositoryScriptReferencePattern.Matches(command))
         {
@@ -384,5 +383,15 @@ public class CiWorkflowTests
                 yield return File.ReadAllText(resolvedPath);
             }
         }
+    }
+
+    private static string GetRepositoryRoot()
+    {
+        return Path.GetFullPath(Path.Combine(
+            AppContext.BaseDirectory,
+            "..",
+            "..",
+            "..",
+            ".."));
     }
 }

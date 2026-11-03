@@ -22,4 +22,18 @@ public interface IWriteVerificationPolicy<TItem> where TItem : IOperationBatchIt
     IReadOnlyList<string> ObjectKeys(TItem item, bool asLater);
     bool HasReadBack(TItem item);
     Task<WriteOperationVerification> ReadBackAsync(TItem item, StructuredOperationFailure? failure);
+
+    /// <summary>
+    /// What a successful later item <paramref name="later"/> that supersedes <paramref name="item"/> says about the
+    /// object's final state, when the generic "verified there" does not hold (for example a later rename that is
+    /// trusted, not read back). Null keeps the generic text.
+    /// </summary>
+    string? SupersessionEvidence(TItem item, TItem later) => null;
+
+    /// <summary>
+    /// For an item without a verification read-back (<see cref="HasReadBack"/> false): what its worker already checked before
+    /// it reported success (K40, live 2026-11-02: plug_device_item reported placedUnder from its own read, create_io_system
+    /// read the IO system back, yet the verification said "nothing was read back"). Null keeps the generic trusted text.
+    /// </summary>
+    string? WorkerCheckEvidence(TItem item) => null;
 }

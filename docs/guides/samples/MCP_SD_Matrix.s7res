@@ -1,0 +1,46 @@
+﻿MultiLingualTexts:
+  - id: MLC_N1
+    en-US: Series contact and NC contact
+    de-DE: Reihe Schliesser und Oeffner
+  - id: MLC_N2
+    en-US: Parallel branch (OR)
+    de-DE: Parallelzweig (ODER)
+  - id: MLC_N3
+    en-US: Nested branch
+    de-DE: Verschachtelter Zweig
+  - id: MLC_N4
+    en-US: Set and reset coil
+    de-DE: Setzen und Ruecksetzen
+  - id: MLC_N5
+    en-US: Rising edge
+    de-DE: Steigende Flanke
+  - id: MLC_N6
+    en-US: Falling edge
+    de-DE: Fallende Flanke
+  - id: MLC_N7
+    en-US: Invert power flow
+    de-DE: Verknuepfungsergebnis invertieren
+  - id: MLC_N8
+    en-US: Compare contacts
+    de-DE: Vergleicher
+  - id: MLC_N9
+    en-US: Move and Add
+    de-DE: Move und Add
+  - id: MLC_N10
+    en-US: TON multi-instance
+    de-DE: TON Multiinstanz
+  - id: MLC_N11
+    en-US: TOF multi-instance
+    de-DE: TOF Multiinstanz
+  - id: MLC_N12
+    en-US: FBD AND with negated input
+    de-DE: FUP UND mit negiertem Eingang
+  - id: MLC_N13
+    en-US: FBD OR with three inputs
+    de-DE: FUP ODER mit drei Eingaengen
+  - id: MLC_N14
+    en-US: FBD XOR
+    de-DE: FUP XOR
+  - id: MLC_N15
+    en-US: SCL network in a LAD block
+    de-DE: SCL-Netzwerk im KOP-Baustein

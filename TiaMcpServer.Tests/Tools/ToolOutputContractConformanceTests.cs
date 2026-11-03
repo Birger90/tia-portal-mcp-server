@@ -62,6 +62,8 @@ public sealed class ToolOutputContractConformanceTests
         new ToolProbe("archive_project", "rejected", true, null, new()),
         new ToolProbe("close_project", "applied", false, "guarded-lifecycle", new()),
         new ToolProbe("close_project", "rejected", true, null, new()),
+        new ToolProbe("retrieve_project", "applied", false, null, new()),
+        new ToolProbe("retrieve_project", "rejected", true, null, new()),
         new ToolProbe("compile_check", "succeeded", false, "compile-passed",
             new Dictionary<string, object?>()),
         new ToolProbe("compile_check", "rejected", true, null,
@@ -99,8 +101,51 @@ public sealed class ToolOutputContractConformanceTests
                     },
                 },
             }),
+        new ToolProbe("plcsim_read", "rejected", true, null,
+            new Dictionary<string, object?> { ["operations"] = Array.Empty<object>() }),
+        new ToolProbe("plcsim_read", "succeeded", false, null,
+            new Dictionary<string, object?> { ["operations"] = new object[]
+            {
+                new { operationId = "probe", operation = "probe_api" },
+                new { operationId = "instance", operation = "get_instance", instance = "Line1" },
+            } }),
+        new ToolProbe("plcsim_write", "rejected", true, null,
+            new Dictionary<string, object?> { ["operations"] = Array.Empty<object>() }),
+        new ToolProbe("plcsim_write", "previewed", false, null,
+            new Dictionary<string, object?> { ["dryRun"] = true, ["operations"] = new[] { new { operationId = "on", operation = "power_on", instance = "Line1" } } }),
+        new ToolProbe("plcsim_test", "rejected", true, null,
+            new Dictionary<string, object?> { ["instance"] = "Line1", ["steps"] = Array.Empty<object>() }),
+        new ToolProbe("plcsim_test", "executed", false, null,
+            new Dictionary<string, object?> { ["instance"] = "Line1", ["steps"] = new object[]
+            {
+                new { kind = "write", tag = "Start", dataType = "bool", value = true },
+                new { kind = "expect", tag = "Start", dataType = "bool", comparison = "equals", value = true },
+            } }),
+        new ToolProbe("plc_online_read", "rejected", true, null,
+            new Dictionary<string, object?> { ["operations"] = Array.Empty<object>() }),
+        new ToolProbe("plc_online_read", "succeeded", false, null,
+            new Dictionary<string, object?> { ["operations"] = new object[]
+            {
+                new { operationId = "ping", operation = "ping", target = "Line1" },
+                new { operationId = "mode", operation = "read_operating_mode", target = "Secure" },
+                new { operationId = "tags", operation = "read_tags", target = "Line1", names = new[] { "\"DB_Line\".Speed" } },
+            } }),
+        new ToolProbe("plc_online_write", "rejected", true, null,
+            new Dictionary<string, object?> { ["operations"] = Array.Empty<object>() }),
+        new ToolProbe("plc_online_write", "previewed", false, null,
+            new Dictionary<string, object?> { ["dryRun"] = true, ["operations"] = new[]
+            { new { operationId = "stop", operation = "change_operating_mode", target = "Line1", operatingMode = "stop" } } }),
         new ToolProbe("vci_read", "rejected", true, null,
             new Dictionary<string, object?> { ["operations"] = Array.Empty<object>() }),
+        new ToolProbe("library_read", "rejected", true, null,
+            new Dictionary<string, object?> { ["operations"] = Array.Empty<object>() }),
+        new ToolProbe("library_read", "succeeded", false, "library-roundtrip",
+            new Dictionary<string, object?> { ["operations"] = new[] { new { operationId = "libs", operation = "list_libraries" } } }),
+        new ToolProbe("library_write", "rejected", true, null,
+            new Dictionary<string, object?> { ["operations"] = Array.Empty<object>() }),
+        new ToolProbe("library_write", "previewed", false, "library-roundtrip",
+            new Dictionary<string, object?> { ["dryRun"] = true, ["operations"] = new[]
+            { new { operationId = "rename", operation = "rename_master_copy", library = "project", masterCopyName = "Valve", newName = "Valve2" } } }),
         new ToolProbe("vci_read", "succeeded", false, "vci-read-roundtrip",
             new Dictionary<string, object?> { ["operations"] = new[] { new { operationId = "w", operation = "list_workspaces" } } }),
         new ToolProbe(
@@ -251,6 +296,18 @@ public sealed class ToolOutputContractConformanceTests
                     },
                 },
             }),
+        new ToolProbe("plc_download", "rejected", true, null,
+            new Dictionary<string, object?> { ["scope"] = "everything" }),
+        new ToolProbe("plc_download", "previewed", false, "plc-download-roundtrip",
+            new Dictionary<string, object?> { ["plcName"] = "PLC_1", ["dryRun"] = true }),
+        new ToolProbe("plc_tia_online", "rejected", true, null,
+            new Dictionary<string, object?> { ["action"] = "go_sideways" }),
+        new ToolProbe("plc_tia_online", "previewed", false, "plc-online-roundtrip",
+            new Dictionary<string, object?> { ["action"] = "go_online", ["plcName"] = "PLC_1", ["pcInterface"] = new { name = "PLCSIM", number = 1 }, ["dryRun"] = true }),
+        new ToolProbe("plc_station_upload", "rejected", true, null,
+            new Dictionary<string, object?> { ["address"] = "", ["pcInterface"] = new { name = "PLCSIM", number = 1 } }),
+        new ToolProbe("plc_station_upload", "previewed", false, "plc-online-roundtrip",
+            new Dictionary<string, object?> { ["address"] = "192.168.0.10", ["pcInterface"] = new { name = "PLCSIM", number = 1 }, ["dryRun"] = true }),
         new ToolProbe(
             "browse_project_tree",
             "rejected",
@@ -349,7 +406,7 @@ public sealed class ToolOutputContractConformanceTests
         using var audit = new TempAuditDirectory();
         using var fixture = new LifecycleProtocolFixture();
         var lifecycle = probe.Tool is "open_project" or "create_project" or "save_project"
-            or "save_project_as" or "archive_project" or "close_project";
+            or "save_project_as" or "archive_project" or "close_project" or "retrieve_project";
         var sourcePath = probe.Name switch
         {
             "bind_project/succeeded" => "C:/Projects/Binding.ap21",
@@ -413,6 +470,47 @@ public sealed class ToolOutputContractConformanceTests
         }
         if (probe.Tool is "network_write" or "hmi_write" or "vci_write")
             Assert.Equal("2.0", result.StructuredContent!.Value.GetProperty("contractVersion").GetString());
+        if (probe.Tool.StartsWith("plcsim_", StringComparison.Ordinal))
+        {
+            var document = result.StructuredContent!.Value;
+            Assert.Equal(probe.Tool, document.GetProperty("tool").GetString());
+            Assert.Equal("1.0", document.GetProperty("contractVersion").GetString());
+            Assert.Equal(System.Text.Json.JsonValueKind.Array, document.GetProperty("warnings").ValueKind);
+            Assert.Equal(probe.ExpectIsError, document.GetProperty("error").ValueKind == System.Text.Json.JsonValueKind.Object);
+            if (probe.Tool != "plcsim_read")
+                Assert.Equal(probe.ExpectIsError ? "error" : probe.Case == "previewed" ? "preview" : "executed", document.GetProperty("phase").GetString());
+            if (!probe.ExpectIsError)
+                Assert.True(document.GetProperty("success").GetBoolean(), TextOf(result));
+            if (probe.Name == "plcsim_test/executed")
+                Assert.True(document.GetProperty("result").GetProperty("passed").GetBoolean());
+            var auditLines = Network.NetworkGuardedWriteMcpTests.AuditLines(audit.Path);
+            if (probe.Tool == "plcsim_read")
+                Assert.Empty(auditLines);
+            else
+                Assert.Contains("\"recordKind\":\"plcsim\"", Assert.Single(auditLines), StringComparison.Ordinal);
+        }
+        if (probe.Tool.StartsWith("plc_online_", StringComparison.Ordinal))
+        {
+            var document = result.StructuredContent!.Value;
+            Assert.Equal(probe.Tool, document.GetProperty("tool").GetString());
+            Assert.Equal("1.0", document.GetProperty("contractVersion").GetString());
+            Assert.Equal(System.Text.Json.JsonValueKind.Array, document.GetProperty("warnings").ValueKind);
+            Assert.Equal(probe.ExpectIsError, document.GetProperty("error").ValueKind == System.Text.Json.JsonValueKind.Object);
+            if (!probe.ExpectIsError) Assert.True(document.GetProperty("success").GetBoolean(), TextOf(result));
+            var auditLines = Network.NetworkGuardedWriteMcpTests.AuditLines(audit.Path);
+            if (probe.Tool == "plc_online_read")
+            {
+                Assert.Empty(auditLines);
+                if (!probe.ExpectIsError)
+                    Assert.Equal(3, document.GetProperty("batch").GetProperty("counts").GetProperty("succeeded").GetInt32());
+            }
+            else
+            {
+                Assert.Equal(probe.ExpectIsError ? "error" : "preview", document.GetProperty("phase").GetString());
+                Assert.Contains("\"recordKind\":\"plc_online\"", Assert.Single(auditLines), StringComparison.Ordinal);
+                Assert.Empty(harness.PlcWebApiWorld.Calls);
+            }
+        }
         if (probe.Tool == "network_read")
         {
             var document = result.StructuredContent!.Value;
@@ -460,6 +558,41 @@ public sealed class ToolOutputContractConformanceTests
             {
                 Assert.True(document.GetProperty("success").GetBoolean());
                 Assert.Equal("table", document.GetProperty("effects")[1].GetProperty("effect").GetProperty("dependsOn").GetString());
+            }
+        }
+        if (probe.Tool is "plc_tia_online" or "plc_station_upload")
+        {
+            var document = result.StructuredContent!.Value;
+            Assert.Equal(probe.Tool, document.GetProperty("tool").GetString());
+            Assert.Equal("1.0", document.GetProperty("contractVersion").GetString());
+            Assert.Equal(System.Text.Json.JsonValueKind.Null, document.GetProperty("result").ValueKind);
+            Assert.Equal(probe.ExpectIsError ? "error" : "preview", document.GetProperty("phase").GetString());
+            if (probe.ExpectIsError)
+                Assert.Equal("validation_error", document.GetProperty("error").GetProperty("category").GetString());
+            else
+                Assert.Equal("PLCSIM", document.GetProperty("effects").GetProperty("path").GetProperty("pcInterface").GetProperty("name").GetString());
+        }
+        if (probe.Tool == "plc_download")
+        {
+            var document = result.StructuredContent!.Value;
+            Assert.Equal("plc_download", document.GetProperty("tool").GetString());
+            Assert.Equal("2.0", document.GetProperty("contractVersion").GetString());
+            Assert.Equal(System.Text.Json.JsonValueKind.Array, document.GetProperty("warnings").ValueKind);
+            Assert.Equal(System.Text.Json.JsonValueKind.Null, document.GetProperty("result").ValueKind);
+            Assert.Equal(probe.ExpectIsError ? "error" : "preview", document.GetProperty("phase").GetString());
+            if (probe.ExpectIsError)
+            {
+                Assert.Equal("validation_error", document.GetProperty("error").GetProperty("category").GetString());
+            }
+            else
+            {
+                Assert.True(document.GetProperty("success").GetBoolean());
+                var effects = document.GetProperty("effects");
+                Assert.Equal("PLCSIM", effects.GetProperty("path").GetProperty("pcInterface").GetProperty("name").GetString());
+                Assert.Equal("1 X1", effects.GetProperty("path").GetProperty("targetInterface").GetString());
+                var guard = Assert.Single(document.GetProperty("guards").EnumerateArray());
+                Assert.Equal("download_stops_plc", guard.GetProperty("id").GetString());
+                Assert.True(guard.GetProperty("acknowledged").GetBoolean());
             }
         }
         if (probe.Tool == "read_cross_references")
@@ -549,6 +682,12 @@ public sealed class ToolOutputContractConformanceTests
     [InlineData("hmi_write", "operations")]
     [InlineData("vci_read", "operations")]
     [InlineData("vci_write", "operations")]
+    [InlineData("plcsim_read", "operations")]
+    [InlineData("plcsim_write", "operations")]
+    [InlineData("plc_online_read", "operations")]
+    [InlineData("plc_online_write", "operations")]
+    [InlineData("plcsim_test", "instance")]
+    [InlineData("plcsim_test", "steps")]
     [InlineData("open_project", "projectPath")]
     [InlineData("create_project", "projectDirectory")]
     [InlineData("create_project", "projectName")]
@@ -569,6 +708,7 @@ public sealed class ToolOutputContractConformanceTests
             "create_project" => new Dictionary<string, object?> { ["projectDirectory"] = audit.Path, ["projectName"] = "Project" },
             "save_project_as" => new Dictionary<string, object?> { ["targetDirectory"] = audit.Path, ["targetName"] = "Copy" },
             "archive_project" => new Dictionary<string, object?> { ["archiveDirectory"] = audit.Path, ["archiveName"] = "Archive" },
+            "plcsim_test" => new Dictionary<string, object?> { ["instance"] = "Line1", ["steps"] = Array.Empty<object>() },
             _ => new Dictionary<string, object?> { ["operations"] = Array.Empty<object>() },
         };
         arguments[parameter] = null;

@@ -78,7 +78,18 @@ public static class InstallCommand
                 error.WriteLine(UsageText);
             }
 
-            return options.ParseErrorExitCode;
+            // Exit code 8 for unsupported combo, 3 for unsupported client, 2 for other parse errors
+            if (options.ParseError?.Contains("does not support") == true)
+            {
+                return 8;
+            }
+
+            if (options.ParseError?.Contains("Unsupported MCP client") == true)
+            {
+                return 3;
+            }
+
+            return 2;
         }
 
         var client = options.Client!.Value;
@@ -353,6 +364,7 @@ public static class InstallCommand
                 detection.Error);
         }
 
+        // Different executable (e.g. MiMoCode uses 'claude' for install but detects 'mimo')
         return resolveClientExe(installExeName);
     }
 

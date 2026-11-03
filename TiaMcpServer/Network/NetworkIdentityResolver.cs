@@ -46,6 +46,8 @@ public static class NetworkIdentityResolver
         {
             "add_network_device" => ResolveCreation(operation, state),
             "configure_network_device" => ResolveConfiguration(operation, state),
+            // The IO controller's node is selected exactly like a configure target (no changes, so no dependency selection).
+            NetworkIoSystemMethods.CreateIoSystem => ResolveConfiguration(operation, state),
             "create_subnet" => ResolveSubnetCreation(operation, state),
             "update_subnet" => ResolveExistingSubnet(operation, state),
             "delete_subnet" => ResolveExistingSubnet(operation, state),
@@ -304,7 +306,8 @@ public static class NetworkIdentityResolver
     public static NetworkOperationRequest BindPreparedTarget(NetworkOperationRequest item, NetworkWriteTargetEvidence target)
     {
         var copy = TiaMcpServer.Json.CanonicalJson.Deserialize<NetworkOperationRequest>(TiaMcpServer.Json.CanonicalJson.Serialize(item));
-        if (copy.Operation == "configure_network_device" && copy.Target!.InterfacePath is null && copy.Target.ItemPath is null)
+        if (copy.Operation is "configure_network_device" or NetworkIoSystemMethods.CreateIoSystem
+            && copy.Target!.InterfacePath is null && copy.Target.ItemPath is null)
             copy.Target.InterfacePath = target.InterfacePath?.Select(segment => new NetworkInterfacePathSegment
             { Name = segment.Name, PositionNumber = segment.PositionNumber, TypeIdentifier = segment.TypeIdentifier }).ToArray()
                 ?? throw new InvalidOperationException("Prepared configuration target has no qualified owner identity.");

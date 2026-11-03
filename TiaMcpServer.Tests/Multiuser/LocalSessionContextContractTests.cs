@@ -26,7 +26,7 @@ public sealed class LocalSessionContextContractTests
             .Select(e => (e.GetProperty("operation").GetString()!, e.GetProperty("applicability").GetString()!))
             .ToList();
         var actual = ProjectCapabilityCatalog.Describe(kind).Select(c => (c.Operation, c.Applicability)).ToList();
-        Assert.Equal(53, expected.Count);
+        Assert.Equal(115, expected.Count);
         Assert.Equal(expected, actual);
     }
 
@@ -341,8 +341,8 @@ public sealed class LocalSessionContextContractTests
         {
             "bind_project", "get_project_status", "browse_project_tree", "plc_read", "plc_write",
             "network_read", "network_write", "read_cross_references", "compile_check", "hmi_read", "hmi_write",
-            "vci_read", "vci_write",
-            "open_project", "create_project", "save_project", "save_project_as", "archive_project", "close_project"
+            "vci_read", "vci_write", "plc_download", "plc_tia_online", "plc_station_upload", "library_read", "library_write",
+            "open_project", "create_project", "save_project", "save_project_as", "archive_project", "close_project", "retrieve_project"
         };
         var projectItems = PlcOperationCatalog.ReadOperationNames
             .Concat(PlcOperationCatalog.WriteOperationNames)
@@ -442,6 +442,8 @@ public sealed class LocalSessionContextContractTests
     [Theory]
     [InlineData("vci_read")]
     [InlineData("vci_write")]
+    [InlineData("plc_download")]
+    [InlineData("list_download_targets")]
     public void VciOperations_AreStandaloneOnly(string operation)
     {
         Assert.True(ProjectCapabilityCatalog.Supports(ProjectContainerKinds.StandaloneProject, operation));

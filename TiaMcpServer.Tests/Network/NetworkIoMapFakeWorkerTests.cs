@@ -28,6 +28,20 @@ public class NetworkIoMapFakeWorkerTests : IDisposable
 
     public void Dispose() => _uiOpen.Dispose();
 
+    private static async Task<OpennessWorkerClient> CreateClientAsync(
+        string scenario = Scenario,
+        McpAccessMode mode = McpAccessMode.ReadWrite)
+    {
+        var binding = new ProjectSessionBinding(null);
+        var client = new OpennessWorkerClient(
+            binding,
+            logger: null,
+            workerExecutablePath: FakeWorkerLocator.Locate(),
+            accessPolicy: new OperationAccessPolicy(mode));
+        await FakeWorkerBinding.BindVerifiedAsync(client, binding, scenario);
+        return client;
+    }
+
     private static NetworkOperationRequest ReadHardware(
         string id,
         bool? includeIoDetails = null,
@@ -46,7 +60,7 @@ public class NetworkIoMapFakeWorkerTests : IDisposable
     [Fact]
     public async Task NetworkRead_ProjectCompletenessFixtureReturnsGroupedDeviceAsOrdinaryHardware()
     {
-        using var client = await FakeWorkerClients.CreateBoundAsync(ProjectCompletenessScenario);
+        using var client = await CreateClientAsync(ProjectCompletenessScenario);
         using var protector = AuthenticatedCursorProtector.CreateProcessScoped();
         var executor = NetworkReadTestFactory.Create(client, protector);
 
@@ -56,7 +70,7 @@ public class NetworkIoMapFakeWorkerTests : IDisposable
             new[] { ReadHardware("complete") });
 
         Assert.False(result.IsError);
-        var operation = CanonicalToolDocument.Read(result)
+        var operation = AssertOneCanonicalDocument(result)
             .GetProperty("batch")
             .GetProperty("operations")[0];
         Assert.Equal("succeeded", operation.GetProperty("status").GetString());
@@ -72,7 +86,7 @@ public class NetworkIoMapFakeWorkerTests : IDisposable
     [Fact]
     public async Task NetworkRead_IncludeIoDetailsReturnsStructuredAddressesChannelsAndTagMatches()
     {
-        using var client = await FakeWorkerClients.CreateBoundAsync(Scenario);
+        using var client = await CreateClientAsync();
         using var protector = AuthenticatedCursorProtector.CreateProcessScoped();
         var executor = NetworkReadTestFactory.Create(client, protector);
 
@@ -85,7 +99,7 @@ public class NetworkIoMapFakeWorkerTests : IDisposable
             });
 
         Assert.False(result.IsError);
-        var operation = CanonicalToolDocument.Read(result)
+        var operation = AssertOneCanonicalDocument(result)
             .GetProperty("batch")
             .GetProperty("operations")[0];
         Assert.Equal("succeeded", operation.GetProperty("status").GetString());
@@ -146,7 +160,7 @@ public class NetworkIoMapFakeWorkerTests : IDisposable
     [Fact]
     public async Task NetworkRead_IncludeIoDetailsWithoutTagMatchesReturnsEmptyTagMatchCollections()
     {
-        using var client = await FakeWorkerClients.CreateBoundAsync(Scenario);
+        using var client = await CreateClientAsync();
         using var protector = AuthenticatedCursorProtector.CreateProcessScoped();
         var executor = NetworkReadTestFactory.Create(client, protector);
 
@@ -156,7 +170,7 @@ public class NetworkIoMapFakeWorkerTests : IDisposable
             new[] { ReadHardware("no-tag-matches", includeIoDetails: true, includeTagMatches: false) });
 
         Assert.False(result.IsError);
-        var channels = CanonicalToolDocument.Read(result)
+        var channels = AssertOneCanonicalDocument(result)
             .GetProperty("batch")
             .GetProperty("operations")[0]
             .GetProperty("result")
@@ -173,7 +187,7 @@ public class NetworkIoMapFakeWorkerTests : IDisposable
     [Fact]
     public async Task NetworkRead_DeviceNameFilterExcludesTheNonMatchingFixtureDevice()
     {
-        using var client = await FakeWorkerClients.CreateBoundAsync(Scenario);
+        using var client = await CreateClientAsync();
         using var protector = AuthenticatedCursorProtector.CreateProcessScoped();
         var executor = NetworkReadTestFactory.Create(client, protector);
 
@@ -183,7 +197,7 @@ public class NetworkIoMapFakeWorkerTests : IDisposable
             new[] { ReadHardware("other-device", deviceName: "OTHER_PLC") });
 
         Assert.False(result.IsError);
-        var operation = CanonicalToolDocument.Read(result)
+        var operation = AssertOneCanonicalDocument(result)
             .GetProperty("batch")
             .GetProperty("operations")[0];
 
@@ -194,7 +208,7 @@ public class NetworkIoMapFakeWorkerTests : IDisposable
     [Fact]
     public async Task NetworkRead_PlcNameMismatchSuppressesTagMatches()
     {
-        using var client = await FakeWorkerClients.CreateBoundAsync(Scenario);
+        using var client = await CreateClientAsync();
         using var protector = AuthenticatedCursorProtector.CreateProcessScoped();
         var executor = NetworkReadTestFactory.Create(client, protector);
 
@@ -207,7 +221,7 @@ public class NetworkIoMapFakeWorkerTests : IDisposable
             });
 
         Assert.False(result.IsError);
-        var resultElement = CanonicalToolDocument.Read(result)
+        var resultElement = AssertOneCanonicalDocument(result)
             .GetProperty("batch")
             .GetProperty("operations")[0]
             .GetProperty("result");
@@ -228,7 +242,7 @@ public class NetworkIoMapFakeWorkerTests : IDisposable
     [Fact]
     public async Task NetworkRead_WithoutIncludeIoDetailsOmitsIoDetailsEntirely()
     {
-        using var client = await FakeWorkerClients.CreateBoundAsync(Scenario);
+        using var client = await CreateClientAsync();
         using var protector = AuthenticatedCursorProtector.CreateProcessScoped();
         var executor = NetworkReadTestFactory.Create(client, protector);
 
@@ -239,7 +253,7 @@ public class NetworkIoMapFakeWorkerTests : IDisposable
 
         Assert.False(result.IsError);
         var canonicalText = Assert.IsType<TextContentBlock>(Assert.Single(result.Content)).Text;
-        var operation = CanonicalToolDocument.Read(result)
+        var operation = AssertOneCanonicalDocument(result)
             .GetProperty("batch")
             .GetProperty("operations")[0];
 
@@ -251,7 +265,7 @@ public class NetworkIoMapFakeWorkerTests : IDisposable
     [Fact]
     public async Task NetworkRead_DeviceNameFilterIsForwardedToTheWorker()
     {
-        using var client = await FakeWorkerClients.CreateBoundAsync(Scenario);
+        using var client = await CreateClientAsync();
         using var protector = AuthenticatedCursorProtector.CreateProcessScoped();
         var executor = NetworkReadTestFactory.Create(client, protector);
 
@@ -264,7 +278,7 @@ public class NetworkIoMapFakeWorkerTests : IDisposable
             });
 
         Assert.False(result.IsError);
-        var operation = CanonicalToolDocument.Read(result)
+        var operation = AssertOneCanonicalDocument(result)
             .GetProperty("batch")
             .GetProperty("operations")[0];
         Assert.Equal("succeeded", operation.GetProperty("status").GetString());
@@ -274,7 +288,7 @@ public class NetworkIoMapFakeWorkerTests : IDisposable
     [Fact]
     public async Task NetworkRead_DeviceNameFilterMatchesFixtureWithoutCaseSensitivity()
     {
-        using var client = await FakeWorkerClients.CreateBoundAsync(Scenario);
+        using var client = await CreateClientAsync();
         using var protector = AuthenticatedCursorProtector.CreateProcessScoped();
         var executor = NetworkReadTestFactory.Create(client, protector);
 
@@ -287,7 +301,7 @@ public class NetworkIoMapFakeWorkerTests : IDisposable
             });
 
         Assert.False(result.IsError);
-        var devices = CanonicalToolDocument.Read(result)
+        var devices = AssertOneCanonicalDocument(result)
             .GetProperty("batch")
             .GetProperty("operations")[0]
             .GetProperty("result")
@@ -299,7 +313,7 @@ public class NetworkIoMapFakeWorkerTests : IDisposable
     [Fact]
     public async Task NetworkRead_MalformedIoDetailsPayloadBecomesProtocolErrorWithoutEchoingIt()
     {
-        using var client = await FakeWorkerClients.CreateBoundAsync("network-io-map-malformed");
+        using var client = await CreateClientAsync("network-io-map-malformed");
         using var protector = AuthenticatedCursorProtector.CreateProcessScoped();
         var executor = NetworkReadTestFactory.Create(client, protector);
 
@@ -310,7 +324,7 @@ public class NetworkIoMapFakeWorkerTests : IDisposable
 
         // The batch ran (tool call is not an error), but the item failed the declared contract.
         Assert.False(result.IsError);
-        var operation = CanonicalToolDocument.Read(result)
+        var operation = AssertOneCanonicalDocument(result)
             .GetProperty("batch")
             .GetProperty("operations")[0];
         Assert.Equal("failed", operation.GetProperty("status").GetString());
@@ -321,7 +335,7 @@ public class NetworkIoMapFakeWorkerTests : IDisposable
     [Fact]
     public async Task NetworkRead_ReadOnlyModePermitsTheIoMapRead()
     {
-        using var client = await FakeWorkerClients.CreateBoundAsync(Scenario, McpAccessMode.ReadOnly);
+        using var client = await CreateClientAsync(mode: McpAccessMode.ReadOnly);
         using var protector = AuthenticatedCursorProtector.CreateProcessScoped();
         var executor = NetworkReadTestFactory.Create(client, protector);
 
@@ -334,7 +348,7 @@ public class NetworkIoMapFakeWorkerTests : IDisposable
             });
 
         Assert.False(result.IsError);
-        var operation = CanonicalToolDocument.Read(result)
+        var operation = AssertOneCanonicalDocument(result)
             .GetProperty("batch")
             .GetProperty("operations")[0];
         Assert.Equal("succeeded", operation.GetProperty("status").GetString());
@@ -345,7 +359,7 @@ public class NetworkIoMapFakeWorkerTests : IDisposable
     {
         // NetworkWritePlanner.ReadCurrentStateAsync uses the default read (no ioDetails). Even
         // against the io-map scenario, ordinary planning reads must omit optional ioDetails.
-        using var client = await FakeWorkerClients.CreateBoundAsync(Scenario);
+        using var client = await CreateClientAsync();
 
         var snapshot = await NetworkWritePlanner.ReadCurrentStateAsync(client);
 
@@ -354,4 +368,13 @@ public class NetworkIoMapFakeWorkerTests : IDisposable
         Assert.DoesNotContain("ioDetails", canonical);
     }
 
+    private static JsonElement AssertOneCanonicalDocument(CallToolResult result)
+    {
+        var structured = Assert.IsType<JsonElement>(result.StructuredContent);
+        var text = Assert.IsType<TextContentBlock>(Assert.Single(result.Content)).Text;
+        Assert.Equal(CanonicalJson.Serialize(structured), text);
+        using var textDocument = JsonDocument.Parse(text);
+        Assert.True(JsonElement.DeepEquals(structured, textDocument.RootElement));
+        return structured;
+    }
 }

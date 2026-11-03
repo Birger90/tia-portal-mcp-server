@@ -39,9 +39,11 @@ public class AccessModeTierTests
             var capability = OperationPolicyCatalog.GetCapability(operation);
             var readOnly = capability is OperationCapability.Observe
                 or OperationCapability.TemporaryExport
-                or OperationCapability.SessionSelection;
+                or OperationCapability.SessionSelection
+                or OperationCapability.OnlineObserve;
             var readWrite = readOnly || capability is OperationCapability.Compile
-                or OperationCapability.ProjectMutation or OperationCapability.ProjectLifecycle;
+                or OperationCapability.ProjectMutation or OperationCapability.ProjectLifecycle
+                or OperationCapability.OnlineControl or OperationCapability.SimulationControl;
             Assert.Equal(readOnly, OperationPolicyCatalog.IsAllowed(McpAccessMode.ReadOnly, operation));
             Assert.Equal(readWrite, OperationPolicyCatalog.IsAllowed(McpAccessMode.ReadWrite, operation));
             Assert.True(OperationPolicyCatalog.IsAllowed(Full, operation), operation);
@@ -61,6 +63,8 @@ public class AccessModeTierTests
     [InlineData("probe_project_status_for_lifecycle", true)]
     [InlineData("probe_open_project_rebind", true)]
     [InlineData("get_basic_project_status", true)]
+    [InlineData("plc_download", true)]
+    [InlineData("list_download_targets", true)]
     public void ReadWrite_AndFull_AllowTheSameOperations(string operation, bool allowed)
     {
         Assert.Equal(allowed, OperationPolicyCatalog.IsAllowed(McpAccessMode.ReadWrite, operation));
@@ -114,10 +118,50 @@ public class AccessModeTierTests
     }
 
     [Fact]
-    public void OnlineControlHasNoOperations()
+    public void SimulationControl_IsAppendedLastAndDeniedInReadOnly()
     {
-        Assert.DoesNotContain(OperationPolicyCatalog.AllOperationNames,
-            name => OperationPolicyCatalog.GetCapability(name) == OperationCapability.OnlineControl);
+        Assert.Equal(
+            new[]
+            {
+                OperationCapability.Observe, OperationCapability.TemporaryExport, OperationCapability.Compile,
+                OperationCapability.ProjectLifecycle, OperationCapability.ProjectMutation, OperationCapability.OnlineControl,
+                OperationCapability.SessionSelection, OperationCapability.SimulationControl, OperationCapability.OnlineObserve
+            },
+            Enum.GetValues<OperationCapability>());
+        Assert.Equal(7, (int)OperationCapability.SimulationControl);
+        Assert.False(OperationPolicyCatalog.IsCapabilityAllowed(McpAccessMode.ReadOnly, OperationCapability.SimulationControl));
+        Assert.True(OperationPolicyCatalog.IsCapabilityAllowed(McpAccessMode.ReadWrite, OperationCapability.SimulationControl));
+        Assert.True(OperationPolicyCatalog.IsCapabilityAllowed(Full, OperationCapability.SimulationControl));
+        Assert.Equal(TiaMcpServer.Contracts.PlcSim.PlcSimMethods.Control.OrderBy(name => name, StringComparer.Ordinal),
+            OperationPolicyCatalog.AllOperationNames
+                .Where(name => OperationPolicyCatalog.GetCapability(name) == OperationCapability.SimulationControl)
+                .OrderBy(name => name, StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public void OnlineControl_IsPlcDownloadGoOnlineOfflineAndTheWebApiControlMethods_InWritableModesOnly()
+    {
+        Assert.Equal(new[] { "plc_download", "plc_go_offline", "plc_go_online" }.Concat(TiaMcpServer.Contracts.PlcWebApi.PlcWebApiMethods.Control)
+                .Concat(TiaMcpServer.Contracts.Plc.DeviceData.PlcDeviceDataMethods.Online).Order(StringComparer.Ordinal),
+            OperationPolicyCatalog.AllOperationNames
+                .Where(name => OperationPolicyCatalog.GetCapability(name) == OperationCapability.OnlineControl).Order(StringComparer.Ordinal));
+        foreach (var method in TiaMcpServer.Contracts.PlcWebApi.PlcWebApiMethods.Read)
+            Assert.Equal(OperationCapability.Observe, OperationPolicyCatalog.GetCapability(method));
+        foreach (var method in TiaMcpServer.Contracts.PlcWebApi.PlcWebApiMethods.All)
+        {
+            Assert.False(OperationPolicyCatalog.RequiresExpectedSessionIdentity(method), method);
+            Assert.Null(TiaMcpServer.Contracts.Project.ProjectCapabilityCatalog.OperationFor(method));
+        }
+        Assert.False(OperationPolicyCatalog.IsCapabilityAllowed(McpAccessMode.ReadOnly, OperationCapability.OnlineControl));
+        Assert.True(OperationPolicyCatalog.IsCapabilityAllowed(McpAccessMode.ReadWrite, OperationCapability.OnlineControl));
+        Assert.True(OperationPolicyCatalog.IsCapabilityAllowed(Full, OperationCapability.OnlineControl));
+        Assert.False(OperationPolicyCatalog.IsAllowed(McpAccessMode.ReadOnly, "plc_download"));
+        Assert.True(OperationPolicyCatalog.RequiresExpectedSessionIdentity("plc_download"));
+        // The download-path listing is an offline observation in every mode.
+        Assert.Equal(OperationCapability.Observe, OperationPolicyCatalog.GetCapability("list_download_targets"));
+        Assert.True(OperationPolicyCatalog.IsAllowed(McpAccessMode.ReadOnly, "list_download_targets"));
+        Assert.True(OperationPolicyCatalog.RequiresExpectedSessionIdentity("list_download_targets"));
+        // PLC run/stop stays retired: unknown operations are denied in every mode.
         Assert.False(OperationPolicyCatalog.IsAllowed(Full, "start_plc"));
         Assert.False(OperationPolicyCatalog.IsAllowed(Full, "stop_plc"));
     }

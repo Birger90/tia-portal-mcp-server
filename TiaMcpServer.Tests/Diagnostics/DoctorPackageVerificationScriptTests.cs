@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Text.Json;
-using TiaMcpServer.Tests.TestSupport;
 using Xunit;
 
 namespace TiaMcpServer.Tests.Diagnostics;
@@ -69,10 +68,65 @@ public class DoctorPackageVerificationScriptTests
             Assert.Equal(
                 EnumerateAuthoritativeWorkerFiles(workerOutput),
                 EnumeratePackagedWorkerFiles(packagePath));
+
+            // The real package carries the host's S7-1500 Web API client at the tool root and still passes verification.
+            using (var archive = ZipFile.OpenRead(packagePath))
+            {
+                var siemens = archive.Entries.Select(entry => entry.FullName)
+                    .Where(name => Path.GetFileName(name).StartsWith("Siemens.", StringComparison.OrdinalIgnoreCase)
+                        && name.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+                    .ToArray();
+                Assert.Equal(new[] { "tools/net10.0/any/Siemens.Simatic.S7.Webserver.API.dll" }, siemens);
+            }
+
+            var verified = RunVerifier(packagePath);
+            Assert.True(verified.ExitCode == 0,
+                $"Package verifier failed for the real package.{Environment.NewLine}{verified.StandardOutput}{Environment.NewLine}{verified.StandardError}");
         }
         finally
         {
             Directory.Delete(isolatedRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void HostWebApiClientAtTheToolRoot_PassesPackageVerification()
+    {
+        var packagePath = CreatePackage(FindBuiltWorkerOutput(), additionalPackageEntry: "tools/net10.0/any/Siemens.Simatic.S7.Webserver.API.dll");
+
+        try
+        {
+            var result = RunVerifier(packagePath);
+
+            Assert.True(result.ExitCode == 0,
+                $"Package verifier failed.{Environment.NewLine}{result.StandardOutput}{Environment.NewLine}{result.StandardError}");
+        }
+        finally
+        {
+            File.Delete(packagePath);
+        }
+    }
+
+    [Theory]
+    [InlineData("tools/net10.0/any/openness-worker/Siemens.Simatic.S7.Webserver.API.dll")]
+    [InlineData("tools/net10.0/any/plcsim-worker/Siemens.Simatic.S7.Webserver.API.dll")]
+    [InlineData("tools/net10.0/any/lib/Siemens.Simatic.S7.Webserver.API.dll")]
+    [InlineData("tools/net10.0/any/Siemens.Simatic.S7.Webserver.Api.dll")]
+    [InlineData("tools/net10.0/any/Siemens.Engineering.dll")]
+    [InlineData("tools/net10.0/any/Siemens.Simatic.Simulation.Runtime.Api.x64.dll")]
+    public void SiemensAssembliesOtherThanTheHostWebApiClient_FailPackageVerification(string entry)
+    {
+        var packagePath = CreatePackage(FindBuiltWorkerOutput(), additionalPackageEntry: entry);
+
+        try
+        {
+            var result = RunVerifier(packagePath);
+
+            Assert.NotEqual(0, result.ExitCode);
+        }
+        finally
+        {
+            File.Delete(packagePath);
         }
     }
 
@@ -196,6 +250,71 @@ public class DoctorPackageVerificationScriptTests
             Assert.True(
                 result.ExitCode == 0,
                 $"Package verifier failed.{Environment.NewLine}{result.StandardOutput}{Environment.NewLine}{result.StandardError}");
+        }
+        finally
+        {
+            File.Delete(packagePath);
+        }
+    }
+
+    [Fact]
+    public void PackageWithoutPlcSimWorker_FailsPackageVerification()
+    {
+        var packagePath = CreatePackage(FindBuiltWorkerOutput(), includePlcSimWorker: false);
+
+        try
+        {
+            var result = RunVerifier(packagePath);
+            var output = result.StandardOutput + Environment.NewLine + result.StandardError;
+
+            Assert.NotEqual(0, result.ExitCode);
+            Assert.Contains("tools/net10.0/any/plcsim-worker/", output, StringComparison.Ordinal);
+        }
+        finally
+        {
+            File.Delete(packagePath);
+        }
+    }
+
+    [Theory]
+    [InlineData("TiaMcpServer.PlcSimWorker.exe")]
+    [InlineData("TiaMcpServer.PlcSimWorker.exe.config")]
+    [InlineData("System.Text.Json.dll")]
+    public void PlcSimWorkerPayloadWithoutARequiredFile_FailsPackageVerification(string missing)
+    {
+        var packagePath = CreatePackage(FindBuiltWorkerOutput(), excludedPlcSimFile: missing);
+
+        try
+        {
+            var result = RunVerifier(packagePath);
+            var output = result.StandardOutput + Environment.NewLine + result.StandardError;
+
+            Assert.NotEqual(0, result.ExitCode);
+            Assert.Contains("tools/net10.0/any/plcsim-worker/" + missing, output, StringComparison.Ordinal);
+        }
+        finally
+        {
+            File.Delete(packagePath);
+        }
+    }
+
+    [Theory]
+    [InlineData("tools/net10.0/any/plcsim-worker/ARCHIVE_CONTROLLED_NOTES.txt")]
+    [InlineData("tools/net10.0/any/plcsim-worker/ARCHIVE_CONTROLLED.runtimeconfig.json")]
+    [InlineData("tools/net8.0/any/plcsim-worker/ARCHIVE_CONTROLLED.exe")]
+    [InlineData("tools/net10.0/any/plcsim-worker/Siemens.Simatic.Simulation.Runtime.Api.x64.dll")]
+    [InlineData("tools/net10.0/any/Siemens.Simatic.ARCHIVE_CONTROLLED.dll")]
+    public void PlcSimWorkerPayloadWithUnexpectedEntries_FailsPackageVerification(string entry)
+    {
+        var packagePath = CreatePackage(FindBuiltWorkerOutput(), additionalPackageEntry: entry);
+
+        try
+        {
+            var result = RunVerifier(packagePath);
+            var output = result.StandardOutput + Environment.NewLine + result.StandardError;
+
+            Assert.NotEqual(0, result.ExitCode);
+            Assert.DoesNotContain("ARCHIVE_CONTROLLED", output, StringComparison.Ordinal);
         }
         finally
         {
@@ -437,10 +556,16 @@ public class DoctorPackageVerificationScriptTests
         }
     }
 
+    /// <summary>
+    /// A package with the Openness worker payload from <paramref name="workerOutput"/> and, unless
+    /// <paramref name="includePlcSimWorker"/> is false, the built PLCSIM worker payload.
+    /// </summary>
     private static string CreatePackage(
         string workerOutput,
         string? excludedFile = null,
-        string? additionalPackageEntry = null)
+        string? additionalPackageEntry = null,
+        bool includePlcSimWorker = true,
+        string? excludedPlcSimFile = null)
     {
         var packagePath = Path.Combine(
             Path.GetTempPath(),
@@ -458,6 +583,19 @@ public class DoctorPackageVerificationScriptTests
             archive.CreateEntryFromFile(builtFile, entryName);
         }
 
+        if (includePlcSimWorker)
+        {
+            foreach (var builtFile in Directory.EnumerateFiles(FindBuiltPlcSimWorkerOutput(), "*", SearchOption.TopDirectoryOnly))
+            {
+                if (string.Equals(Path.GetFileName(builtFile), excludedPlcSimFile, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                archive.CreateEntryFromFile(builtFile, "tools/net10.0/any/plcsim-worker/" + Path.GetFileName(builtFile));
+            }
+        }
+
         if (additionalPackageEntry is not null)
         {
             archive.CreateEntry(additionalPackageEntry);
@@ -466,9 +604,20 @@ public class DoctorPackageVerificationScriptTests
         return packagePath;
     }
 
+    private static string FindBuiltPlcSimWorkerOutput()
+    {
+        var configuration = new DirectoryInfo(AppContext.BaseDirectory).Parent?.Name;
+        Assert.False(string.IsNullOrEmpty(configuration), "Test build configuration could not be determined.");
+        var outputDir = Path.Combine(GetRepositoryRoot(), "TiaMcpServer.PlcSimWorker", "bin", configuration!, "net48");
+        Assert.True(
+            File.Exists(Path.Combine(outputDir, "TiaMcpServer.PlcSimWorker.exe")),
+            $"No built net48 output found under {outputDir}. Build TiaMcpServer.PlcSimWorker before running this test.");
+        return outputDir;
+    }
+
     private static string FindBuiltWorkerOutput()
     {
-        var repositoryRoot = RepositoryFiles.Root;
+        var repositoryRoot = GetRepositoryRoot();
         var configuration = new DirectoryInfo(AppContext.BaseDirectory).Parent?.Name;
         Assert.False(string.IsNullOrEmpty(configuration), "Test build configuration could not be determined.");
 
@@ -486,7 +635,7 @@ public class DoctorPackageVerificationScriptTests
 
     private static ScriptResult RunVerifier(string packagePath)
     {
-        var scriptPath = Path.Combine(RepositoryFiles.Root, "scripts", "verify-doctor-package.ps1");
+        var scriptPath = Path.Combine(GetRepositoryRoot(), "scripts", "verify-doctor-package.ps1");
         var startInfo = new ProcessStartInfo
         {
             FileName = "pwsh",
@@ -506,7 +655,7 @@ public class DoctorPackageVerificationScriptTests
 
     private static ScriptResult RunCopyTarget(string outputPath)
     {
-        var projectPath = Path.Combine(RepositoryFiles.Root, "TiaMcpServer", "TiaMcpServer.csproj");
+        var projectPath = Path.Combine(GetRepositoryRoot(), "TiaMcpServer", "TiaMcpServer.csproj");
         var configuration = new DirectoryInfo(AppContext.BaseDirectory).Parent?.Name;
         Assert.False(string.IsNullOrEmpty(configuration), "Test build configuration could not be determined.");
 
@@ -534,7 +683,7 @@ public class DoctorPackageVerificationScriptTests
     private static ScriptResult RunWorkerBuild(string outputPath)
     {
         var projectPath = Path.Combine(
-            RepositoryFiles.Root,
+            GetRepositoryRoot(),
             "TiaMcpServer.OpennessWorker",
             "TiaMcpServer.OpennessWorker.csproj");
         var configuration = new DirectoryInfo(AppContext.BaseDirectory).Parent?.Name;
@@ -555,7 +704,7 @@ public class DoctorPackageVerificationScriptTests
 
     private static ScriptResult RunBuild(string outputPath, string? workingDirectory = null)
     {
-        var projectPath = Path.Combine(RepositoryFiles.Root, "TiaMcpServer", "TiaMcpServer.csproj");
+        var projectPath = Path.Combine(GetRepositoryRoot(), "TiaMcpServer", "TiaMcpServer.csproj");
         var configuration = new DirectoryInfo(AppContext.BaseDirectory).Parent?.Name;
         Assert.False(string.IsNullOrEmpty(configuration), "Test build configuration could not be determined.");
 
@@ -575,7 +724,7 @@ public class DoctorPackageVerificationScriptTests
     private static ScriptResult RunWorkerRestore(string? workingDirectory = null)
     {
         var workerProjectPath = Path.Combine(
-            RepositoryFiles.Root,
+            GetRepositoryRoot(),
             "TiaMcpServer.OpennessWorker",
             "TiaMcpServer.OpennessWorker.csproj");
         var startInfo = CreateDotnetStartInfo(workingDirectory);
@@ -596,7 +745,7 @@ public class DoctorPackageVerificationScriptTests
         bool noBuild,
         string? workingDirectory = null)
     {
-        var projectPath = Path.Combine(RepositoryFiles.Root, "TiaMcpServer", "TiaMcpServer.csproj");
+        var projectPath = Path.Combine(GetRepositoryRoot(), "TiaMcpServer", "TiaMcpServer.csproj");
         var configuration = new DirectoryInfo(AppContext.BaseDirectory).Parent?.Name;
         Assert.False(string.IsNullOrEmpty(configuration), "Test build configuration could not be determined.");
 
@@ -653,7 +802,7 @@ public class DoctorPackageVerificationScriptTests
     private static string FindGlobalPackagesDirectory()
     {
         var assetsPath = Path.Combine(
-            RepositoryFiles.Root,
+            GetRepositoryRoot(),
             "TiaMcpServer.OpennessWorker",
             "obj",
             "project.assets.json");
@@ -783,6 +932,16 @@ public class DoctorPackageVerificationScriptTests
             .Where(path => path.Length > 0)
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .ToArray();
+    }
+
+    private static string GetRepositoryRoot()
+    {
+        return Path.GetFullPath(Path.Combine(
+            AppContext.BaseDirectory,
+            "..",
+            "..",
+            "..",
+            ".."));
     }
 
     private sealed record ScriptResult(int ExitCode, string StandardOutput, string StandardError);

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using TiaMcpServer.Diagnostics;
+using TiaMcpServer.Contracts.Shared;
 using TiaMcpServer.Diagnostics.Checks;
 
 namespace TiaMcpServer.Cli;
@@ -7,16 +8,18 @@ namespace TiaMcpServer.Cli;
 public static class DoctorCommand
 {
     private const string UsageText = """
-        Usage: tia-mcp doctor [--json] [--verbose] [--project <path>] [--access-mode <mode>] [--worker-timeout-minutes <n>] [--help]
+        Usage: tia-mcp doctor [--json] [--verbose] [--project <path>] [--access-mode <mode>] [--worker-timeout-minutes <n>] [--plc-webapi-config <path>] [--help]
 
         Options:
           --json          Emit a single JSON document to stdout.
           --verbose       Include additional evidence.
           --project       Validate an exact .ap21 binding without opening or attaching to TIA Portal.
-          --access-mode   Report diagnostics for read-only, read-write, or full mode.
+          --access-mode   Report diagnostics for read-only, read-write, or full mode
+                          (default: TIA_MCP_ACCESS_MODE, else the settings file, else read-write).
           --read-only     Alias for --access-mode read-only.
           --read-write    Alias for --access-mode read-write.
           --worker-timeout-minutes  Report worker timeout in whole minutes (5-60).
+          --plc-webapi-config  Parse a PLC Web API target file (no network calls).
           --help          Show command usage and exit.
 
         Exit codes:
@@ -26,15 +29,18 @@ public static class DoctorCommand
         """;
 
     public static Task<int> RunAsync(string[] args)
-        => RunAsync(args, options => BuildRunner(options).Run(), Console.Out, Console.Error);
+        => RunAsync(args, options => BuildRunner(options).Run(), Console.Out, Console.Error,
+            () => ServerSettingsFile.Read(Environment.GetEnvironmentVariable, Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)));
 
+    /// <param name="loadSettings">Reads the server settings file as the server would; null considers none (tests).</param>
     public static Task<int> RunAsync(
         string[] args,
         Func<DoctorCliOptions, DoctorReport> runDoctor,
         TextWriter output,
-        TextWriter error)
+        TextWriter error,
+        Func<ServerSettingsReadResult>? loadSettings = null)
     {
-        var options = DoctorCliParser.Parse(args);
+        var options = DoctorCliParser.Parse(args, null, loadSettings?.Invoke());
         if (options.Help)
         {
             output.WriteLine(options.Json
@@ -64,11 +70,11 @@ public static class DoctorCommand
 
             if (options.Json)
             {
-                output.WriteLine(DoctorJsonRenderer.Render(report, options.Verbose, options.AccessMode, options.WorkerTimeout));
+                output.WriteLine(DoctorJsonRenderer.Render(report, options.Verbose, options.AccessMode, options.WorkerTimeout, options.AccessModeResolution));
             }
             else
             {
-                DoctorTextRenderer.Render(report, options.Verbose, output, options.AccessMode, options.WorkerTimeout);
+                DoctorTextRenderer.Render(report, options.Verbose, output, options.AccessMode, options.WorkerTimeout, options.AccessModeResolution);
             }
 
             return Task.FromResult(report.HasUnexpectedCheckFailure ? 2 : report.Status == DiagnosticStatus.Failed ? 1 : 0);
@@ -114,7 +120,10 @@ public static class DoctorCommand
                 appInfo,
                 options.AccessMode,
                 hasConfiguredProjectBinding),
-            new ProjectBindingCheck(env, fileSystem, options.ProjectPath, options.AccessMode)
+            new ProjectBindingCheck(env, fileSystem, options.ProjectPath, options.AccessMode),
+            new PlcSimAdvancedCheck(appInfo, env, registry, fileSystem),
+            new PlcWebApiConfigCheck(env, options.PlcWebApiConfig),
+            new PasswordSourcesCheck(env)
         };
 
         return new DoctorRunner(appInfo, checks);

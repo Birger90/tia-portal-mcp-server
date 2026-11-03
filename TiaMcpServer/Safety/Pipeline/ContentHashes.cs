@@ -46,7 +46,7 @@ public static class ContentHashes
         {
             return Reject(
                 $"expectedContentHash '{expected}' is malformed. Expected '<format>:sha256:<64 lower-case hex>' " +
-                $"with format one of: {string.Join(", ", SourceFormatNames.Allowed)}.");
+                $"with format one of: {string.Join(", ", SourceFormatNames.HashFormats)}.");
         }
 
         if (!string.Equals(expectedFormat, writeFormat, StringComparison.Ordinal))

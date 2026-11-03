@@ -20,6 +20,18 @@ public class PlcWritePlannerTests
 {
     private const string Scenario = "plc-write-roundtrip";
 
+    private static async Task<OpennessWorkerClient> CreateClientAsync(string scenario)
+    {
+        var binding = new ProjectSessionBinding(null);
+        var client = new OpennessWorkerClient(
+            binding,
+            logger: null,
+            workerExecutablePath: FakeWorkerLocator.Locate(),
+            accessPolicy: new OperationAccessPolicy(McpAccessMode.ReadWrite));
+        await FakeWorkerBinding.BindVerifiedAsync(client, binding, scenario);
+        return client;
+    }
+
     private static PlcOperationRequest CreateTag(string id, string? plcName, string table = "Default tag table", string name = "Fresh") => new()
     {
         OperationId = id, Operation = "create_tag", PlcName = plcName, TableName = table, Name = name, DataType = "Bool",
@@ -50,7 +62,7 @@ public class PlcWritePlannerTests
         using var directory = new TempAuditDirectory();
         Directory.CreateDirectory(directory.Path);
         using var log = new FakeWorkerRequestLog(directory.Path);
-        using var client = await FakeWorkerClients.CreateBoundAsync(Scenario);
+        using var client = await CreateClientAsync(Scenario);
         var plan = await items(client);
         var before = log.Methods().Length;
 
@@ -100,7 +112,7 @@ public class PlcWritePlannerTests
     [Fact]
     public async Task CreatesDoNotResolveTheirContainer()
     {
-        using var client = await FakeWorkerClients.CreateBoundAsync(Scenario);
+        using var client = await CreateClientAsync(Scenario);
 
         var result = await new PlcWritePlanner(client).PlanAsync(new[]
         {
@@ -118,7 +130,7 @@ public class PlcWritePlannerTests
     [Fact]
     public async Task DeleteOfGroupCreatedEarlierPassesPreflightThenReplansFromRealState()
     {
-        using var client = await FakeWorkerClients.CreateBoundAsync(Scenario);
+        using var client = await CreateClientAsync(Scenario);
         var planner = new PlcWritePlanner(client);
         var delete = Blocks("delete", "delete_block_group", "Station_1/Blocks/Motors/Fresh");
 
@@ -135,7 +147,7 @@ public class PlcWritePlannerTests
     [InlineData("plc_1")]
     public async Task OmittedPlcNameWithTwoPlcsIsAmbiguous(string? plcName)
     {
-        using var client = await FakeWorkerClients.CreateBoundAsync(Scenario);
+        using var client = await CreateClientAsync(Scenario);
 
         var result = await new PlcWritePlanner(client).PlanAsync(new[] { CreateTag("a", "PLC_2"), CreateTag("b", plcName) });
 
@@ -147,7 +159,7 @@ public class PlcWritePlannerTests
     [Fact]
     public async Task StaleContentHashIsStateChangedBeforeAnyWrite()
     {
-        using var client = await FakeWorkerClients.CreateBoundAsync(Scenario);
+        using var client = await CreateClientAsync(Scenario);
         var stale = ContentHashes.Compute("xml", "<Block edited-elsewhere=\"true\"/>");
 
         var result = await new PlcWritePlanner(client).PlanAsync(new[]
@@ -166,7 +178,7 @@ public class PlcWritePlannerTests
     [Fact]
     public async Task UnreadableOrEmptyContentExportFiresUnverifiable()
     {
-        using var client = await FakeWorkerClients.CreateBoundAsync(Scenario);
+        using var client = await CreateClientAsync(Scenario);
         var anyHash = ContentHashes.Compute("xml", "anything");
 
         var result = await new PlcWritePlanner(client).PlanAsync(new[]
@@ -189,7 +201,7 @@ public class PlcWritePlannerTests
     public async Task IncompleteInventoryUnmatchedPlcIsGuardNotError()
     {
         const string incomplete = "plc-write-incomplete";
-        using var client = await FakeWorkerClients.CreateBoundAsync(incomplete);
+        using var client = await CreateClientAsync(incomplete);
         var items = new[] { CreateTag("hidden", "PLC_9"), CreateTag("known", "PLC_2") };
 
         var result = await new PlcWritePlanner(client).PlanAsync(items);
@@ -203,7 +215,7 @@ public class PlcWritePlannerTests
     [Fact]
     public async Task MissingTargetIsTargetNotFound()
     {
-        using var client = await FakeWorkerClients.CreateBoundAsync(Scenario);
+        using var client = await CreateClientAsync(Scenario);
         var planner = new PlcWritePlanner(client);
 
         var tag = await planner.PlanAsync(new[]
@@ -219,7 +231,7 @@ public class PlcWritePlannerTests
     [Fact]
     public async Task RootLevelBlockPathResolves()
     {
-        using var client = await FakeWorkerClients.CreateBoundAsync(Scenario);
+        using var client = await CreateClientAsync(Scenario);
         var hash = await HashOf(client, "Station_1/Main");
 
         var result = await new PlcWritePlanner(client).PlanAsync(new[]
@@ -243,7 +255,7 @@ public class PlcWritePlannerTests
     [Fact]
     public async Task DependentPlanKeepsEffectAndDependsOn()
     {
-        using var client = await FakeWorkerClients.CreateBoundAsync(Scenario);
+        using var client = await CreateClientAsync(Scenario);
         var planner = new PlcWritePlanner(client);
         var table = new PlcOperationRequest { OperationId = "t1", Operation = "create_tag_table", PlcName = "PLC_2", TableName = "New" };
         var tag = CreateTag("t2", "PLC_2", "New");

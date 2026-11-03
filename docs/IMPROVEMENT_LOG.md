@@ -7,6 +7,358 @@ History lives in the ADRs, the acceptance reports and the archive tag; see
 are recorded in the [orchestration ledger](https://github.com/Czarnak/tia-portal-mcp/blob/docs-archive-2026-10-30/docs/superpowers/plans/2026-10-24-workstream-c-followups-orchestration.md).
 An accepted implementation does not establish unexecuted native or plant acceptance.
 
+## Open: SIMATIC SD and fail-safe live findings of 2026-11-02, live re-test of the fixes
+
+Findings E1-E9, E7b and D14 of the [live report](superpowers/acceptance/reports/2026-11-02-simatic-sd-and-safety-live.md)
+were fixed on `fix/live-findings-1`; the re-test with `b79b2df` the same day confirmed D13, D14 and E5 live and showed
+L1-L4 (the SD import still unlinks the main safety block, the re-link is `api_member_missing`, the SimaticML route keeps
+the reference, a hand-made temporary-F-block workaround works). The workaround is now automatic on
+`fix/main-safety-xml-transplant` (offline only). Open:
+
+- **Main safety block route, live.** Run `replace_network`, `update_block_logic` sd and `create_block_from_document`
+  with `overwrite` on `Main_Safety_RTG1`: the item result's `mainSafetyBlockRoute` must show `mainImport: "simaticMl"`
+  and `temporaryBlockState: "deleted"`, `get_safety_administration` `MainSafetyBlockName` must stay set, `compile_check`
+  of the PLC must report 0 errors and the collective F-signature must be valid; no `zzMcpTmp_*` block may remain. Also
+  run a document with a compile error (the item must fail with the compiler messages and leave the block unchanged)
+  and, if possible, the route with a safety offline program password set and logged on.
+- **`attributeInfos` and route (iii).** Record what `get_safety_administration` `attributeInfos` reports for a
+  `RuntimeGroup` (names and access modes) and whether `set_safety_runtime_group` then binds `setAttributeName` or stays
+  `api_member_missing` (L2).
+- **D15:** check live that `get_block_content xml` of an uncompiled block carries the "was not exported as SimaticML"
+  warning, and that `compile_check` then makes the SimaticML available.
+- Check whether `move_block` and `copy_block` of a main safety block keep the reference (not covered by the route).
+- Whether an SD import of the instance DB of a main safety block loses `MainSafetyBlockIDbName` (no evidence; the
+  direct SD route and the safety net apply).
+- **E4:** confirm the project languages of `MCP_Livetest_01` (presumed de-DE only) and run the same import in a
+  project with en-US and de-DE, to state the culture rule as "project languages" with certainty.
+- **E2:** test the export form of the instructions not covered (`NE_Contact`, `Sub`/`Mul`/`Div`, `S_SR`, `TP`,
+  `NBox`-style negative edges in FBD, box-to-box wires, F-instructions such as `ESTOP1`).
+
+## Open: compile reports, PLCSIM dimensions, content diffs and member supersession, live re-test (2026-11-02)
+
+Defects K04, K17, K31 (live run 2026-11-02) and K03 (live report 2026-11-01) are fixed on `fix/catalog-diag`, offline only (stand-in
+compiler trees, stand-in PLCSIM types, FakeWorker). Re-test live:
+
+- **K04:** `compile_check scope:"hardware"` on the protected `PLC_F1`: expect only the three real errors, each with
+  path `PLC_F1/Hardware configuration/...` (record the exact chain TIA Portal yields; the container nesting was
+  inferred from the flat list), totals unchanged. `set_network_text` or `update_block_logic` with a compile that has
+  a few information messages: expect their texts in `blockImportOutcome.compileReport` and
+  `compileDetailsOmitted:false`. Record whether software compile paths are single names (assumed) or qualified.
+- **K17:** `plcsim_read list_tags` on an array tag and a scalar: record the `Dimension` projection (member names of
+  `SDimension`, and whether a scalar has an empty array or null).
+- **K31:** `update_block_logic` format xml with a plain document adding one contact: expect `contentDiff` with
+  `currentDocument` naming the `.xml` document and a handful of changed lines.
+- **K03:** two interface edits on different members of one block in one call: expect two `interfaceMember` entries,
+  both successful.
+- **K26 (docs only):** PLCSIM `list_tags` empty after a download until `update_tag_list`, `Offset` 0 in optimized
+  DBs; recorded in the [PLCSIM reference](SupportedOperations/PLCSIM_OPERATIONS_SUMMARY.md#live-observations-2026-11-02).
+
+## Open: plc_write live findings K18-K25 of 2026-11-02 (MCP_Livetest_01), live re-test of the fixes
+
+Fixed on `fix/catalog-plcw`, offline only (unit tests and FakeWorker). Re-test live:
+
+- **K18:** `connect_technology_object_hardware` actor/tag on `Achse_1` (TO_PositioningAxis 6.0, listed but unavailable
+  `EncoderHardwareConnectionProvider`) must connect through `AxisHardwareConnectionProvider`; also a sensor connect on
+  an axis and on an external encoder (the encoder provider as the alternative).
+- **K19:** export, delete and import of a TO into another folder in one call: the delete must be `superseded`.
+  Same for `delete_block` followed by `create_block` of the name in another group.
+- **K22:** `create_tag`/`update_tag` with `comment`+`commentCulture` in a de-DE project; also a culture that is not
+  active (record whether `Items.Find` returns an item and what TIA Portal does) and an unknown culture.
+- **K24:** `set_plc_access_level` with a readable level (check `readBack`), `create_tag`/`delete_tag`/`move_tag`/
+  `delete_block` (checks `tag`/`block`).
+- **K20/K01/K02:** `update_db_member` retain change (expect `unverifiable` with the compile hint, not a failure);
+  `get_block_content`/`export_technology_object` of an inconsistent object (expect the hint; record that
+  `PlcBlock.IsConsistent` reads false then); `move_block` after `renumber_block` (still fails, with the hint).
+  PLC data types (UDT) are not covered by the hint.
+- **K25:** the multi-item call with a no-op `replace_tag_comments`: rejected as before, the message says no item ran.
+
+## Open: password manager "TiaMcp Passwortverwaltung", Windows acceptance (2026-11-01)
+
+- New Windows-only WinForms project `TiaMcpServer.PasswordManager` (`tia-mcp passwords`), shipped in `password-manager/`.
+  Built only on Windows by `TiaMcpServer.csproj`; on Linux it was compile-checked once with `EnableWindowsTargeting=true`,
+  never run. To verify on Windows: the build/pack produces `password-manager/` in the tool package
+  (`verify-doctor-package.ps1` does not check that folder yet); add, change, delete and test entries; `cmdkey /list`
+  shows the target with persistence "Local computer"; the server's `WindowsCredentialReader` reads a password written
+  by the manager (download or `safety_login` against PLCSIM).
+- Map change with it: `"*"` scopes, and the precedence is now project+PLC > project > PLC > default (before: PLC ranked
+  above project). Hand-written maps with both a project-only and a PLC-only entry for the same purpose now resolve to
+  the project entry.
+
+## Open: access mode chosen in the password manager, Windows acceptance (2026-11-02)
+
+- Owner request: choose read-only / read-write / full in "TiaMcp Passwortverwaltung" (tab "Zugriffsmodus") instead of
+  `--access-mode` in `claude_desktop_config.json`. The tab writes the names-only server settings file
+  `%APPDATA%\TiaMcpServer\settings.json` (or `TIA_MCP_SETTINGS`; `ServerSettingsFile`, closed schema version 1 with
+  optional `accessMode`); the server reads it once at startup and never writes it. Precedence: CLI > `TIA_MCP_ACCESS_MODE`
+  > settings file > default read-write; the source is logged at startup and reported by doctor (`accessModeSource`,
+  `settingsFile`). An invalid file refuses startup even when the CLI or the environment decides the mode.
+- Verified offline only: Linux tests (`ServerSettingsTests`, `ServerSettingsStartupTests`); the WinForms tab
+  (`AccessModePanel`) was compile-checked on Linux with `EnableWindowsTargeting=true`, never run. To verify on Windows:
+  the tab shows the stored value, saves each mode and removes the setting; Claude Desktop with an entry without `args`
+  starts in the saved mode after a restart (startup log `TIA MCP access mode source: settingsFile (...)`); an
+  `--access-mode` argument still wins.
+- Not changed: `tia-mcp install` still writes `--access-mode` (default `read-only`) into the client configuration, which
+  takes precedence over the setting. An installer option that registers without an access mode is a possible follow-up.
+
+## TIA alignment audit (2026-11-01)
+
+Owner decision ("nicht sperren, das maximal Mögliche soll möglich sein"): the server is never stricter than TIA
+Portal. Every refusal or block guard that existed only out of caution became "allowed, TIA Portal decides" (with an
+info or acknowledge guard where useful); a refusal stays only where TIA Portal or Openness itself cannot do the change,
+or where it is a security rule. Not live-tested; TIA Portal's own rejections surface as the item's failure
+(`engineering_rejected` where the worker method reports it).
+
+Removed or relaxed:
+
+| Rule | Before | Now |
+| --- | --- | --- |
+| F-block changes (update in xml/source, interface edits, `update_db_member`, delete/rename/renumber, copy/move, group delete) | login required; many refused | TIA Portal's rule: a login only when a safety password is set (`plc_safety_login_required`), acceptance guard always ([PLC safety](SupportedOperations/PLC_SAFETY_SUMMARY.md#f-block-changes)) |
+| F-program without safety password | refused (set a password first) | allowed without login |
+| No `SafetyAdministration` / unreadable safety state on an F-change | refused | info `plc_safety_tia_decides` |
+| `safety_login` without a password, `set_safety_password` when one is set, `revoke_safety_password` when none | `validation_error` | info `plc_safety_tia_decides` on the host, warning in the worker; the Siemens call runs |
+| `plc_download` `SafetyProgram` to a real controller | block `download_safety_program_to_hardware` | acknowledge `download_includes_safety_program` plus `download_to_hardware` |
+| `move_tag`, `move_tag_table` with `IsSafety=true` tags | refused | the safety login rule |
+| `plc_state_unverifiable`, `network_state_unverifiable`, `hmi_state_unverifiable`, `vci_state_unverifiable` | block | info: unreadable evidence is still never treated as empty, but the item runs |
+| `vci_file_key_collision`, `vci_workspace_exists` | block | info |
+| `library_close_unsaved_changes` | block | info; the close is a lifecycle item, so read-write confirms it |
+| lifecycle `archive_inside_project_folder`, `target_exists` | block | info |
+
+Kept, with the reason:
+
+| Rule | Reason |
+| --- | --- |
+| Know-how-protected blocks: copy/move and interface edits refused, also when the protection is unreadable | The SimaticML export of a protected block carries only the interface and Openness offers no protected import ([import/export options](SupportedOperations/IMPORT_EXPORT_OPTIONS_SUMMARY.md)); this route would lose the code. A future route is `PlcBlockProtectionProvider` unprotect/protect with a password source. |
+| `plc_ob_singleton_exists` | TIA Portal holds one OB per singleton event class; Portal's own rejection through Openness was never observed (see above). |
+| Default tag table move/delete | TIA Portal does not delete the default tag table. |
+| Duplicate technology object and F-runtime group names | Names are unique per PLC in TIA Portal; the pre-check is also what makes the object found afterwards the created one. |
+| Instance DB / array DB interface edits | An instance DB's interface comes from its FB in TIA Portal; array DB interfaces are not modelled by the evidenced SimaticML editor. |
+| System and corporate libraries read-only, system text lists | Read-only in TIA Portal. |
+| `create_block` with `F_*` languages | No evidenced SimaticML template for an F-block create; use `create_safety_runtime_group` (TIA Portal generates the main safety block). |
+| Classic (WinCC) HMIs | The worker has no WinCC Classic binding (`Siemens.Engineering.WinCC.dll` is not referenced); a capability gap, not caution. |
+| `vci_name_not_representable` | Windows cannot hold the name on disk. |
+| `discards_unsaved_source_changes`, `local_session_requires_terminal_operation`, `local_session_source_preservation_unproved` | Nothing is impossible: `save_project` or `close_project` (with the acknowledge guard `discards_unsaved_changes`) and the explicit local-session terminal operations come first; an implicit discard on open is not a TIA Portal operation either (TIA Portal asks). |
+| `update_tag` `IsSafety` argument | The attribute is derived by TIA Portal from the F-I/O address, not a tag setting. |
+| Security rules | Password values never as arguments (names and credential targets only), TLS trust only from caller-supplied fingerprints, the credential prefix, the access modes (read-only stays read-only). |
+
+## Open: CPU protection for simulation projects and hardware compile, live acceptance (2026-11-01)
+
+`get_plc_security`, `set_plc_access_level`, `disable_plc_confidential_data_protection` and `compile_check`
+`scope:"hardware"` ([CPU protection reference](SupportedOperations/PLC_SECURITY_SUMMARY.md)) are offline-qualified
+only (branch `feature/sim-security-profile`). They answer the 2026-11-01 PLCSIM download failure of a
+`create_project` CPU 1516-3 PN/DP V2.9 (three hardware compile errors about the access level, the confidential
+configuration data protection and the communication certificate) and defect D9 (`compile_check` compiled the
+program only). Open:
+
+- Live: on a fresh `create_project` project run `get_plc_security` and record what the CPU's `GetServiceInfos()`
+  lists, whether `PlcAccessLevelProvider.PlcProtectionAccessLevel` reads or throws the documented
+  `NullReferenceException`, whether it has a public setter, and the live members of `PlcProtectionAccessLevel`
+  and `PlcAccessControlConfiguration`.
+- Live: the full name of the `PlcMasterSecretConfigurator` service and its members (the V21 manual lists `Unprotect()`,
+  `Unprotect(SecureString)`, `Protect`, `ProtectAllPlcConfiguration[WithPassword]`, `UnprotectAllPlcConfiguration`,
+  `ChangePassword`, `MasterSecretConfiguration`); record the values `MasterSecretConfiguration` reads before and after.
+- Live (password-protected CPUs, 2026-11-01): `set_plc_access_level` `HMIAccess`/`NoAccess` with `accessLevelPasswords`
+  from a `TiaMcp/` credential, then `compile_check scope:"hardware"`, `plc_download` with `ModuleWriteAccessPassword`
+  from the map, `compare_to_online` with `OnlineReadAccessPassword`; `protect_plc_confidential_data`, then a download
+  answering `PlcMasterSecretPassword`; record TIA Portal's password policy rejections (`engineering_rejected`).
+- Live: the recipe (`set_plc_access_level FullAccess` plus `disable_plc_confidential_data_protection`), then
+  `compile_check scope:"hardware"` without the three errors, then `plc_download` to PLCSIM; also check that
+  `scope:"hardware"` reports the three errors before the recipe (D9).
+- Whether `observedMembers` of the configurator contains a member that reports the checkbox; only then can the
+  state be interpreted.
+- Optional: a `create_project` switch for simulation projects that applies the recipe.
+
+## Open: fail-safe (F-) PLCs — live acceptance and unverified members (2026-11-01)
+
+The operations of the [PLC safety reference](SupportedOperations/PLC_SAFETY_SUMMARY.md) are offline-qualified
+only (unit tests and the `plc-write-roundtrip` FakeWorker). Open:
+
+- Run the [F-CPU live test plan](development/plcsim-fcpu-live-test-plan.md) on `MCP_Livetest_01` with a CPU
+  1516F-3 PN/DP and PLCSIM Advanced V8.0; record every `api_member_missing` and every `problems` line.
+- Verify against the installed V21 `Siemens.Engineering.Safety.dll` the members backed only by the third-party
+  baseline: `ProgramSignatures`, the four access members, `IsLoggedOnToSafetyOfflineProgram`,
+  `RuntimeGroupComposition.Create(String)`/`Create(String, PlcBlock)`, the `RuntimeGroup` properties, `GlobalSettings`
+  getters, the runtime type of `SafetySignature.Value`, and the `SafetyProgramSelections` members.
+- Record whether `GetServiceInfos()` of the CPU device item lists `SafetyAdministration` (otherwise the generic
+  `GetService<T>()` fallback is used) and what `IsLoggedOnToSafetyOfflineProgram` reports when no password is set.
+- `compile_check` of the PLC compiles the F-program (live 2026-11-02, E6). Still open: whether it updates the
+  collective signature, and whether a SimaticML import of an F-block while logged on keeps its signature consistent.
+- Decide whether the left-out writes (safety settings, block-number ranges, runtime group attributes and delete, safety
+  printout, safety system version) should follow, each with its own evidence.
+
+## Open: external sources, folders, software units, file exports, device scan — live acceptance (2026-11-01)
+
+The `plc_read`/`plc_write` operations of the
+[sources and folders reference](SupportedOperations/PLC_SOURCES_FOLDERS_SUMMARY.md) are offline-qualified
+only. Open:
+
+- Live acceptance following the reference's live steps; first build the worker and the reference probe
+  against the installed V21 PublicAPI (`PlcExternalSourceComposition.Find`, `PlcExternalSource.Name`,
+  `PlcTagTableUserGroupComposition.Create`, `PlcTagTableUserGroup.Delete`, `PlcTypeUserGroupComposition.Find`,
+  `PlcTypeUserGroup.Delete`, `PlcUnitComposition.Create`/`Find`, `PlcUnit.Delete`).
+- Record the runtime types of `ConfigurationAccessibleDevice.DeviceSeries`/`Address`/`MACAddress` and the
+  return type of `GetAccessibleDevices()`; the runtime binding reports any non-text value as
+  `unsupported_capability`.
+- Record whether `GetAttributeInfos()` lists `Name` as writable for PLC data type, tag-table and
+  watch-table user groups and for software units (the renames fail closed otherwise) and what a colliding
+  rename does.
+- Record the runtime return type of `PlcTypeUserGroupComposition.Create(String)` and the runtime type of
+  `PlcUserConstant.Comment` (both bound at runtime; tags-types.md lists them without a type), and what a
+  non-empty type group delete and a software unit delete with relations do.
+- `feature/alarms-textlists` and `feature/technology-objects` are merged. Still open: a CSV projection of
+  the alarm-text and text-list workbook cells on the shared CSV writer, and technology objects/groups in
+  `find_objects`. Technology-object group create/delete/rename are covered by the merged
+  `create`/`delete`/`rename_technology_object_group` operations.
+- `library_write`: target kinds for user-group compositions (`CreateFrom(MasterCopy[, MasterCopyMode])` of
+  block, type, tag-table, watch-table and technology-object user groups), documented in the V21 API lists.
+
+## Open: TLS certificate trust for online operations, live acceptance (2026-11-01)
+
+Live finding (TIA Portal V21, PLCSIM Advanced 8.0): `plc_download` to PLCSIM failed with "Verbindung mit
+Baugruppe PLC_1 fehlgeschlagen" and no `configurationsSeen`, while TIA Portal's own UI first asks whether
+to trust the device's unknown self-signed certificate; the download never subscribed
+`ConnectionConfiguration.OnlineLegitimation`. Now `plc_download`, `plc_tia_online` `go_online`,
+`plc_station_upload` and `plc_read` `compare_to_online` register the handler on the connection
+configuration they use, remove it in `finally`, record every presented configuration and answer a
+`TlsVerificationConfiguration` only from the optional `trustedCertificates` (user-approved SHA-256
+fingerprints; every presented certificate must be listed), otherwise `NonTrusted` and an abort with the
+certificate evidence; see the [download reference](SupportedOperations/PLC_DOWNLOAD_SUMMARY.md#tls-certificate-trust-online-legitimation)
+and the [online reference](SupportedOperations/PLC_ONLINE_OPENNESS_SUMMARY.md#tls-certificate-trust-trustedcertificates).
+Offline-qualified only. Open:
+
+- Live check on the PLCSIM Advanced instance of the finding: does the download now show an
+  `online_legitimation` `TlsVerificationConfiguration` entry with readable `tls` (empty
+  `unreadableMembers`)? If not, V21 raises the question by another route and the download still fails;
+  record the TIA Portal behaviour before changing anything.
+- Confirm the runtime shapes read by reflection: `PlcName` and `VerificationInfo` (types undocumented;
+  read as text), `Certificates` enumerable of `VerificationCertificate`, `Certificate` an
+  `X509Certificate2`, `CurrentSelection` of type `TlsVerificationConfigurationSelection` with `Trusted`
+  and `NonTrusted`; compare the reported SHA-256/SHA-1 values with TIA Portal's "Zertifikate anzeigen".
+- Record whether an answered `Trusted` persists (a second call without `trustedCertificates`), in
+  particular for `compare_to_online`, which is allowed in read-only and never prompts.
+- The same for `go_online`, `plc_station_upload` (its provider's `Configuration`) and
+  `compare_to_online`.
+- Online authentication (`OnlineAuthenticationConfiguration`, `OnlineCredentials`) still aborts; decide
+  whether an approved authentication policy is wanted.
+
+## Open: V21 pitfall guards live acceptance and follow-ups (2026-11-01)
+
+Roadmap rows 21 and 22 are implemented and offline-qualified only; see
+[V21 pitfalls](SupportedOperations/V21_PITFALLS.md). Open:
+
+- Run live cases L1–L11 of its acceptance list; only a reproduced case lets a guard or warning text say
+  "TIA Portal does" instead of "is reported to".
+- Pitfall 2: `plc_write` exports a block at least twice before overwriting it (planning read, worker hash
+  re-check, unchanged-companion check), so the reported termination condition holds for every overwrite
+  of a textual-interface block even after a reopen. If L5 reproduces the termination, add a write path
+  with at most one export after a reopen (hash check and companion check from one worker export, no
+  planning read for blocks whose submitted `.s7dcl` declares a textual interface).
+- Pitfall 1 for `vci_write sync_to_project` of `SimaticSD` workspace files is not checked.
+- Row 21: confirm on V21 that reading `TiaPortalProcess.AttachedSessions` of a Portal this worker is not
+  attached to raises no Openness access dialog (L11). Starting a TIA Portal with UI stays left out until
+  the lifetime of a `new TiaPortal(TiaPortalMode.WithUserInterface)` instance across a worker restart is
+  checked live (or a Siemens source documents starting the Portal executable), and a lifecycle surface
+  with confirmation is designed for it.
+- Export ledger limits: blocks of the same name in different software units share one count, and a
+  `withDependencies` source export counts only the requested block (message text only; no guard
+  depends on the count).
+
+## Open: library tools live acceptance and follow-ups (2026-11-01)
+
+`library_read` and `library_write` are implemented and offline-qualified only; see the
+[library reference](SupportedOperations/LIBRARY_OPERATIONS_SUMMARY.md). Open:
+
+- Live acceptance following the reference's live steps; first build the worker and the reference probe
+  against the installed V21 PublicAPI, then confirm every runtime-bound member resolves (an
+  `unsupported_capability` names the missing one) — notably the parameterless `Save()`, `Discard()`,
+  `SetAsDefault()` and version `Delete()`, `Release`'s third/fourth arguments and the `UpdateProject`
+  collection overload.
+- Check the installed `Siemens.Engineering.Base.xml` for the parameter lists the reviewed sources omit
+  (type-version export, type publishing/creation from documents, `CleanUpLibrary`, `HarmonizeProject`,
+  `UpdateLibrary`, library `Archive`/`SaveAs`, type-folder `Create`, folder deletion, the master-copy
+  child-folder member, further `UpdateCheckMode`/`CreateOrReleaseDependenciesMode` members) before adding them.
+- Live: record which items raise TIA Portal confirmation dialogs (every `library_write` item now answers them
+  by `portalConfirmations`, default `decline`, and records them; a declined dialog fails the item), notably
+  `Close()` with unsaved changes, `OpenWithUpgrade` and `Release`; decide whether a default other than
+  `decline` is warranted for any of them.
+- `close_global_library` names (info guard `library_close_unsaved_changes`, block until 2026-11-01) the changes this server
+  made and did not save (host ledger); UI changes are not detected because no documented member reports a
+  global library's unsaved state. Check the installed XML for such a member (or a `Close` overload with a
+  save choice) and use it if present.
+
+## Open: program analysis and live table values, live acceptance (2026-11-01)
+
+The `plc_read` program analysis and `plc_online_read` `read_watch_table_live` are offline-qualified
+only; see the [program analysis reference](SupportedOperations/PLC_OPERATIONS_SUMMARY.md#program-analysis-plc_read)
+and the [live-table section](SupportedOperations/PLC_ONLINE_WEBAPI_SUMMARY.md#live-values-of-an-offline-table-read_watch_table_live). Open:
+
+- Record a block-level cross-reference sweep live: which locations of a call carry `Uses`, `UsedBy`
+  or another reference type, which access names STL `UC`/`CC`, multi-instance calls and instance DBs
+  get, and what `Name`/`Device` a reference to a block carries. Until then the direction rule for
+  blocks is inferred from the V21 names and the recorded HMI/tag `UsedBy` evidence.
+- Confirm that an instance DB's SimaticML export carries `AttributeList/InstanceOfName`.
+- Sweep payload size and time on a large PLC (thousands of blocks): the sweep result is not capped
+  between worker and host, and one sweep per root block folder always runs to completion.
+- Record the `PlcWatchTableEntry.Name` format for tags, DB members, nested members and array elements;
+  widen `PlcWebApiSymbolMapping` only with that evidence (deeper unquoted member paths are unmapped today).
+- Duplicate block names across software units/namespaces are never resolved; a namespace-aware match
+  needs the reference `Path` format, which is not recorded.
+
+## Open: PLC online (S7-1500 Web API) live acceptance and follow-ups (2026-10-31)
+
+`plc_online_read` and `plc_online_write` are implemented and offline-qualified only; see the
+[PLC online reference](SupportedOperations/PLC_ONLINE_WEBAPI_SUMMARY.md). Open:
+
+- Live acceptance on a test S7-1500 (firmware 4.1 preferred) following the reference's live steps,
+  including anonymous and user targets, all three certificate modes and a session expiry.
+- `restore_backup`: whether the client helper's `ReLoginAsync` (logout with the pre-restart token,
+  then login) succeeds after the restart; if not, replace the helper's final re-login with a tolerant
+  one without re-implementing the restore sequence.
+- Whether a PLCSIM Advanced instance serves the Web API (TCP/IP adapter, web server enabled).
+- Possible later scope: R/H redundancy ids, diagnostic-buffer and alarm filters,
+  `Modules.ReadParameters` and I&M data, time settings, bulk reads for many tags.
+
+## Open: S7-PLCSIM Advanced live acceptance and follow-ups (2026-10-31)
+
+`plcsim_read`, `plcsim_write` and `plcsim_test` are implemented and offline-qualified only; see the
+[PLCSIM reference](SupportedOperations/PLCSIM_OPERATIONS_SUMMARY.md). Open:
+
+- Live acceptance on an installed, licensed S7-PLCSIM Advanced, following the reference's live
+  steps with `probe_api` first. The `IInstance` signatures (timeout overloads, `UpdateTagList()`,
+  `GetTagListStatus`, `ReadX`/`WriteX`, properties) were checked against the Siemens developer
+  reference for API 8.0 only; the `SimulationRuntimeManager` members, `STagInfo.Name` and the
+  exception error-code member remain unverified, and every member still needs `probe_api` on the
+  installed version. Correct `PlcSimApiCatalog` from that evidence.
+- Whether `UpdateTagList()` cold-restarts the virtual CPU (secondary-source claim) and how control
+  methods report failure (return value versus exception; per the developer reference only
+  `PowerOn` returns `ERuntimeErrorCode`). Returned codes are judged by sign (`OK` success,
+  negative error, positive warning; an `OK` member's value wins over zero, zero is only a warned
+  fallback without `OK`); the .NET `OK` name and `SREC_OK`'s numeric value, the
+  `CommunicationInterface` value name `Softbus` and whether a stopped Runtime Manager surfaces as a
+  failed type initializer (worker restart flag) are unverified.
+- Whether the API needs a particular thread apartment or the Runtime Manager to be running before
+  the static manager initializes; the worker uses its default MTA thread.
+- Possible later scope: virtual-time/sync-point testing (`OperatingMode`, `RunToNextSyncPoint`),
+  string and unsigned writes once their members are verified, instance registration.
+- PLCSIM calls are serialized by the shared `PersistentWorkerTransport` gate, whose wait has no
+  timeout: a running `plcsim_test` scenario blocks every other PLCSIM call (reads and `probe_api`
+  included) for up to its duration. Consider a bounded queue wait or a separate read channel; the
+  shared transport was deliberately left unchanged (documented in the PLCSIM reference).
+
+## Open: plc_download and worker-locator follow-ups (2026-10-31)
+
+- Done (2026-11-01): a dialog V21 raises after `plc_download` (or `plc_tia_online`, `plc_station_upload`,
+  `compare_to_online`) closed its confirmation scope is no longer answered by the session-wide `Yes`.
+  The closed scope lingers with the call's answer until the next worker request starts
+  (`TiaPortalSession.EndLingeringConfirmations`, called by `PlcOnlineConfirmationScope.BeginRequest` before
+  every request, under the confirmation lock; a new scope also ends it), records late dialogs, logs each
+  at once and reports them as a warning on that next response. `go_online` keeps a fail-closed
+  legitimation handler until then (`DeferredUntilNextRequest`). Remaining limit: the next response may
+  belong to an internal call whose warnings are not shown, so the server log is the reliable record.
+- `OpennessWorkerLocator` (upstream code, unchanged) still walks every parent directory up to the
+  drive root and prefers `Debug` over `Release` when the packaged `openness-worker/` folder is
+  missing. `PlcSimWorkerLocator` now restricts its development fallback to the nearest ancestor that
+  contains `TiaMcpServer.slnx` and prefers `Release`; apply the same restriction upstream.
+
 ## Open: VCI follow-ups (2026-10-16)
 
 The [VCI reference](SupportedOperations/VCI_OPERATIONS_SUMMARY.md) documents the delivered
@@ -120,7 +472,7 @@ PR4's observed AMC paths and successful opens do not close this follow-up or Iss
 ## Open: totally-integrated-claude tia-portal-mcp skill migration
 
 Update the plugin's source `tia-portal-mcp` skill in a separately authorized plugin change to teach
-the current 8/19/19 tool counts (`plc_read` and `read_cross_references` replace the retired `execute_read_batch`;
+the current 11/29/29 tool counts (the PLCSIM tools `plcsim_read`, `plcsim_write` and `plcsim_test`, the S7-1500 Web API tools `plc_online_read`/`plc_online_write` and the library tools `library_read`/`library_write` included; `plc_read` and `read_cross_references` replace the retired `execute_read_batch`; `plc_download` (PLCSIM or real hardware, controlled by the access mode, with caller `decisions`, environment-variable `passwords` and `portalConfirmations`), `plc_tia_online` and `plc_station_upload` are further writable tools;
 `plc_write` replaces `preview_write_batch`/`apply_write_batch`, with `content` plus
 `expectedContentHash` instead of `yamlContent`/`sourceContent` and no safety token; full adds no
 tools and PLC run/stop is gone), `bind_project` for already-open projects, no implicit opens, per-call
@@ -648,3 +1000,29 @@ Obsolete subnet fence/forwarding assertions, the fake-worker confirmation fence 
 Multiuser selector case were removed. Qualification is offline because this removes a constant
 internal gate without changing native engineering calls.
 The frozen simplification review remains a historical record.
+
+## Completed: SIMATIC SD and fail-safe live findings (2026-11-02)
+
+[Live report](superpowers/acceptance/reports/2026-11-02-simatic-sd-and-safety-live.md). Offline only:
+`create_block_from_document` takes the `.s7res` as optional (E5) and lists its cultures (E4); every "en-US is
+required" statement now says "reported by BetterTIA/1748477582; contradicted live 2026-11-02 in a de-DE project"; the
+export-form report is "reported, not reproduced live on V21" for the instructions tested (E2); defect **D13 fixed**
+(`list_safety_blocks` reports an unretrievable `SafetySignatureProvider` as `signatureState: "unreadable"`), defect
+**D14 fixed** (a listed-but-unretrievable service no longer fails `get_plc_security` or the technology object
+hardware read; writes that need it fail `unsupported_capability`); **E7 handled**: new `plc_write`
+`set_safety_runtime_group`, the automatic re-link of a lost main safety block reference after every import route,
+the verification check `safetyRuntimeGroup` and the info guard `plc_import_may_unlink_main_safety_block` for SD
+imports (the XML route kept the reference live, E7b); E6 documented (`compile_check` of an F-CPU compiles the safety
+program).
+
+## Completed: main safety block SD route and D15 (2026-11-02)
+
+[Live report, re-test with b79b2df](superpowers/acceptance/reports/2026-11-02-simatic-sd-and-safety-live.md#re-test-with-b79b2df).
+Offline only: an SD-document write onto the main safety block of an F-runtime group goes through a temporary F-block
+and a SimaticML import in one worker call (`PlcMainSafetyBlockSdRoute`, `SimaticMlBlockIdentity`, route
+`sdViaXmlForMainSafetyBlock`, evidence `mainSafetyBlockRoute`); the info guard `plc_import_may_unlink_main_safety_block`
+describes the route; the post-import check `safetyRuntimeGroup` stays on every route; `set_safety_runtime_group`
+documents L2, tries a writable `MainSafetyBlockName`/`MainSafetyBlockIDbName` name attribute and lists the attribute
+infos it saw; `get_safety_administration` reports `attributeInfos`; **D15 fixed**: a refused SimaticML export is a
+warning instead of a silent drop, and the planning reads name the cause. FakeWorker: the route on its model, scenario
+`plc-write-no-route` for the safety net, compile_check, uncompiled blocks without SimaticML.

@@ -8,7 +8,7 @@ using static TiaMcpServer.Hmi.HmiGuardDefinitions;
 namespace TiaMcpServer.Hmi;
 
 /// <summary>An owned working copy of read evidence, with earlier planned items applied in caller order.</summary>
-internal sealed class HmiWorkingState
+internal sealed partial class HmiWorkingState
 {
     private static readonly StringComparer Names = StringComparer.OrdinalIgnoreCase;
     private readonly HmiEvidence _evidence;
@@ -82,6 +82,10 @@ internal sealed class HmiWorkingState
 
     private HmiWriteEffect ResolveEffect(HmiWriteOperationRequest r, List<FiredGuard> guards)
     {
+        if (HmiWriteCatalog.ScreenOperations.Contains(r.Operation)) return ResolveScreen(r, guards);
+        if (HmiWriteCatalog.ClassicOperations.Contains(r.Operation)) return ResolveClassic(r, guards);
+        if (HmiWriteCatalog.EventOperations.Contains(r.Operation)) return ResolveEvents(r, guards);
+        if (HmiWriteCatalog.ConfigurationOperations.Contains(r.Operation)) return ResolveConfiguration(r, guards);
         var create = r.Operation.StartsWith("create_", StringComparison.Ordinal);
         var delete = r.Operation.StartsWith("delete_", StringComparison.Ordinal);
         var target = RequestedIdentity(r);
@@ -166,6 +170,27 @@ internal sealed class HmiWorkingState
     {
         var resolved = Resolve(r);
         if (resolved.Error is not null || resolved.Guards.Any(g => g.Id is StateUnverifiable)) return;
+        if (HmiWriteCatalog.ScreenOperations.Contains(r.Operation))
+        {
+            ApplyScreen(r, resolved.Effect!);
+            return;
+        }
+        if (HmiWriteCatalog.ClassicOperations.Contains(r.Operation))
+        {
+            ApplyClassic(r, resolved.Effect!);
+            return;
+        }
+        if (HmiWriteCatalog.EventOperations.Contains(r.Operation))
+        {
+            ApplyEvents(r, resolved.Effect!);
+            return;
+        }
+        if (HmiWriteCatalog.ConfigurationOperations.Contains(r.Operation))
+        {
+            Touch(resolved.Effect!.Target, r.OperationId);
+            if (r.PlantViewName is not null) Touch(Identity("PlantView", r.PlantViewName), r.OperationId);
+            return;
+        }
         var target = resolved.Effect!.Target;
         var renamed = false;
         switch (r.Operation)

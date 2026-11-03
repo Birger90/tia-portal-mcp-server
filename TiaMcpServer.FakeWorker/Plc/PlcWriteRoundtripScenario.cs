@@ -1,8 +1,10 @@
+using TiaMcpServer.Contracts.Plc.Loadable;
 using System.Text.Json;
 using TiaMcpServer.Contracts.Block;
 using TiaMcpServer.Contracts.Json;
 using TiaMcpServer.Contracts.Network;
 using TiaMcpServer.Contracts.Plc;
+using TiaMcpServer.Contracts.Plc.Interface;
 using TiaMcpServer.Contracts.Project;
 using TiaMcpServer.Contracts.Shared;
 using TiaMcpServer.Contracts.Worker;
@@ -20,12 +22,19 @@ namespace TiaMcpServer.FakeWorker.Plc;
 /// <c>exportLostAfterWrite</c> makes block exports fail once any write succeeded (the post-write hash re-export);
 /// <c>driftAtImport</c> edits block content just before an import checks its hash (a TIA UI edit);
 /// <c>skippedBlock</c> makes the tree walker report an unreadable block under PLC_1's program blocks.
+/// <c>noRelink</c> gives the F-runtime groups no assignable main safety block member (set_safety_runtime_group fails
+/// api_member_missing, and a reference a SIMATIC SD import drops cannot be restored), as live on V21 (2026-11-02, L2).
+/// <c>noRoute</c> models a worker that cannot tell that a block is a main safety block (its groups unreadable at that moment):
+/// the SD document is imported directly and drops the reference (L1), which exercises the post-import safety net.
+/// <c>readOnlyCompilationSettings</c> gives the compilation settings providers read-only flags without a writable attribute
+/// (set_project_compilation_settings fails api_member_missing, nothing changed).
 /// Creating the tag <c>RejectedByPortal</c>, or a block, block group or tag table whose name is taken, fails as Portal's own
 /// rejection (<c>engineering_rejected</c> with Siemens evidence): the worker no longer pre-checks those names.
 /// Creating a tag whose name the table already holds returns the live-captured Siemens document verbatim.
 /// </summary>
-sealed class PlcWriteRoundtripScenario(Func<string, BlockImportOutcomeInfo> completedOutcome, bool inventoryIncomplete = false,
-    bool incompleteAfterWrite = false, bool driftAtImport = false, bool skippedBlock = false, bool exportLostAfterWrite = false)
+sealed partial class PlcWriteRoundtripScenario(Func<string, BlockImportOutcomeInfo> completedOutcome, bool inventoryIncomplete = false,
+    bool incompleteAfterWrite = false, bool driftAtImport = false, bool skippedBlock = false, bool exportLostAfterWrite = false,
+    bool s7dclImportMangles = false, bool noRelink = false, bool noRoute = false, bool readOnlyCompilationSettings = false)
 {
     private const string RejectedTagName = "RejectedByPortal";
 
@@ -50,17 +59,33 @@ sealed class PlcWriteRoundtripScenario(Func<string, BlockImportOutcomeInfo> comp
 
     private readonly List<Plc> _plcs = Fixture();
     private readonly Dictionary<string, string> _content = new(Names);
+    private readonly Dictionary<string, int> _exports = new(Names);
+    private readonly HashSet<string> _written = new(Names);
     private bool _wrote;
+    private bool _seeded;
 
     private bool InventoryIncomplete => inventoryIncomplete || incompleteAfterWrite && _wrote;
 
     public string Handle(string line, string? fallbackProjectPath)
     {
         var request = JsonSerializer.Deserialize<WorkerRequest>(line, WorkerJson.Envelope)!;
+        if (!_seeded)
+        {
+            SeedBlockEditFixture(_plcs[0]);
+            SeedSimaticSdFixture(_plcs[0]);
+            _seeded = true;
+        }
+
         try
         {
             var response = Dispatch(request, fallbackProjectPath);
-            _wrote |= request.Method is not ("list_tag_tables" or "browse_project_tree_v3_snapshot" or "get_block_content" or "get_type_content" or "read_hardware_config");
+            _wrote |= request.Method is not ("list_tag_tables" or "browse_project_tree_v3_snapshot" or "get_block_content" or "get_type_content" or "read_hardware_config" or "compile_check"
+                    or PlcBlockExportStateMethods.GetExportState or TiaMcpServer.Contracts.Plc.Safety.PlcSafetyMethods.GetAdministration
+                    or TiaMcpServer.Contracts.Plc.Safety.PlcSafetyMethods.ListBlocks
+                     or TiaMcpServer.Contracts.Plc.BlockProtection.PlcBlockProtectionMethods.GetBlockProtection
+                    or TiaMcpServer.Contracts.Project.ProjectLanguageMethods.GetLanguages
+                    or TiaMcpServer.Contracts.Plc.OpcUa.PlcOpcUaMethods.GetConfiguration)
+                && !PlcBlockEditMethods.Read.Contains(request.Method);
             return response;
         }
         catch (WorkerOperationException ex)
@@ -72,7 +97,8 @@ sealed class PlcWriteRoundtripScenario(Func<string, BlockImportOutcomeInfo> comp
                 FinalReadStage = "not_started", ContentRelation = "unknown",
                 TemporarySourceState = request.Format == SourceFormatNames.Source ? "not_created" : "not_applicable",
             };
-            return JsonSerializer.Serialize(new WorkerResponse { Success = false, FailureCategory = ex.FailureCategory, Error = ex.Message, BlockImportOutcome = notStarted, EngineeringError = ex.EngineeringError }, WorkerJson.Envelope);
+            return JsonSerializer.Serialize(new WorkerResponse { Success = false, FailureCategory = ex.FailureCategory, Error = ex.Message, BlockImportOutcome = notStarted, EngineeringError = ex.EngineeringError,
+                PlcDownloadOutcome = ex.PlcDownloadOutcome }, WorkerJson.Envelope);
         }
     }
 
@@ -92,10 +118,21 @@ sealed class PlcWriteRoundtripScenario(Func<string, BlockImportOutcomeInfo> comp
                 }),
                 "browse_project_tree_v3_snapshot" => Tree(request, fallbackProjectPath),
                 "get_block_content" => Export(request),
+                "compile_check" => Compile(request),
+                PlcBlockExportStateMethods.GetExportState => ExportState(request),
                 "get_type_content" => ExportType(request),
                 "update_block_logic" => UpdateBlock(request),
                 "update_type_content" => UpdateType(request),
                 "create_block" or "delete_block" or "create_block_group" or "delete_block_group" => BlockWrite(request),
+                var method when PlcBlockEditMethods.IsWorkerMethod(method) => BlockEdit(request),
+                PlcSourceFolderMethods.ReadTagComments => Ok(TagComments(request.PlcSourceFolder ?? new PlcSourceFolderRequestInfo())),
+                var method when TiaMcpServer.Contracts.Plc.Safety.PlcSafetyMethods.IsWorkerMethod(method) => Safety(request),
+                ProjectCompilationSettingsMethods.Set => CompilationSettings(request),
+                PlcLoadableMethods.GenerateLoadable => Loadable(request),
+                var method when TiaMcpServer.Contracts.Plc.BlockProtection.PlcBlockProtectionMethods.IsWorkerMethod(method) => BlockProtection(request),
+                var method when TiaMcpServer.Contracts.Project.ProjectLanguageMethods.IsWorkerMethod(method) => ProjectLanguages(request),
+                var method when TiaMcpServer.Contracts.Plc.OpcUa.PlcOpcUaMethods.IsWorkerMethod(method) => OpcUa(request),
+                var method when TiaMcpServer.Contracts.Plc.DeviceData.PlcDeviceDataMethods.IsWorkerMethod(method) => DeviceData(request),
                 _ => TagWrite(request),
             };
 
@@ -207,7 +244,29 @@ sealed class PlcWriteRoundtripScenario(Func<string, BlockImportOutcomeInfo> comp
         if (exportLostAfterWrite && _wrote) Throw(WorkerFailureCategories.WorkerOperationFailed, "The block could not be exported after the write.");
         if (block == "Locked") Throw(WorkerFailureCategories.WorkerOperationFailed, "The block could not be exported: access denied.");
         if (block == "Empty_DB") return Ok(string.Empty);
+        RequireConsistentForExport(path);
+        _exports[path] = _exports.GetValueOrDefault(path) + 1;
+        if (request.Format == SourceFormatNames.Sd) return Ok(ExportSd(plc, block, path));
+        // D15: an uncompiled block (created from an SD document) exports no SimaticML; the read says so.
+        if (_uncompiled.Contains(path) && (request.Format ?? SourceFormatNames.Xml) == SourceFormatNames.Xml) return ExportUncompiled(plc, block, path, request.BlockPath!);
         return Ok(Content(plc, path, request.Format ?? SourceFormatNames.Xml));
+    }
+
+    /// <summary>
+    /// The worker's block export ledger as this fixture models it: the project counts as opened by the server, every
+    /// get_block_content export counts and a write restarts the count (the worker's internal exports are not modelled).
+    /// </summary>
+    private string ExportState(WorkerRequest request)
+    {
+        var (plc, _, block, path) = ResolveBlock(request.BlockPath!);
+        var bundle = Content(plc, path, SourceFormatNames.Xml);
+        bool? textual = PlcBlockBundleText.TryGetDocument(bundle, ".s7dcl", out _, out var s7dcl) ? S7dclImportHazards.HasTextualInterface(s7dcl) : null;
+        return Ok(new PlcBlockExportStateInfo
+        {
+            PlcName = plc.Software, BlockName = block, ExportCount = _exports.GetValueOrDefault(path),
+            Basis = _written.Contains(path) ? PlcBlockExportStateMethods.WrittenByThisServer : PlcBlockExportStateMethods.OpenedByThisServer,
+            TextualInterface = textual,
+        });
     }
 
     private string ExportType(WorkerRequest request)
@@ -218,11 +277,23 @@ sealed class PlcWriteRoundtripScenario(Func<string, BlockImportOutcomeInfo> comp
 
     private string UpdateBlock(WorkerRequest request)
     {
-        var (plc, _, _, path) = ResolveBlock(request.BlockPath!);
+        var (plc, _, block, path) = ResolveBlock(request.BlockPath!);
         var format = request.Format ?? SourceFormatNames.Xml;
+        if (format == SourceFormatNames.Sd) return UpdateBlockSd(request, plc, block, path);
+        RequireFailSafeImportPermitted(plc, block, request.Content);
         if (driftAtImport) _content[Key(path, format)] = "<Block edited-in-tia-ui=\"true\"/>";
         RequireHash(request, format, Content(plc, path, format));
-        _content[Key(path, format)] = request.Content!;
+        // A bundle without .xml takes the SIMATIC SD route; onto a main safety block that is the temporary F-block route.
+        if (!PlcBlockBundleText.TryGetSimaticMl(request.Content!, out _, out _) && PlcBlockBundleText.TryGetDocument(request.Content!, ".s7dcl", out _, out _)
+            && MainSafetyGroups(plc, block) is { Count: > 0 } groups)
+            return UpdateMainSafetyBlockThroughRoute(request, plc, ResolveBlock(request.BlockPath!).Group, block, path, groups);
+        // s7dclImportMangles models the reported V21 alteration of a SIMATIC SD import (a bundle without .xml):
+        // a project type named like a system type becomes the system type.
+        _content[Key(path, format)] = s7dclImportMangles && !PlcBlockBundleText.TryGetSimaticMl(request.Content!, out _, out _)
+            ? System.Text.RegularExpressions.Regex.Replace(request.Content!, @"_\.""?TONR""?", "TONR_TIME")
+            : request.Content!;
+        _exports[path] = 0;
+        _written.Add(path);
         return JsonSerializer.Serialize(new WorkerResponse { Success = true, Payload = "Import succeeded.", BlockImportOutcome = completedOutcome(format) }, WorkerJson.Envelope);
     }
 
@@ -257,7 +328,8 @@ sealed class PlcWriteRoundtripScenario(Func<string, BlockImportOutcomeInfo> comp
                 path = BlocksPath(plc, address.FolderPath, address.BlockName);
                 break;
             case "delete_block":
-                var (_, owner, block, blockPath) = ResolveBlock(request.BlockPath!);
+                var (blockPlc, owner, block, blockPath) = ResolveBlock(request.BlockPath!);
+                RequireFailSafeImportPermitted(blockPlc, block, null, "delete_block");
                 owner.Blocks.RemoveAll(b => b.Name == block);
                 path = blockPath;
                 break;
@@ -315,6 +387,7 @@ sealed class PlcWriteRoundtripScenario(Func<string, BlockImportOutcomeInfo> comp
 
     private string TagWrite(WorkerRequest request)
     {
+        (string Culture, string Text)? comment = null;
         var plc = FindPlc(request.PlcName);
         var folder = "/" + string.Join("/", (request.FolderPath ?? "/").Split('/', StringSplitOptions.RemoveEmptyEntries));
         var table = plc.Tables.FirstOrDefault(t => Names.Equals(t.FolderPath, folder) && Names.Equals(t.Name, request.TableName));
@@ -328,11 +401,29 @@ sealed class PlcWriteRoundtripScenario(Func<string, BlockImportOutcomeInfo> comp
                 plc.Tables.Remove(Require(table, "tag table"));
                 break;
             case "create_tag":
+            {
                 if (request.Name == RejectedTagName) throw PortalRejection("scripted rejection");
                 if (Require(table, "tag table").Tags.Any(t => Names.Equals(t.Name, request.Name))) throw LiveTagCollision();
-                table!.Tags.Add(new TagInfo { Name = request.Name!, DataType = request.DataType!, LogicalAddress = request.LogicalAddress ?? string.Empty,
-                    ExternalAccessible = true, ExternalVisible = true, ExternalWritable = true });
+                var culture = CommentCulture(request);
+                var created = new TagInfo { Name = request.Name!, DataType = request.DataType!, LogicalAddress = request.LogicalAddress ?? string.Empty,
+                    ExternalAccessible = true, ExternalVisible = true, ExternalWritable = true };
+                table!.Tags.Add(created);
+                if (culture is not null)
+                {
+                    try
+                    {
+                        comment = WriteTagComment(plc, created.Name, culture, request.Comment!);
+                    }
+                    catch (WorkerOperationException failed)
+                    {
+                        // The worker deletes the tag it created for a comment that could not be set.
+                        table.Tags.Remove(created);
+                        throw new WorkerOperationException(failed.FailureCategory, $"create_tag: {failed.Message} The tag created for it was deleted again.");
+                    }
+                }
+
                 break;
+            }
             case "update_tag":
                 var tag = Require(Require(table, "tag table").Tags.FirstOrDefault(t => Names.Equals(t.Name, request.Name)), "tag");
                 tag.Name = request.NewName ?? tag.Name;
@@ -341,6 +432,13 @@ sealed class PlcWriteRoundtripScenario(Func<string, BlockImportOutcomeInfo> comp
                 tag.ExternalAccessible = request.ExternalAccessible ?? tag.ExternalAccessible;
                 tag.ExternalVisible = request.ExternalVisible ?? tag.ExternalVisible;
                 tag.ExternalWritable = request.ExternalWritable ?? tag.ExternalWritable;
+                if (CommentCulture(request) is { } updateCulture)
+                {
+                    if (_tagComments.Remove(request.Name!, out var moved) && request.NewName is { } renamed) _tagComments[renamed] = moved;
+                    else if (moved is not null) _tagComments[request.Name!] = moved;
+                    comment = WriteTagComment(plc, tag.Name, updateCulture, request.Comment!);
+                }
+
                 break;
             case "delete_tag":
                 Require(table, "tag table").Tags.Remove(Require(table!.Tags.FirstOrDefault(t => Names.Equals(t.Name, request.Name)), "tag"));
@@ -367,6 +465,8 @@ sealed class PlcWriteRoundtripScenario(Func<string, BlockImportOutcomeInfo> comp
             Operation = request.Method, ProjectPath = request.ProjectPath, PlcName = plc.Software, TableName = request.TableName!, FolderPath = folder,
             TagName = request.Method.EndsWith("_tag", StringComparison.Ordinal) ? request.NewName ?? request.Name : null,
             UserConstantName = isConstant ? request.Name : null,
+            CommentCulture = comment?.Culture,
+            Comment = comment?.Text,
         });
     }
 

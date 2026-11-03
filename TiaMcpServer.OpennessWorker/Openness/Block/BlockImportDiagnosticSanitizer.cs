@@ -60,11 +60,15 @@ internal static class BlockImportDiagnosticSanitizer
         return result.AsReadOnly();
     }
 
+    /// <summary>The prefix of a TIA Portal SIMATIC SD import result message forwarded as a warning (one line, cut at 256 characters).</summary>
+    public const string SimaticSdMessagePrefix = "SIMATIC SD import: ";
+
     private static bool IsControlledWarning(string? warning)
     {
         if (string.IsNullOrWhiteSpace(warning))
             return false;
-        return warning == SourceNodeCleanupWarning()
+        return warning!.StartsWith(SimaticSdMessagePrefix, StringComparison.Ordinal)
+            || warning == SourceNodeCleanupWarning()
             || warning == StagingCleanupWarning()
             || warning == "Project state may have changed; inspect the project before retrying."
             || (warning!.StartsWith("TIA Portal reported ", StringComparison.Ordinal)

@@ -1,6 +1,11 @@
 using TiaMcpServer.Contracts.CrossReferences;
 using TiaMcpServer.Contracts.Hmi;
+using TiaMcpServer.Contracts.Library;
 using TiaMcpServer.Contracts.Network;
+using TiaMcpServer.Contracts.Plc;
+using TiaMcpServer.Contracts.PlcAlarms;
+using TiaMcpServer.Contracts.PlcOnline;
+using TiaMcpServer.Contracts.PlcSim;
 using TiaMcpServer.Contracts.Project;
 using TiaMcpServer.Contracts.Vci;
 
@@ -77,6 +82,12 @@ public class WorkerRequest
     /// </summary>
     public string? BlockPath { get; set; }
 
+    /// <summary>
+    /// Forwarded by: compile_check only. <see cref="Block.CompileScopes"/>: null or software compiles the PLC software
+    /// (or <see cref="BlockPath"/>), hardware the CPU device item's hardware configuration.
+    /// </summary>
+    public string? CompileScope { get; set; }
+
     /// <summary>Forwarded by: create_block. Valid values: FB, FC, OB, GlobalDB.</summary>
     public string? BlockType { get; set; }
 
@@ -95,12 +106,13 @@ public class WorkerRequest
     /// <summary>Forwarded by: get_type_content, update_type_content.</summary>
     public string? TypePath { get; set; }
 
-    /// <summary>Forwarded by: update_block_logic, update_type_content. The document text to import.</summary>
+    /// <summary>Forwarded by: update_block_logic, update_type_content, update_watch_table_content, update_force_table_content. The document text to import.</summary>
     public string? Content { get; set; }
 
     /// <summary>
-    /// Forwarded by: update_block_logic, update_type_content (optional). Format-tagged hash the
-    /// worker compares against the freshly exported text before writing.
+    /// Forwarded by: update_block_logic, update_type_content, update_watch_table_content,
+    /// update_force_table_content (optional). Format-tagged hash the worker compares against the
+    /// freshly exported text before writing.
     /// </summary>
     public string? ExpectedContentHash { get; set; }
 
@@ -123,16 +135,29 @@ public class WorkerRequest
     #region PLC scoping, tag tables, tags, and user constants
 
     /// <summary>
-    /// Forwarded by: compile_check, list_tag_tables,
+    /// Forwarded by: compile_check, list_tag_tables, list_download_targets,
     /// read_hardware_config (optional — selects the PLC used for tag matching),
-    /// and every tag-table, tag, and user-constant operation.
+    /// every tag-table, tag, and user-constant operation, and every watch/force table
+    /// operation and update_program.
     /// </summary>
     public string? PlcName { get; set; }
 
-    /// <summary>Forwarded by: every tag-table, tag, and user-constant operation.</summary>
+    /// <summary>Forwarded by: plc_download ONLY. The exact path the host resolved; see <see cref="PlcDownloadRequestInfo"/>.</summary>
+    public PlcDownloadRequestInfo? PlcDownload { get; set; }
+
+    /// <summary>
+    /// Forwarded by: compare_to_online, compare_software, get_online_state, plc_go_online,
+    /// plc_go_offline, plc_station_upload ONLY; see <see cref="PlcOnlineRequestInfo"/>.
+    /// </summary>
+    public PlcOnlineRequestInfo? PlcOnline { get; set; }
+
+    /// <summary>Forwarded by: every tag-table, tag, and user-constant operation, and every watch/force table operation except the group ones.</summary>
     public string? TableName { get; set; }
 
-    /// <summary>Forwarded by: every tag-table, tag, and user-constant operation.</summary>
+    /// <summary>
+    /// Forwarded by: every tag-table, tag, and user-constant operation, and every watch/force table
+    /// operation (the watch-and-force table group path; for the group operations the group itself).
+    /// </summary>
     public string? FolderPath { get; set; }
 
     /// <summary>
@@ -219,6 +244,103 @@ public class WorkerRequest
 
     #endregion
 
+    #region Granular PLC block editing
+
+    /// <summary>Forwarded by: every <see cref="PlcBlockEditMethods"/> worker method (plc_read/plc_write granular block operations).</summary>
+    public PlcBlockEditRequestInfo? PlcBlockEdit { get; set; }
+
+    #endregion
+
+    #region S7-PLCSIM Advanced worker
+
+    /// <summary>
+    /// Forwarded by: every plcsim_* method, and only to the separate PLCSIM worker process. The
+    /// Openness worker never reads it.
+    /// </summary>
+    public PlcSimRequestInfo? PlcSim { get; set; }
+
+    #endregion
+
+    #region Project and global libraries
+
+    /// <summary>Forwarded by: every <see cref="LibraryMethods.Read"/> and <see cref="LibraryMethods.Write"/> method and <see cref="LibraryMethods.Plan"/> ONLY.</summary>
+    public LibraryRequestInfo? Library { get; set; }
+
+    #endregion
+
+    #region External sources, project-tree folders and accessible devices
+
+    /// <summary>Forwarded by: every <see cref="PlcSourceFolderMethods"/> worker method ONLY.</summary>
+    public PlcSourceFolderRequestInfo? PlcSourceFolder { get; set; }
+
+    #endregion
+
+    #region PLC alarms, alarm classes, text lists and supervisions
+
+    /// <summary>Forwarded by: every <see cref="PlcAlarmMethods.All"/> method ONLY.</summary>
+    public PlcAlarmRequestInfo? PlcAlarm { get; set; }
+
+    #endregion
+
+    #region Technology objects
+
+    /// <summary>Forwarded by: every <see cref="Plc.TechnologyObjects.TechnologyObjectMethods.All"/> method ONLY.</summary>
+    public Plc.TechnologyObjects.TechnologyObjectRequestInfo? TechnologyObject { get; set; }
+
+    /// <summary>Forwarded by: every <see cref="Plc.Security.PlcSecurityMethods.All"/> method ONLY (CPU protection; never a password).</summary>
+    public Plc.Security.PlcSecurityRequestInfo? PlcSecurity { get; set; }
+
+    #endregion
+
+    #region Offline change detection
+
+    /// <summary>Forwarded by: <see cref="Plc.ChangeDetection.PlcChangeDetectionMethods.Read"/> ONLY (plc_read get_plc_checksums, get_fingerprints).</summary>
+    public Plc.ChangeDetection.PlcChangeDetectionRequestInfo? PlcChangeDetection { get; set; }
+
+    /// <summary>Forwarded by: <see cref="Plc.Loadable.PlcLoadableMethods.GenerateLoadable"/> ONLY (plc_write generate_loadable, issue #26).</summary>
+    public Plc.Loadable.PlcLoadableRequestInfo? PlcLoadable { get; set; }
+
+    /// <summary>Forwarded by: every <see cref="Plc.BlockProtection.PlcBlockProtectionMethods"/> method ONLY (issue #5). Carries password-source tokens, never a password.</summary>
+    public Plc.BlockProtection.PlcBlockProtectionRequestInfo? PlcBlockProtection { get; set; }
+
+    /// <summary>Forwarded by: <see cref="Plc.Settings.PlcSettingsCatalog"/> methods ONLY (CPU and project settings, users, certificates, safety documents; issues #15, #13, #12, #14, #21, #25).</summary>
+    public Plc.Settings.PlcSettingsRequestInfo? PlcSettings { get; set; }
+
+    /// <summary>Forwarded by: <see cref="Plc.OpcUa.PlcOpcUaMethods"/> ONLY (plc_read get_opcua_configuration, the plc_write OPC UA operations, issue #24).</summary>
+    public Plc.OpcUa.PlcOpcUaRequestInfo? PlcOpcUa { get; set; }
+
+    /// <summary>Forwarded by: <see cref="Plc.DeviceData.PlcDeviceDataMethods"/> ONLY (plc_write download_to_folder and the online master secret, issue #16).</summary>
+    public Plc.DeviceData.PlcDeviceDataRequestInfo? PlcDeviceData { get; set; }
+
+    #endregion
+
+    #region Project compilation settings
+
+    /// <summary>Forwarded by: <see cref="Project.ProjectCompilationSettingsMethods.Set"/> ONLY (plc_write set_project_compilation_settings, K10).</summary>
+    public Project.ProjectCompilationSettingsRequestInfo? ProjectCompilationSettings { get; set; }
+
+    /// <summary>Forwarded by: every <see cref="Project.ProjectLanguageMethods"/> method ONLY (project languages and project texts, issue #8).</summary>
+    public Project.ProjectLanguagesRequestInfo? ProjectLanguages { get; set; }
+
+    #endregion
+
+    #region Fail-safe PLCs
+
+    /// <summary>Forwarded by: every <see cref="Plc.Safety.PlcSafetyMethods.All"/> method ONLY. Carries a password variable NAME, never a password.</summary>
+    public Plc.Safety.PlcSafetyRequestInfo? PlcSafety { get; set; }
+
+    #endregion
+
+    #region Hardware modules and tag moves
+
+    /// <summary>Forwarded by: every <see cref="HardwareModuleMethods.All"/> method.</summary>
+    public HardwareModuleRequestInfo? HardwareModule { get; set; }
+
+    /// <summary>Forwarded by: move_tag ONLY.</summary>
+    public PlcTagMoveRequestInfo? TagMove { get; set; }
+
+    #endregion
+
     #region Network devices
 
     /// <summary>Forwarded by: add_network_device.</summary>
@@ -268,6 +390,13 @@ public class WorkerRequest
 
     /// <summary>Forwarded by: configure_network_device. The IO system's number within its subnet.</summary>
     public int? IoSystemNumber { get; set; }
+
+    /// <summary>
+    /// Forwarded by: create_io_system. The name passed to <c>IoController.CreateIoSystem(System.String)</c>; null when the
+    /// caller gave none (the worker then passes an empty string and reports the name TIA Portal assigned). Named apart from
+    /// the retired flat configure field <c>IoSystemName</c>.
+    /// </summary>
+    public string? NewIoSystemName { get; set; }
 
     #endregion
 
@@ -369,10 +498,13 @@ public class WorkerRequest
     /// <summary>Forwarded by: create_project.</summary>
     public string? Author { get; set; }
 
-    /// <summary>Forwarded by: create_project.</summary>
+    /// <summary>Forwarded by: create_project (the project comment), create_tag and update_tag (the tag comment for <see cref="CommentCulture"/>).</summary>
     public string? Comment { get; set; }
 
-    /// <summary>Forwarded by: save_project_as.</summary>
+    /// <summary>Forwarded by: create_tag and update_tag, with <see cref="Comment"/>: the culture of the tag comment text, e.g. de-DE.</summary>
+    public string? CommentCulture { get; set; }
+
+    /// <summary>Forwarded by: save_project_as; retrieve_project (the existing directory the archive is retrieved into).</summary>
     public string? TargetDirectory { get; set; }
 
     /// <summary>Forwarded by: save_project_as.</summary>
@@ -403,6 +535,12 @@ public class WorkerRequest
 
     /// <summary>Forwarded by: close_project.</summary>
     public bool SaveBeforeClose { get; set; } = true;
+
+    /// <summary>Forwarded by: retrieve_project ONLY (issue #4): the archive file passed to <c>ProjectComposition.Retrieve</c>.</summary>
+    public string? RetrieveArchivePath { get; set; }
+
+    /// <summary>Forwarded by: retrieve_project ONLY: true calls <c>RetrieveWithUpgrade(FileInfo, DirectoryInfo)</c> instead of <c>Retrieve</c>.</summary>
+    public bool RetrieveWithUpgrade { get; set; }
 
     #endregion
 }

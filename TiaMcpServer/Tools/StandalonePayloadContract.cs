@@ -73,10 +73,10 @@ internal static class StandalonePayloadContract
 
     private static void ValidateCompile(CompileCheckReport report)
     {
-        if (report.Scope is not ("plc" or "block") || report.Plcs is null || report.Plcs.Count == 0
+        if (report.Scope is not ("plc" or "block" or CompileScopes.HardwareReportScope) || report.Plcs is null || report.Plcs.Count == 0
             || string.IsNullOrWhiteSpace(report.OverallState)
             || report.TotalErrorCount < 0 || report.TotalWarningCount < 0
-            || (report.Scope == "plc" && report.BlockPath is not null)
+            || (report.Scope is "plc" or CompileScopes.HardwareReportScope && report.BlockPath is not null)
             || (report.Scope == "block" && (string.IsNullOrWhiteSpace(report.BlockPath) || report.Plcs.Count != 1)))
             throw new JsonException();
 

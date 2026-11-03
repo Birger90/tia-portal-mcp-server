@@ -11,7 +11,7 @@ namespace TiaMcpServer.OpennessWorker.Openness.Block;
 internal static class BlockUpdateOutcomeDecorator
 {
     public static string? NormalizeFormatOrNull(string? format)
-        => SourceFormatNames.TryNormalize(
+        => SourceFormatNames.TryNormalizeBlock(
             format,
             SourceFormatNames.Xml,
             out var normalized,
@@ -63,6 +63,9 @@ internal static class BlockUpdateOutcomeDecorator
             normalizedFormatOrNull,
             importerEntered);
 
+    /// <summary>The bounded outcome of an update that failed outside the importer (not started, or unknown once entered).</summary>
+    public static BlockImportOutcomeInfo Outcome(string? normalizedFormatOrNull, bool importerEntered) => Build(normalizedFormatOrNull, importerEntered);
+
     private static BlockImportOutcomeInfo Build(string? normalizedFormatOrNull, bool importerEntered)
         => importerEntered
             ? new BlockImportOutcomeInfo
@@ -72,7 +75,7 @@ internal static class BlockUpdateOutcomeDecorator
                 TargetMutationCommitted = null,
                 CompileStage = "unavailable",
                 FinalReadStage = "unavailable",
-                TemporarySourceState = normalizedFormatOrNull == SourceFormatNames.Xml
+                TemporarySourceState = normalizedFormatOrNull is SourceFormatNames.Xml or SourceFormatNames.Sd
                     ? "not_applicable"
                     : "unknown"
             }
@@ -85,7 +88,7 @@ internal static class BlockUpdateOutcomeDecorator
                 FinalReadStage = "not_started",
                 TemporarySourceState = normalizedFormatOrNull switch
                 {
-                    SourceFormatNames.Xml => "not_applicable",
+                    SourceFormatNames.Xml or SourceFormatNames.Sd => "not_applicable",
                     SourceFormatNames.Source => "not_created",
                     _ => "unknown"
                 }

@@ -44,7 +44,7 @@ public sealed class BindProjectToolProtocolTests
     private static JsonElement Document(CallToolResult response)
     {
         Assert.Empty(StructuredContractInspector.FindViolations(response));
-        return CanonicalToolDocument.Read(response);
+        return response.StructuredContent!.Value;
     }
 
     private static JsonElement Value(CallToolResult response, string transition)
@@ -217,6 +217,21 @@ public sealed class BindProjectToolProtocolTests
         Assert.Equal(JsonValueKind.Null, value.GetProperty("project").ValueKind);
         Assert.Equal("list_portals", value.GetProperty("inspection").GetProperty("action").GetString());
         Assert.Single(value.GetProperty("portals").EnumerateArray());
+        Assert.Equal(new[] { "list_tia_portal_processes" }, fixture.Methods());
+    }
+
+    // Roadmap row 21: list_portals reports the other attached Openness clients of each Portal from the listing alone.
+    [Fact]
+    public async Task ListPortals_ReportsOtherOpennessClientsPerPortal()
+    {
+        using var fixture = new Fixture(new FakeWorkerPortals.Entry(42, A, OtherClients: 1), new FakeWorkerPortals.Entry(43, B, HasUserInterface: false));
+        await using var harness = await McpProtocolTestHarness.StartAsync<ProjectBindingTools>(accessMode: McpAccessMode.ReadOnly);
+        var response = await harness.Client.CallToolAsync("bind_project", new Dictionary<string, object?> { ["action"] = "list_portals" });
+        var document = Document(response);
+        Assert.True(document.GetProperty("success").GetBoolean(), document.GetRawText());
+        var portals = document.GetProperty("result").GetProperty("value").GetProperty("portals").EnumerateArray()
+            .ToDictionary(p => p.GetProperty("processId").GetInt32(), p => p.GetProperty("otherClientCount").GetInt32());
+        Assert.Equal(new Dictionary<int, int> { [42] = 1, [43] = 0 }, portals);
         Assert.Equal(new[] { "list_tia_portal_processes" }, fixture.Methods());
     }
 
