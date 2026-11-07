@@ -89,6 +89,13 @@ namespace TiaMcpServer
                 return 1;
             }
 
+            var (docsOptions, docsError) = SiemensDocs.SiemensDocsOptions.Resolve(args);
+            if (docsOptions is null)
+            {
+                Console.Error.WriteLine($"Error: {docsError}");
+                return 1;
+            }
+
             if (TiaMcpServer.Contracts.Shared.PasswordSources.ConfigureCredentialPrefix(Environment.GetEnvironmentVariable) is { } prefixError)
             {
                 Console.Error.WriteLine($"Error: {prefixError}");
@@ -108,6 +115,7 @@ namespace TiaMcpServer
             Console.Error.WriteLine($"TIA MCP response budget: {budgetResult.ItemChars} characters per value, {budgetResult.DocumentChars} per response");
             Console.Error.WriteLine($"TIA MCP worker timeout: {workerTimeout.Minutes} minutes");
             Console.Error.WriteLine($"TIA MCP PLC Web API targets: {PlcWebApi.PlcWebApiConfigOption.Describe(plcWebApiConfiguration)}");
+            Console.Error.WriteLine($"TIA MCP Siemens documentation: {docsOptions.Describe()}");
             Console.Error.WriteLine($"TIA MCP credential prefix: {TiaMcpServer.Contracts.Shared.PasswordSources.DescribeCredentialPrefix()}");
             Console.Error.WriteLine($"TIA MCP password map: {(PlcDownload.PasswordMapStore.LoadedPath is { } map ? $"{map} ({PlcDownload.PasswordMapStore.Entries.Count} entries)" : "none")}");
             if (accessMode == McpAccessMode.ReadOnly)
@@ -124,6 +132,7 @@ namespace TiaMcpServer
             builder.Services.AddSingleton(new ProjectSessionBinding(startupProjectPath));
             builder.Services.AddSingleton(accessPolicy);
             builder.Services.AddSingleton(new Vci.VciBreadcrumbLocation());
+            builder.Services.AddSingleton(new ClaudeInbox.ClaudeInboxLocation());
             builder.Services.AddSingleton(sp => new OpennessWorkerClient(
                 sp.GetRequiredService<ProjectSessionBinding>(),
                 sp.GetRequiredService<ILogger<OpennessWorkerClient>>(),
@@ -137,6 +146,8 @@ namespace TiaMcpServer
             // Online S7-1500 Web API sessions live in the host; DI disposal logs authenticated sessions out on shutdown.
             builder.Services.AddSingleton(sp => new PlcWebApi.PlcWebApiService(plcWebApiConfiguration,
                 sp.GetRequiredService<OperationAccessPolicy>(), new PlcWebApi.SiemensPlcWebApiClientFactory(), new JsonlWriteAuditSink()));
+            // siemens_docs reads the allowed Siemens documentation hosts from the host process (no worker, no TIA Portal).
+            builder.Services.AddSingleton(sp => new SiemensDocs.SiemensDocsService(docsOptions, sp.GetRequiredService<OperationAccessPolicy>()));
             builder.Services.AddSingleton(sp => new WriteExecution(
                 new OpennessWriteBindingGate(sp.GetRequiredService<OpennessWorkerClient>()),
                 new JsonlWriteAuditSink(), WriteGuardRegistration.ProductionCatalog(), TimeProvider.System));

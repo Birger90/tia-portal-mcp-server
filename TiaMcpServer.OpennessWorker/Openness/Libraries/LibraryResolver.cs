@@ -140,9 +140,16 @@ internal static class LibraryResolver
     public static string? FolderName(LibraryTypeFolder folder, List<string> unreadable)
         => LibraryReflection.Text(folder, "Name", unreadable, "LibraryTypeUserFolder.Name");
 
+    /// <summary>
+    /// <c>ILibrary.TypeFolder</c>, or null when TIA Portal returns none (K82, live V21: the system library "Documentation templates"
+    /// made the type walk fail with an unhandled TargetException; most likely its TypeFolder is null).
+    /// </summary>
+    public static LibraryTypeFolder? TypeFolderOrNull(ILibrary library) => library.TypeFolder;
+
     public static LibraryTypeFolder ResolveFolder(ILibrary library, IReadOnlyList<string> segments)
     {
-        LibraryTypeFolder current = library.TypeFolder;
+        LibraryTypeFolder current = TypeFolderOrNull(library) ?? throw new WorkerOperationException(WorkerFailureCategories.TargetNotFound,
+            "This library has no type folder (ILibrary.TypeFolder is null, as for some system libraries), so it has no types or type folders.");
         var walked = new List<string>();
         foreach (var segment in segments)
         {

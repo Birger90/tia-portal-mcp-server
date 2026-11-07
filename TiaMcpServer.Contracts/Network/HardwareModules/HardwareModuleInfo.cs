@@ -126,6 +126,27 @@ public sealed class HardwareModuleRequestInfo
 
     /// <summary>delete_io_system: the exact IO system selector (kind ioSystem, subnetId, number, optional ioSystemIndex/ioSystemName).</summary>
     public NetworkObjectSelectorInfo? IoSystem { get; set; }
+
+    /// <summary>Package G: the node of the target interface (create_subnet_and_connect_node, disconnect_node_from_subnets, create_communication_connection); null when it has one.</summary>
+    public string? NodeName { get; set; }
+
+    /// <summary>Package G create_subnet_and_connect_node: the name of the new subnet.</summary>
+    public string? NewSubnetName { get; set; }
+
+    /// <summary>Package G create_communication_connection: the node of the partner interface; null when it has one.</summary>
+    public string? PartnerNodeName { get; set; }
+
+    /// <summary>Package G assign_pc_interface: the PcInterfaceAssignmentMode member name.</summary>
+    public string? AssignmentMode { get; set; }
+
+    /// <summary>Package G create_communication_connection: the documented connection type short name (S7Connection, ...).</summary>
+    public string? ConnectionType { get; set; }
+
+    /// <summary>Package G delete_communication_connection: the 0-based index list_communication_connections reported.</summary>
+    public int? ConnectionIndex { get; set; }
+
+    /// <summary>Package G delete_communication_connection: the expected name at that index (refused as state_changed when it differs).</summary>
+    public string? ConnectionName { get; set; }
 }
 
 /// <summary>The identity of a device or device item as read from TIA Portal.</summary>

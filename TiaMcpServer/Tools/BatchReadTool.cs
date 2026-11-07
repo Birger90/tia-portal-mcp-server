@@ -17,7 +17,8 @@ internal static class BatchReadTool
         Func<IReadOnlyList<TItem>, McpAccessMode, IReadOnlyList<string>> validateAccessMode,
         Func<TItem, Task<StructuredOperationItem>> execute,
         Func<StructuredOperationItem, string> retryGuidance,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool requiresBinding = true)
         where TItem : IOperationBatchItem
     {
         var validation = validateRead(operations);
@@ -32,10 +33,13 @@ internal static class BatchReadTool
             return Error(toolName, contractVersion, WorkerFailureCategories.AccessDenied, string.Join("\n", accessErrors));
         }
 
-        var binding = await workerClient.RequireVerifiedBindingAsync().ConfigureAwait(false);
-        if (!binding.Success)
+        if (requiresBinding)
         {
-            return Error(toolName, contractVersion, binding.FailureCategory!, binding.Error!);
+            var binding = await workerClient.RequireVerifiedBindingAsync().ConfigureAwait(false);
+            if (!binding.Success)
+            {
+                return Error(toolName, contractVersion, binding.FailureCategory!, binding.Error!);
+            }
         }
 
         var batch = await StructuredOperationBatchExecutionEngine.ExecuteReadsAsync(

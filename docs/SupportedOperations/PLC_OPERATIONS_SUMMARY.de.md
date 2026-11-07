@@ -21,6 +21,7 @@
 | `plc_read` | `get_plc_checksums`, `get_fingerprints` | Optional `plcName`; genau eines von `blockPath` oder `typePath` | Offline-Änderungserkennung: die Prüfsummen von Software und Textlisten der PLC und die Fingerprints eines Bausteins oder PLC-Datentyps, als Text; siehe [Offline-Änderungserkennung](#offline-änderungserkennung-plc_read); nicht live getestet. |
 | `plc_read` | `get_block_protection` | Pflicht `blockPath` | Know-how- und Schreibschutzzustand eines Bausteins und welche Schutz-Member binden; siehe [Know-how-Schutz und Schreibschutz von Bausteinen](#know-how-schutz-und-schreibschutz-von-bausteinen-plc_readplc_write). Nicht live getestet. |
 | `plc_read` | `get_project_languages` | Keine | Aktive, Bearbeitungs-, Referenz- und unterstützte Projektsprachen und die Textkategorien; siehe [Projektsprachen und Projekttexte](#projektsprachen-und-projekttexte-plc_readplc_write). Nicht live getestet. |
+| `plc_read` | `describe_operations` | Optional `operationNames` (1–3 Namen von PLC-Lese- oder Schreiboperationen) | Die Operationsreferenz: Pflicht- und optionale Felder, die vollständigen Feldregeln und der Referenztext jeder genannten Operation, ohne Namen der Index aller Operationen mit ihren Feldern; kein gebundenes Projekt nötig. Siehe [Operationsreferenz](#operationsreferenz-describe_operations). |
 | `read_cross_references` | `read_cross_references` | Erforderlich `target`; optional `filter`, `maxResults` | Liest die Querverweise eines Projektbaumziels. Filter sind `AllObjects`, `ObjectsWithReferences` (Standard), `ObjectsWithoutReferences` und `UnusedObjects`. |
 | `compile_check` | `compile_check` | Optional `plcName`, `blockPath` | Übersetzt die PLC oder den ausgewählten Bausteinbereich und gibt Compilermeldungen zurück. |
 
@@ -33,7 +34,7 @@ und `plc_write` sind in den Modi read-write und full verfügbar und verhalten si
 erfordert `forceRebind:true`. Gewöhnliche PLC-Lesezugriffe binden, wechseln oder öffnen nie. Nur `open_project` und
 `create_project` öffnen Projekte. Der Lebenszyklus läuft in read-write mit einem Bestätigungsformular pro tatsächlichem
 Aufruf oder in full ohne Server-Elicitation; Block-Guards beenden den Aufruf in jedem Modus. Die vollständigen
-Tool-Zahlen sind 11/30/30. Read-only öffnet, erstellt, speichert oder schließt nie ein Projekt. Das Laden einer PLC in
+Tool-Zahlen sind 13/32/32. Read-only öffnet, erstellt, speichert oder schließt nie ein Projekt. Das Laden einer PLC in
 PLCSIM oder reale Hardware ist das separate Tool `plc_download`; siehe die [PLC-Download-Referenz](PLC_DOWNLOAD_SUMMARY.de.md).
 Online/offline gehen und Station-Upload sind die separaten Tools `plc_tia_online` und `plc_station_upload`; siehe die [Referenz PLC online über Openness](PLC_ONLINE_OPENNESS_SUMMARY.de.md).
 Simulierte CPUs werden von den `plcsim_*`-Tools gesteuert; siehe die [Referenz der PLCSIM-Operationen](PLCSIM_OPERATIONS_SUMMARY.de.md).
@@ -82,6 +83,30 @@ und `--max-document-chars` darüber mit Reserve neu gestartet wird; einen solche
 Aufruf lesen. Siehe [Grenzen der Antwortgröße](../guides/mcp-client-configuration.md#response-size-limits). Eine PLC
 mit rund 400 Variablen überschreitet bereits das Standard-Wertbudget: `list_tag_tables` mit
 `plcName`, `folderPath` oder `tableName` einschränken.
+
+## Operationsreferenz (`describe_operations`)
+
+Nicht live getestet (liest nichts aus TIA Portal). Claude Desktop verweigerte `plc_read` und `plc_write`, solange ihre
+Werkzeugliste den vollständigen Text je Operation trug („Claude can't use 2 tools from Tia portal because of a problem
+with that connector“, Defekt K91): die Eingabeschemata hatten 77–79 KB, die Beschreibungen 20.590 und 49.996 Zeichen.
+Die Werkzeugbeschreibungen tragen jetzt eine Zusammenfassung, jeden Operationsnamen und bei `plc_write` jeden
+Acknowledge- und Block-Guard und die Regel zur Sicherheitsabnahme; das Eintragsschema behält jedes Feld, jeden Typ,
+jedes Enum und jede Schachtelungsebene, kürzt aber jede Feldbeschreibung auf ihren ersten Satz (keine, wenn er länger als
+160 Zeichen ist). Jedes Werkzeug bleibt bei höchstens 8.000 Zeichen Beschreibung und 30 KB Eingabeschema, ohne tiefere
+Schachtelung als vorher.
+
+Der vollständige Text liegt jetzt bei `plc_read` `describe_operations` (`Observe`, jeder Zugriffsmodus; ein Aufruf nur
+aus `describe_operations`-Einträgen braucht kein gebundenes Projekt):
+
+- `operationNames` (1–3 Namen je Eintrag, mehrere Einträge je Aufruf): je Operation `tool`, `requiredFields`,
+  `optionalFields`, `fields` (die vollständige Beschreibung jedes Felds), `reference` (jeder Abschnitt der bisherigen
+  Werkzeugbeschreibung, der die Operation nennt) und `sectionNotes` (die Abschnitte dieser Teile, die keine Operation nennen).
+- ohne `operationNames`: `index`, jede PLC-Lese- und Schreiboperation mit ihren Feldern als ein Text
+  (`"blockPath; optional: format, withDependencies"`).
+- immer: `readToolRules` und `writeToolRules` (die werkzeugweiten Regeln) und `referenceDocument`, diese Seite.
+
+Unbekannte, doppelte oder leere Namen und mehr als 3 Namen sind ein `validation_error`; `operationNames` wird bei jeder
+anderen Operation abgelehnt. Die Validierung aller anderen Operationen ist unverändert: sie liest die Schemabeschreibungen nie.
 
 ## Programmanalyse (`plc_read`)
 
@@ -828,6 +853,7 @@ in den Stubs stehen, werden zur Laufzeit gebunden (`api_member_missing` vor jede
 | `download_to_folder` | `directoryPath` (ein vorhandenes absolutes Verzeichnis; ein nicht leeres wird ohne `overwrite:true` abgelehnt); optional `plcName`, `rhSystem` (true: der `RHDownloadProvider` des R/H-Systems), `overwrite`, `portalConfirmations` | `ProjectMutation`, Info-Guard `plc_download_to_folder_writes_files` (mit `overwrite:true` auch `plc_export_overwrites_file`); kein Gerät wird berührt; das Verzeichnis durchläuft `PlcFileTargets.InspectDirectory` (Links, Junctions, Netzwerkorte werden gemeldet) | `Download(DirectoryInfo, DownloadConfigurationDelegate)`; Download-Konfigurationen erhalten über denselben Recorder die eingebauten Antworten von `plc_download`, jede andere bricht ab (`worker_operation_failed` mit dem Abbruchgrund) | `deviceData`: die vom Aufruf geschriebenen Dateien (Schreibzeit seit dem Aufruf), neu gehasht (höchstens 1.000); keine ist `postcondition_failed` |
 | `set_plc_master_secret_online` | `passwordVariable` (ein Umgebungsvariablen-NAME oder `{ "credential": "TiaMcp/..." }`, nie das Secret); optional `plcName`, `portalConfirmations` | `OnlineControl` (read-write und full), Acknowledge-Guard `plc_master_secret_online` | `OnlineProvider.SetPlcMasterSecret(SecureString)` nur, solange `OnlineProvider.State` `Online` liest (vorher mit `plc_tia_online go_online` verbinden; sonst `state_changed`, nichts geändert) | `deviceData` notVerified (success false): kein dokumentiertes Member liest das Master-Secret zurück |
 | `reset_plc_master_secret_online` | optional `plcName`, `portalConfirmations` | wie oben | `OnlineProvider.ResetPlcMasterSecret()` mit derselben Online-Prüfung | wie oben |
+| `load_snapshot_as_actual_values`, `load_start_values_as_actual_values` (Paket G) | `blockPath` eines DB; optional `portalConfirmations` | `OnlineControl`, Acknowledge-Guard `plc_loads_actual_values_online` | `ValueService.LoadSnapshotAsActualValues()` / `LoadStartValuesAsActualValues()` der DB-Schnittstelle mit derselben Online-Prüfung | notVerified; siehe [Referenz Vervollständigung der V21-API](V21_API_COMPLETION_SUMMARY.md#actual-values-of-a-running-plc-plc_write) |
 
 Der Acknowledge-Guard lässt `plc_write` jeden Aufruf mit einem Online-Master-Secret-Element bestätigen (`ConfirmsEveryCall`; read-write
 fragt den Menschen mit einem Prompt, der PLC und Passwortquelle nennt, full führt ihn per Richtlinie aus). Das Secret liest der Worker

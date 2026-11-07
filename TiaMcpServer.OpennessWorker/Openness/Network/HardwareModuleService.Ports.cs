@@ -30,8 +30,10 @@ internal static partial class HardwareModuleService
         var result = new HardwarePortListInfo { Target = target.Identity };
         var roots = target.Item is null ? ((Device)target.Object).DeviceItems.Cast<DeviceItem>() : new[] { target.Item };
         var ports = new List<(DeviceItem Item, object Port)>();
+        var listedOnly = new List<string>();
         foreach (var item in roots.SelectMany(Descendants))
-            if (PortOf(item, result.Messages) is { } port) ports.Add((item, port));
+            if (PortOf(item, result.Messages, listedOnly) is { } port) ports.Add((item, port));
+        ListedOnlySummary(listedOnly, result.Messages);
 
         List<(DeviceItem Item, object Port)>? index = null;
         foreach (var (item, port) in ports)
@@ -50,7 +52,7 @@ internal static partial class HardwareModuleService
             {
                 foreach (var partner in partners)
                 {
-                    index ??= ProjectPorts(project, result.Messages);
+                    index ??= ProjectPorts(project);
                     var owner = index.FirstOrDefault(entry => Equals(entry.Port, partner));
                     info.ConnectedPorts.Add(new HardwarePortPartnerInfo
                     {
@@ -93,22 +95,43 @@ internal static partial class HardwareModuleService
         return result;
     }
 
-    /// <summary>The port service of the item, or null when it does not list one; a listed port that GetService does not return is a message.</summary>
-    private static object? PortOf(DeviceItem item, List<string> messages)
+    /// <summary>
+    /// The port service of the item, or null when it does not list one. A listed port that GetService does not return is a message
+    /// for an explicitly named item (connect/disconnect); while walking (<paramref name="listedOnly"/> given) it is only collected:
+    /// K83, live V21: TIA Portal lists NetworkPort on every device item (CPU, card reader, display, OPC UA, DP, PN interfaces) but
+    /// returns it only on ports, so a message per item was noise.
+    /// </summary>
+    private static object? PortOf(DeviceItem item, List<string> messages, List<string>? listedOnly = null)
     {
         var offered = TechnologyObjectRuntime.ServiceTypes(item);
         var port = TechnologyObjectRuntime.TryService(item, offered, NetworkPortNames.Service, out var unavailable);
-        if (unavailable is not null) messages.Add($"Device item '{SafeName(item)}': {unavailable}");
+        if (unavailable is not null)
+        {
+            if (listedOnly is null) messages.Add($"Device item '{SafeName(item)}': {unavailable}");
+            else listedOnly.Add(SafeName(item));
+        }
+
         return port;
     }
 
+    /// <summary>K83: one line for every walked device item that lists NetworkPort but does not return it (at most 10 named).</summary>
+    private static void ListedOnlySummary(List<string> listedOnly, List<string> messages)
+    {
+        if (listedOnly.Count == 0) return;
+        const int shown = 10;
+        messages.Add($"{listedOnly.Count} device item(s) list {NetworkPortNames.Service} among their services, but GetService returned none, so they are not "
+            + $"ports (TIA Portal lists the service on every device item and returns it only on ports): {string.Join(", ", listedOnly.Take(shown).Select(name => $"'{name}'"))}"
+            + (listedOnly.Count > shown ? $" and {listedOnly.Count - shown} more." : "."));
+    }
+
     /// <summary>Every device item of the project with its port service (built once per read, only when a partner must be named).</summary>
-    private static List<(DeviceItem Item, object Port)> ProjectPorts(ProjectBase project, List<string> messages)
+    private static List<(DeviceItem Item, object Port)> ProjectPorts(ProjectBase project)
     {
         var ports = new List<(DeviceItem, object)>();
+        var ignored = new List<string>();
         foreach (var device in ProjectDeviceEnumerator.Enumerate(project))
             foreach (var item in device.DeviceItems.Cast<DeviceItem>().SelectMany(Descendants))
-                if (PortOf(item, messages) is { } port) ports.Add((item, port));
+                if (PortOf(item, ignored, ignored) is { } port) ports.Add((item, port));
         return ports;
     }
 

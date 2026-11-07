@@ -68,6 +68,13 @@ public class PlcOnlineRequestInfo
     public List<string> TrustedCertificates { get; set; } = new List<string>();
 
     /// <summary>
+    /// Audit T1, compare_to_online, compare_hardware_to_online, go_online, plc_station_upload: the caller's
+    /// <c>allowInsecurePasswordTransfer</c>. False (default): a password configuration whose <c>IsSecureCommunication</c>
+    /// is false or unreadable is not answered (<c>insecure_communication</c>); true sends it anyway.
+    /// </summary>
+    public bool AllowInsecurePasswordTransfer { get; set; }
+
+    /// <summary>
     /// plc_go_online, plc_go_offline, plc_station_upload: one of <see cref="PlcDownloadPolicy.PortalConfirmationPolicies"/>,
     /// how TIA Portal <c>Confirmation</c> dialogs raised while the action runs are answered (like plc_download).
     /// compare_to_online always declines and ignores this member.
@@ -425,6 +432,13 @@ public class PlcCallbackConfigurationInfo
 
     /// <summary>The environment variable NAME the password came from; null unless <c>password_set</c>. Never the password.</summary>
     public string? PasswordVariable { get; set; }
+
+    /// <summary>
+    /// Audit T1: <c>IsSecureCommunication</c> of a password configuration the recorder had a password for, read before
+    /// <c>SetPassword</c>; omitted when it is no such entry or the flag was unreadable.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? SecureCommunication { get; set; }
 
     /// <summary>
     /// Present only for a TLS verification configuration (<see cref="PlcTlsTrustPolicy.CanonicalType"/>) that was read:

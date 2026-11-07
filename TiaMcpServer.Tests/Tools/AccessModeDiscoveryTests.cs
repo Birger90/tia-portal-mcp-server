@@ -10,16 +10,16 @@ namespace TiaMcpServer.Tests.Tools;
 [Collection("Mcp protocol serial")]
 public class AccessModeDiscoveryTests
 {
-    private static readonly string[] Reads = { "bind_project", "browse_project_tree", "get_project_status", "hmi_read", "library_read", "network_read", "plc_online_read", "plc_read", "plcsim_read", "read_cross_references", "vci_read" };
+    private static readonly string[] Reads = { "bind_project", "browse_project_tree", "get_project_status", "hmi_read", "library_read", "network_read", "plc_online_read", "plc_read", "plcsim_read", "read_cross_references", "siemens_docs", "tia_inbox", "vci_read" };
     private static readonly string[] Edits = { "compile_check", "network_write", "plc_write", "hmi_write", "vci_write", "plc_station_upload", "library_write" };
     private static readonly string[] Online = { "plc_download", "plc_online_write", "plc_tia_online" };
     private static readonly string[] Simulation = { "plcsim_test", "plcsim_write" };
     private static readonly string[] Lifecycle = { "archive_project", "close_project", "create_project", "open_project", "retrieve_project", "save_project", "save_project_as" };
 
     [Theory]
-    [InlineData(McpAccessMode.ReadOnly, 11)]
-    [InlineData(McpAccessMode.ReadWrite, 30)]
-    [InlineData(McpAccessMode.Full, 30)]
+    [InlineData(McpAccessMode.ReadOnly, 13)]
+    [InlineData(McpAccessMode.ReadWrite, 32)]
+    [InlineData(McpAccessMode.Full, 32)]
     public async Task ToolsList_AdvertisesOnlyTheModeSurface(McpAccessMode mode, int count)
     {
         await using var harness = await McpProtocolTestHarness.StartProductionSurfaceAsync(mode);

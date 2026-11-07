@@ -1,0 +1,613 @@
+{
+ "facets": [],
+ "results": [
+  {
+   "metadataVariableAxis": "ft:originId",
+   "entries": [
+    {
+     "type": "TOPIC",
+     "missingTerms": [],
+     "topic": {
+      "mapId": "gpR5ZkKnLSuzVoGX1ovoKg",
+      "contentId": "wOh1SGzxD5Zbqx8K7ZTVzw",
+      "tocId": "AC~EcTmIDt29cXIkrHrOWQ",
+      "title": "Exporting library type version as document",
+      "htmlTitle": "<span class=\"kwicstring\">Exporting library type version as document</span>",
+      "mapTitle": "TIA Portal Openness: API for automation of engineering workflows",
+      "breadcrumb": [
+       "TIA Portal Openness: API for automation of engineering workflows",
+       "TIA Portal Openness API",
+       "Functions on libraries",
+       "Exporting library type version as document"
+      ],
+      "htmlExcerpt": "<span class=\"kwictruncate\">...</span><span class=\"kwicstring\">control. You can use the </span><span class=\"kwicmatch\">ExportAsDocuments</span><span class=\"kwicstring\">() method in the TIA Portal</span><span class=\"kwictruncate\">...</span><span class=\"kwicstring\">exported. myBlockType.Versions[0].</span><span class=\"kwicmatch\">ExportAsDocuments</span><span class=\"kwicstring\">(new DirectoryInfo(&quot;C:\\\\</span><span class=\"kwictruncate\">...</span><span class=\"kwicstring\">); The </span><span class=\"kwicmatch\">ExportAsDocuments</span><span class=\"kwicstring\">() returns ExportTransferResult</span><span class=\"kwictruncate\">...</span><span class=\"kwicstring\">exportTransferResult = libraryVersion. </span><span class=\"kwicmatch\">ExportAsDocuments</span><span class=\"kwicstring\">(directoryInfo, libTypes[</span><span class=\"kwictruncate\">...</span>",
+      "metadata": [
+       {
+        "key": "ft:title",
+        "label": "ft:title",
+        "values": [
+         "Exporting library type version as document"
+        ]
+       },
+       {
+        "key": "ft:clusterId",
+        "label": "ft:clusterId",
+        "values": [
+         "./37231359755/182431963147.htm"
+        ]
+       },
+       {
+        "key": "Product",
+        "label": "Product",
+        "values": [
+         "TIAPortal"
+        ]
+       },
+       {
+        "key": "Language",
+        "label": "Language",
+        "values": [
+         "en-US"
+        ]
+       },
+       {
+        "key": "SoftwareVersion",
+        "label": "Software Version",
+        "values": [
+         "21.00.00.00"
+        ]
+       },
+       {
+        "key": "tia:SoftwareVersionFilter",
+        "label": "Version",
+        "values": [
+         "V21"
+        ]
+       },
+       {
+        "key": "ft:locale",
+        "label": "ft:locale",
+        "values": [
+         "en-US"
+        ]
+       },
+       {
+        "key": "ft:lastPublication",
+        "label": "ft:lastPublication",
+        "values": [
+         "2026-04-01T09:48:21.999000"
+        ]
+       },
+       {
+        "key": "ft:prettyUrl",
+        "label": "ft:prettyUrl",
+        "values": [
+         "en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/tia-portal-openness-api/functions-on-libraries/exporting-library-type-version-as-document"
+        ]
+       }
+      ],
+      "resources": [],
+      "source": {
+       "id": "TIA_Openness_V21_ftml",
+       "name": "TIA_Openness_V21_ftml",
+       "type": "Ftml",
+       "description": "",
+       "category": "Openness"
+      },
+      "lastEditionDate": "2026-04-01",
+      "openMode": "FLUIDTOPICS",
+      "topicUrl": "https://docs.tia.siemens.cloud/api/khub/maps/gpR5ZkKnLSuzVoGX1ovoKg/topics/wOh1SGzxD5Zbqx8K7ZTVzw",
+      "contentUrl": "https://docs.tia.siemens.cloud/api/khub/maps/gpR5ZkKnLSuzVoGX1ovoKg/topics/wOh1SGzxD5Zbqx8K7ZTVzw/content",
+      "readerUrl": "https://docs.tia.siemens.cloud/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/tia-portal-openness-api/functions-on-libraries/exporting-library-type-version-as-document"
+     }
+    },
+    {
+     "type": "TOPIC",
+     "missingTerms": [],
+     "topic": {
+      "mapId": "Rc0LxW522mLHDCX_sejL~A",
+      "contentId": "xcwCfL_cDCUOhUoYsj5qEQ",
+      "tocId": "VZCbAdB7dhdR9xCQWXH0Tw",
+      "title": "Exporting library type version as document",
+      "htmlTitle": "<span class=\"kwicstring\">Exporting library type version as document</span>",
+      "mapTitle": "TIA Portal Openness: API for automation of engineering workflows",
+      "breadcrumb": [
+       "TIA Portal Openness: API for automation of engineering workflows",
+       "TIA Portal Openness API",
+       "Functions on libraries",
+       "Exporting library type version as document"
+      ],
+      "htmlExcerpt": "<span class=\"kwictruncate\">...</span><span class=\"kwicstring\">control. You can use the </span><span class=\"kwicmatch\">ExportAsDocuments</span><span class=\"kwicstring\">() method in the TIA Portal</span><span class=\"kwictruncate\">...</span><span class=\"kwicstring\">exported. myBlockType.Versions[0].</span><span class=\"kwicmatch\">ExportAsDocuments</span><span class=\"kwicstring\">(new DirectoryInfo(&quot;C:\\\\</span><span class=\"kwictruncate\">...</span><span class=\"kwicstring\">); The </span><span class=\"kwicmatch\">ExportAsDocuments</span><span class=\"kwicstring\">() returns ExportTransferResult</span><span class=\"kwictruncate\">...</span><span class=\"kwicstring\">exportTransferResult = libraryVersion. </span><span class=\"kwicmatch\">ExportAsDocuments</span><span class=\"kwicstring\">(directoryInfo, libTypes[</span><span class=\"kwictruncate\">...</span>",
+      "metadata": [
+       {
+        "key": "tia:SoftwareVersionFilter",
+        "label": "Version",
+        "values": [
+         "V20"
+        ]
+       },
+       {
+        "key": "Language",
+        "label": "Language",
+        "values": [
+         "en-US"
+        ]
+       },
+       {
+        "key": "Product",
+        "label": "Product",
+        "values": [
+         "TIAPortal"
+        ]
+       },
+       {
+        "key": "SoftwareVersion",
+        "label": "Software Version",
+        "values": [
+         "20.00.00.00"
+        ]
+       },
+       {
+        "key": "ft:clusterId",
+        "label": "ft:clusterId",
+        "values": [
+         "./37231359755/182431963147.htm"
+        ]
+       },
+       {
+        "key": "ft:title",
+        "label": "ft:title",
+        "values": [
+         "Exporting library type version as document"
+        ]
+       },
+       {
+        "key": "ft:locale",
+        "label": "ft:locale",
+        "values": [
+         "en-US"
+        ]
+       },
+       {
+        "key": "ft:lastPublication",
+        "label": "ft:lastPublication",
+        "values": [
+         "2025-01-17T06:32:31.700000"
+        ]
+       },
+       {
+        "key": "ft:prettyUrl",
+        "label": "ft:prettyUrl",
+        "values": [
+         "en-us/v20/tia-portal-openness-api-for-automation-of-engineering-workflows/tia-portal-openness-api/functions-on-libraries/exporting-library-type-version-as-document"
+        ]
+       }
+      ],
+      "resources": [],
+      "source": {
+       "id": "TIA_Openness_V20_ftml",
+       "name": "TIA_Openness_V20_ftml",
+       "type": "Ftml",
+       "description": "",
+       "category": "Openness"
+      },
+      "lastEditionDate": "2025-01-17",
+      "openMode": "FLUIDTOPICS",
+      "topicUrl": "https://docs.tia.siemens.cloud/api/khub/maps/Rc0LxW522mLHDCX_sejL~A/topics/xcwCfL_cDCUOhUoYsj5qEQ",
+      "contentUrl": "https://docs.tia.siemens.cloud/api/khub/maps/Rc0LxW522mLHDCX_sejL~A/topics/xcwCfL_cDCUOhUoYsj5qEQ/content",
+      "readerUrl": "https://docs.tia.siemens.cloud/r/en-us/v20/tia-portal-openness-api-for-automation-of-engineering-workflows/tia-portal-openness-api/functions-on-libraries/exporting-library-type-version-as-document"
+     }
+    }
+   ]
+  },
+  {
+   "metadataVariableAxis": "ft:originId",
+   "entries": [
+    {
+     "type": "TOPIC",
+     "missingTerms": [],
+     "topic": {
+      "mapId": "gpR5ZkKnLSuzVoGX1ovoKg",
+      "contentId": "H_AHIQyhM0nIyyGLbQm7fQ",
+      "tocId": "TIrflh~8xzhfPMsfg8Q1CQ",
+      "title": "Exporting UDT as document",
+      "htmlTitle": "<span class=\"kwicstring\">Exporting UDT as document</span>",
+      "mapTitle": "TIA Portal Openness: API for automation of engineering workflows",
+      "breadcrumb": [
+       "TIA Portal Openness: API for automation of engineering workflows",
+       "Export/import",
+       "Importing/exporting data of a PLC device",
+       "Blocks",
+       "Exporting UDT as document"
+      ],
+      "htmlExcerpt": "<span class=\"kwictruncate\">...</span><span class=\"kwicstring\">following program code: private void ExportUDTAsDocument(PlcSoftware plcSoftware) { DocumentExportResult documentExportResult = plcSoftware.TypeGroup.Types[0]. </span><span class=\"kwicmatch\">ExportAsDocuments</span><span class=\"kwicstring\">(new DirectoryInfo(@&quot;D:\\Project\\Exported Files&quot;), &quot;fileNameWithoutExtension&quot;); DocumentResultState documentResultState =</span><span class=\"kwictruncate\">...</span>",
+      "metadata": [
+       {
+        "key": "ft:title",
+        "label": "ft:title",
+        "values": [
+         "Exporting UDT as document"
+        ]
+       },
+       {
+        "key": "ft:clusterId",
+        "label": "ft:clusterId",
+        "values": [
+         "./37231359755/183554816779.htm"
+        ]
+       },
+       {
+        "key": "Product",
+        "label": "Product",
+        "values": [
+         "TIAPortal"
+        ]
+       },
+       {
+        "key": "Language",
+        "label": "Language",
+        "values": [
+         "en-US"
+        ]
+       },
+       {
+        "key": "SoftwareVersion",
+        "label": "Software Version",
+        "values": [
+         "21.00.00.00"
+        ]
+       },
+       {
+        "key": "tia:SoftwareVersionFilter",
+        "label": "Version",
+        "values": [
+         "V21"
+        ]
+       },
+       {
+        "key": "ft:locale",
+        "label": "ft:locale",
+        "values": [
+         "en-US"
+        ]
+       },
+       {
+        "key": "ft:lastPublication",
+        "label": "ft:lastPublication",
+        "values": [
+         "2026-04-01T09:48:21.999000"
+        ]
+       },
+       {
+        "key": "ft:prettyUrl",
+        "label": "ft:prettyUrl",
+        "values": [
+         "en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/export/import/importing/exporting-data-of-a-plc-device/blocks/exporting-udt-as-document"
+        ]
+       }
+      ],
+      "resources": [],
+      "source": {
+       "id": "TIA_Openness_V21_ftml",
+       "name": "TIA_Openness_V21_ftml",
+       "type": "Ftml",
+       "description": "",
+       "category": "Openness"
+      },
+      "lastEditionDate": "2026-04-01",
+      "openMode": "FLUIDTOPICS",
+      "topicUrl": "https://docs.tia.siemens.cloud/api/khub/maps/gpR5ZkKnLSuzVoGX1ovoKg/topics/H_AHIQyhM0nIyyGLbQm7fQ",
+      "contentUrl": "https://docs.tia.siemens.cloud/api/khub/maps/gpR5ZkKnLSuzVoGX1ovoKg/topics/H_AHIQyhM0nIyyGLbQm7fQ/content",
+      "readerUrl": "https://docs.tia.siemens.cloud/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/export/import/importing/exporting-data-of-a-plc-device/blocks/exporting-udt-as-document"
+     }
+    },
+    {
+     "type": "TOPIC",
+     "missingTerms": [],
+     "topic": {
+      "mapId": "Rc0LxW522mLHDCX_sejL~A",
+      "contentId": "5eufR21ZbLzUFaB1hcqUfw",
+      "tocId": "dpa4dg9h~yW3ZC7bX377Gg",
+      "title": "Exporting UDT as document",
+      "htmlTitle": "<span class=\"kwicstring\">Exporting UDT as document</span>",
+      "mapTitle": "TIA Portal Openness: API for automation of engineering workflows",
+      "breadcrumb": [
+       "TIA Portal Openness: API for automation of engineering workflows",
+       "Export/import",
+       "Importing/exporting data of a PLC device",
+       "Blocks",
+       "Exporting UDT as document"
+      ],
+      "htmlExcerpt": "<span class=\"kwictruncate\">...</span><span class=\"kwicstring\">following program code: private void ExportUDTAsDocument(PlcSoftware plcSoftware) { DocumentExportResult documentExportResult = plcSoftware.TypeGroup.Types[0]. </span><span class=\"kwicmatch\">ExportAsDocuments</span><span class=\"kwicstring\">(new DirectoryInfo(@&quot;D:\\Project\\Exported Files&quot;), &quot;fileNameWithoutExtension&quot;); DocumentResultState documentResultState =</span><span class=\"kwictruncate\">...</span>",
+      "metadata": [
+       {
+        "key": "tia:SoftwareVersionFilter",
+        "label": "Version",
+        "values": [
+         "V20"
+        ]
+       },
+       {
+        "key": "Language",
+        "label": "Language",
+        "values": [
+         "en-US"
+        ]
+       },
+       {
+        "key": "Product",
+        "label": "Product",
+        "values": [
+         "TIAPortal"
+        ]
+       },
+       {
+        "key": "SoftwareVersion",
+        "label": "Software Version",
+        "values": [
+         "20.00.00.00"
+        ]
+       },
+       {
+        "key": "ft:clusterId",
+        "label": "ft:clusterId",
+        "values": [
+         "./37231359755/183554816779.htm"
+        ]
+       },
+       {
+        "key": "ft:title",
+        "label": "ft:title",
+        "values": [
+         "Exporting UDT as document"
+        ]
+       },
+       {
+        "key": "ft:locale",
+        "label": "ft:locale",
+        "values": [
+         "en-US"
+        ]
+       },
+       {
+        "key": "ft:lastPublication",
+        "label": "ft:lastPublication",
+        "values": [
+         "2025-01-17T06:32:31.700000"
+        ]
+       },
+       {
+        "key": "ft:prettyUrl",
+        "label": "ft:prettyUrl",
+        "values": [
+         "en-us/v20/tia-portal-openness-api-for-automation-of-engineering-workflows/export/import/importing/exporting-data-of-a-plc-device/blocks/exporting-udt-as-document"
+        ]
+       }
+      ],
+      "resources": [],
+      "source": {
+       "id": "TIA_Openness_V20_ftml",
+       "name": "TIA_Openness_V20_ftml",
+       "type": "Ftml",
+       "description": "",
+       "category": "Openness"
+      },
+      "lastEditionDate": "2025-01-17",
+      "openMode": "FLUIDTOPICS",
+      "topicUrl": "https://docs.tia.siemens.cloud/api/khub/maps/Rc0LxW522mLHDCX_sejL~A/topics/5eufR21ZbLzUFaB1hcqUfw",
+      "contentUrl": "https://docs.tia.siemens.cloud/api/khub/maps/Rc0LxW522mLHDCX_sejL~A/topics/5eufR21ZbLzUFaB1hcqUfw/content",
+      "readerUrl": "https://docs.tia.siemens.cloud/r/en-us/v20/tia-portal-openness-api-for-automation-of-engineering-workflows/export/import/importing/exporting-data-of-a-plc-device/blocks/exporting-udt-as-document"
+     }
+    }
+   ]
+  },
+  {
+   "metadataVariableAxis": "tia:SoftwareVersionFilter",
+   "entries": [
+    {
+     "type": "TOPIC",
+     "missingTerms": [],
+     "topic": {
+      "mapId": "Rc0LxW522mLHDCX_sejL~A",
+      "contentId": "Oq3t8HQwxJXAEqc2eGHBJg",
+      "tocId": "MQqGSSsdAkfv4gtQqjMvtQ",
+      "title": "Exporting program block as document",
+      "htmlTitle": "<span class=\"kwicstring\">Exporting program block as document</span>",
+      "mapTitle": "TIA Portal Openness: API for automation of engineering workflows",
+      "breadcrumb": [
+       "TIA Portal Openness: API for automation of engineering workflows",
+       "Export/import",
+       "Importing/exporting data of a PLC device",
+       "Blocks",
+       "Exporting program block as document"
+      ],
+      "htmlExcerpt": "<span class=\"kwictruncate\">...</span><span class=\"kwicstring\">modify the following program code: private void ExportPLCBlockAsDocument(PlcSoftware plcSoftware) { DocumentExportResult documentExportResult = plcSoftware.BlockGroup.Blocks[0]. </span><span class=\"kwicmatch\">ExportAsDocuments</span><span class=\"kwicstring\">(new DirectoryInfo(@&quot;D:\\Project\\Exported Files&quot;), &quot;LAD_Block&quot;); DocumentResultState documentResultState =</span><span class=\"kwictruncate\">...</span>",
+      "metadata": [
+       {
+        "key": "tia:SoftwareVersionFilter",
+        "label": "Version",
+        "values": [
+         "V20"
+        ]
+       },
+       {
+        "key": "Language",
+        "label": "Language",
+        "values": [
+         "en-US"
+        ]
+       },
+       {
+        "key": "Product",
+        "label": "Product",
+        "values": [
+         "TIAPortal"
+        ]
+       },
+       {
+        "key": "SoftwareVersion",
+        "label": "Software Version",
+        "values": [
+         "20.00.00.00"
+        ]
+       },
+       {
+        "key": "ft:clusterId",
+        "label": "ft:clusterId",
+        "values": [
+         "./37231359755/183554662667.htm"
+        ]
+       },
+       {
+        "key": "ft:title",
+        "label": "ft:title",
+        "values": [
+         "Exporting program block as document"
+        ]
+       },
+       {
+        "key": "ft:locale",
+        "label": "ft:locale",
+        "values": [
+         "en-US"
+        ]
+       },
+       {
+        "key": "ft:lastPublication",
+        "label": "ft:lastPublication",
+        "values": [
+         "2025-01-17T06:32:31.700000"
+        ]
+       },
+       {
+        "key": "ft:prettyUrl",
+        "label": "ft:prettyUrl",
+        "values": [
+         "en-us/v20/tia-portal-openness-api-for-automation-of-engineering-workflows/export/import/importing/exporting-data-of-a-plc-device/blocks/exporting-program-block-as-document"
+        ]
+       }
+      ],
+      "resources": [],
+      "source": {
+       "id": "TIA_Openness_V20_ftml",
+       "name": "TIA_Openness_V20_ftml",
+       "type": "Ftml",
+       "description": "",
+       "category": "Openness"
+      },
+      "lastEditionDate": "2025-01-17",
+      "openMode": "FLUIDTOPICS",
+      "topicUrl": "https://docs.tia.siemens.cloud/api/khub/maps/Rc0LxW522mLHDCX_sejL~A/topics/Oq3t8HQwxJXAEqc2eGHBJg",
+      "contentUrl": "https://docs.tia.siemens.cloud/api/khub/maps/Rc0LxW522mLHDCX_sejL~A/topics/Oq3t8HQwxJXAEqc2eGHBJg/content",
+      "readerUrl": "https://docs.tia.siemens.cloud/r/en-us/v20/tia-portal-openness-api-for-automation-of-engineering-workflows/export/import/importing/exporting-data-of-a-plc-device/blocks/exporting-program-block-as-document"
+     }
+    },
+    {
+     "type": "TOPIC",
+     "missingTerms": [],
+     "topic": {
+      "mapId": "gpR5ZkKnLSuzVoGX1ovoKg",
+      "contentId": "AKEJ1ovzkeErOh1phwKodg",
+      "tocId": "hJLMOlfBWf5_S_EsxE7pNA",
+      "title": "Exporting program block as document",
+      "htmlTitle": "<span class=\"kwicstring\">Exporting program block as document</span>",
+      "mapTitle": "TIA Portal Openness: API for automation of engineering workflows",
+      "breadcrumb": [
+       "TIA Portal Openness: API for automation of engineering workflows",
+       "Export/import",
+       "Importing/exporting data of a PLC device",
+       "Blocks",
+       "Exporting program block as document"
+      ],
+      "htmlExcerpt": "<span class=\"kwictruncate\">...</span><span class=\"kwicstring\">modify the following program code: private void ExportPLCBlockAsDocument(PlcSoftware plcSoftware) { DocumentExportResult documentExportResult = plcSoftware.BlockGroup.Blocks[0]. </span><span class=\"kwicmatch\">ExportAsDocuments</span><span class=\"kwicstring\">(new DirectoryInfo(@&quot;D:\\Project\\Exported Files&quot;), &quot;LAD_Block&quot;); DocumentResultState documentResultState =</span><span class=\"kwictruncate\">...</span>",
+      "metadata": [
+       {
+        "key": "ft:title",
+        "label": "ft:title",
+        "values": [
+         "Exporting program block as document"
+        ]
+       },
+       {
+        "key": "ft:clusterId",
+        "label": "ft:clusterId",
+        "values": [
+         "./37231359755/183554662667.htm"
+        ]
+       },
+       {
+        "key": "Product",
+        "label": "Product",
+        "values": [
+         "TIAPortal"
+        ]
+       },
+       {
+        "key": "Language",
+        "label": "Language",
+        "values": [
+         "en-US"
+        ]
+       },
+       {
+        "key": "SoftwareVersion",
+        "label": "Software Version",
+        "values": [
+         "21.00.00.00"
+        ]
+       },
+       {
+        "key": "tia:SoftwareVersionFilter",
+        "label": "Version",
+        "values": [
+         "V21"
+        ]
+       },
+       {
+        "key": "ft:locale",
+        "label": "ft:locale",
+        "values": [
+         "en-US"
+        ]
+       },
+       {
+        "key": "ft:lastPublication",
+        "label": "ft:lastPublication",
+        "values": [
+         "2026-04-01T09:48:21.999000"
+        ]
+       },
+       {
+        "key": "ft:prettyUrl",
+        "label": "ft:prettyUrl",
+        "values": [
+         "en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/export/import/importing/exporting-data-of-a-plc-device/blocks/exporting-program-block-as-document"
+        ]
+       }
+      ],
+      "resources": [],
+      "source": {
+       "id": "TIA_Openness_V21_ftml",
+       "name": "TIA_Openness_V21_ftml",
+       "type": "Ftml",
+       "description": "",
+       "category": "Openness"
+      },
+      "lastEditionDate": "2026-04-01",
+      "openMode": "FLUIDTOPICS",
+      "topicUrl": "https://docs.tia.siemens.cloud/api/khub/maps/gpR5ZkKnLSuzVoGX1ovoKg/topics/AKEJ1ovzkeErOh1phwKodg",
+      "contentUrl": "https://docs.tia.siemens.cloud/api/khub/maps/gpR5ZkKnLSuzVoGX1ovoKg/topics/AKEJ1ovzkeErOh1phwKodg/content",
+      "readerUrl": "https://docs.tia.siemens.cloud/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/export/import/importing/exporting-data-of-a-plc-device/blocks/exporting-program-block-as-document"
+     }
+    }
+   ]
+  }
+ ],
+ "announcements": [],
+ "paging": {
+  "currentPage": 1,
+  "isLastPage": false,
+  "totalResultsCount": 8,
+  "totalClustersCount": 4
+ }
+}

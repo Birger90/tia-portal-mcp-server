@@ -22,12 +22,27 @@ public static class HmiUnifiedConfigurationMethods
     public const string DeletePlantViewNode = "hmi_delete_plant_view_node";
     public const string SetPlantObjectInterfaceProperty = "hmi_set_plant_object_interface_property";
 
+    // Package G (V21 Siemens.Engineering.WinCCUnified.xml; not live-tested): HmiScreen.ResizeScreen() ("Resize screen as per device
+    // display size"); HmiLoggingCommon.LogDuration.SetLogDuration(UInt32 days, hours, minutes, seconds, ticks) / GetStringLogDuration(),
+    // SegmentDuration.SetSegmentDuration(...) / GetStringSegmentDuration() of a log's Settings.LogTimePeriod / Segment.SegmentTimePeriod;
+    // HmiSoftware.OpcUaAlarmTypes (HmiOpcUaAlarmTypeComposition), HmiOpcUaAlarmType.SetNodeIdAndConnection(String nodeId, String connectionName).
+    public const string ResizeScreen = "hmi_resize_screen";
+    public const string SetLogDuration = "hmi_set_log_duration";
+    public const string SetOpcUaAlarmTypeNode = "hmi_set_opcua_alarm_type_node";
+
+    /// <summary>set_log_duration propertyName values: the log kind and the duration property.</summary>
+    public static IReadOnlyList<string> LogDurationProperties { get; } = Array.AsReadOnly(new[]
+    {
+        "DataLog.LogTimePeriod", "DataLog.SegmentTimePeriod", "AlarmLog.LogTimePeriod", "AlarmLog.SegmentTimePeriod",
+    });
+
     public static IReadOnlyList<string> Reads { get; } = Array.AsReadOnly(new[] { ListPlantViews });
 
     public static IReadOnlyList<string> Writes { get; } = Array.AsReadOnly(new[]
     {
         CreateAuditClass, DeleteAuditClass, SetAuditClassProperty, SetRuntimeSetting,
         CreatePlantView, DeletePlantView, CreatePlantViewNode, DeletePlantViewNode, SetPlantObjectInterfaceProperty,
+        ResizeScreen, SetLogDuration, SetOpcUaAlarmTypeNode,
     });
 
     /// <summary>The documented writable-looking properties of <c>HmiAuditClass</c> (V21); <c>IsGmpEnabled</c> is a check, not a setting.</summary>

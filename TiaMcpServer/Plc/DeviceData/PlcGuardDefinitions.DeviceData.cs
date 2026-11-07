@@ -10,6 +10,7 @@ public static partial class PlcGuardDefinitions
 {
     public const string DownloadToFolderWritesFiles = "plc_download_to_folder_writes_files";
     public const string MasterSecretOnline = "plc_master_secret_online";
+    public const string LoadsActualValuesOnline = "plc_loads_actual_values_online";
 
     private static IEnumerable<WriteGuardDefinition> DeviceDataDefinitions() => new[]
     {
@@ -21,5 +22,7 @@ public static partial class PlcGuardDefinitions
     {
         new WriteGuardDefinition(MasterSecretOnline, WriteGuardSeverities.Acknowledge,
             "The item sets or deletes the master secret of the ONLINE PLC (OnlineProvider.SetPlcMasterSecret / ResetPlcMasterSecret). It acts on the connected controller, not on the offline project, and cannot be read back. The secret comes only from a password source."),
+        new WriteGuardDefinition(LoadsActualValuesOnline, WriteGuardSeverities.Acknowledge,
+            "The item overwrites the ACTUAL values of a data block in the RUNNING, ONLINE PLC (ValueService.LoadSnapshotAsActualValues / LoadStartValuesAsActualValues) with the DB's stored snapshot or its start values. The process may react at once (setpoints, recipes, counters, interlocks); a real machine can move. It acts on the connected controller (a real CPU or PLCSIM), cannot be undone by the server and is not read back. Check that the plant is in a safe state."),
     };
 }

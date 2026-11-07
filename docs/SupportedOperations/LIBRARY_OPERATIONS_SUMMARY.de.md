@@ -23,7 +23,7 @@ Diese Referenz behandelt die beiden Bibliotheks-Tools, die dieser Fork hinzufüg
 > bricht mit `unsupported_capability` ab (fail closed), wenn das installierte V21 ihn nicht bereitstellt, und jeder muss
 > durch die [Live-Abnahmeprüfungen](#live-abnahmeprüfungen) durchlaufen werden, bevor man sich auf die Tools verlässt.
 
-Tool-Anzahlen: 11 Tools in read-only, 30 in read-write und 30 in full (`library_read` ist das elfte
+Tool-Anzahlen: 13 Tools in read-only, 32 in read-write und 32 in full seit `siemens_docs` (12/31/31 seit `tia_inbox`, vorher 11/30/30; `library_read` ist das elfte
 Read-only-Tool, `library_write` das neunundzwanzigste schreibfähige).
 
 ## Warum zwei Tools
@@ -148,6 +148,13 @@ Membernamen von `LibraryCompareResultState`, daher listet jedes Element und jede
 Attribute auf (`GetAttributeInfos`/`GetAttribute`, höchstens 20), und es wird keine Filterung nach identischem Zustand angeboten.
 `update_check`-Nachrichten werden auf dieselbe Weise aus ihren benannten Membern projiziert (`Description`, `MessageParts`
 als Text, verschachtelte `Messages`; 8 Ebenen, 500 Nachrichten).
+
+**Bibliotheken ohne Typordner (K82, nicht live getestet).** Live auf V21 scheiterte `get_library_tree` (content `all`) an der
+Systembibliothek „Documentation templates“ mit einer unbehandelten `TargetException`; vermutlich ist ihr `ILibrary.TypeFolder`
+null. Der Baum listet für eine solche Bibliothek jetzt keine Typen, meldet `complete: false` mit dem Grund in `omission` und
+durchläuft trotzdem die Kopiervorlagen; ein `folderPath` unterhalb der Wurzel scheitert mit `target_not_found` („no type folder“).
+Jedes erforderliche Bibliotheks-Member, das an einem null-Besitzer gelesen würde, scheitert jetzt mit `worker_operation_failed`
+und dem Member-Namen statt einer `TargetException`.
 
 ## `library_write`-Operationen
 

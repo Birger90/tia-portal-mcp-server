@@ -43,6 +43,9 @@ public static class HmiWriteMethods
         HmiUnifiedConfigurationMethods.CreatePlantViewNode,
         HmiUnifiedConfigurationMethods.DeletePlantViewNode,
         HmiUnifiedConfigurationMethods.SetPlantObjectInterfaceProperty,
+        HmiUnifiedConfigurationMethods.ResizeScreen,
+        HmiUnifiedConfigurationMethods.SetLogDuration,
+        HmiUnifiedConfigurationMethods.SetOpcUaAlarmTypeNode,
     });
 }
 

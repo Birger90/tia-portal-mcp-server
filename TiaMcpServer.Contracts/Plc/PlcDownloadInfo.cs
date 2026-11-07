@@ -57,6 +57,12 @@ public class PlcDownloadRequestInfo
     /// every presented certificate is listed. Empty trusts nothing.
     /// </summary>
     public List<string> TrustedCertificates { get; set; } = new List<string>();
+
+    /// <summary>
+    /// Audit T1: the caller's <c>allowInsecurePasswordTransfer</c>. False (default): a password configuration whose
+    /// <c>IsSecureCommunication</c> is false or unreadable is not answered (<c>insecure_communication</c>); true sends it anyway.
+    /// </summary>
+    public bool AllowInsecurePasswordTransfer { get; set; }
 }
 
 /// <summary>One caller decision: a selection enum member name, or a check (<c>Checked = true</c>).</summary>
@@ -258,6 +264,13 @@ public class PlcDownloadConfigurationInfo
 
     /// <summary>The environment variable NAME the password was read from; null unless <c>password_set</c>. Never the password.</summary>
     public string? PasswordVariable { get; set; }
+
+    /// <summary>
+    /// Audit T1: <c>IsSecureCommunication</c> of a password configuration the recorder had a password for, read before
+    /// <c>SetPassword</c>; omitted when it is no such entry or the flag was unreadable.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? SecureCommunication { get; set; }
 
     /// <summary>
     /// Present only for the online legitimation TLS verification configuration (<see cref="PlcTlsTrustPolicy.CanonicalType"/>)

@@ -88,7 +88,8 @@ public static class PlcDownloadService
         // instance they were enumerated from (Siemens online-and-download guidance).
         // Issue #16: an R/H system downloads to its primary or backup CPU through RHDownloadProvider (V21: DownloadToPrimary /
         // DownloadToBackup(IConfiguration, DownloadConfigurationDelegate, DownloadConfigurationDelegate, DownloadOptions)), found
-        // among the CPU device item's GetServiceInfos() by exact full name and bound at runtime; its own Configuration resolves the path.
+        // by exact full name among the GetServiceInfos() of the CPU device item, then of its parents up to the Device (audit T3:
+        // the system Device may host it; not live-tested), and bound at runtime; its own Configuration resolves the path.
         object? rhProvider = null;
         DownloadProvider? provider = null;
         ConnectionConfiguration connection;
@@ -96,19 +97,15 @@ public static class PlcDownloadService
         {
             if (rhTarget is not ("primary" or "backup"))
                 throw new WorkerOperationException(WorkerFailureCategories.ValidationError, "rhTarget must be primary or backup.");
-            var offered = TechnologyObjects.TechnologyObjectRuntime.ServiceTypes(host);
-            var (rh, unavailable) = Contracts.Shared.RuntimeServiceValues.Find(offered,
-                type => TechnologyObjects.TechnologyObjectRuntime.TryService(host, offered, type.FullName!, out _), "Siemens.Engineering.Download.RHDownloadProvider");
-            rhProvider = rh ?? throw new WorkerOperationException(WorkerFailureCategories.UnsupportedCapability,
-                (unavailable ?? Contracts.Shared.RuntimeServiceValues.NotListed($"The device item of PLC '{request.PlcName}'", "Siemens.Engineering.Download.RHDownloadProvider"))
-                + " It is no R/H system CPU on this installation. Nothing was downloaded.");
+            rhProvider = RhSystemProviders.Find(host, RhSystemProviders.DownloadProvider, request.PlcName, out _, out var notFound)
+                ?? throw new WorkerOperationException(WorkerFailureCategories.UnsupportedCapability, notFound + " Nothing was downloaded.");
             connection = rhProvider.GetType().GetProperty("Configuration")?.GetValue(rhProvider) as ConnectionConfiguration
                 ?? throw new WorkerOperationException(WorkerFailureCategories.ApiMemberMissing, "RHDownloadProvider.Configuration could not be read. Nothing was downloaded.");
         }
         else
         {
             provider = host.GetService<DownloadProvider>() ?? throw new WorkerOperationException(
-                WorkerFailureCategories.TargetKindUnsupported, $"PLC '{request.PlcName}' offers no DownloadProvider; it is not downloadable.");
+                WorkerFailureCategories.TargetKindUnsupported, $"PLC '{request.PlcName}' offers no DownloadProvider; it is not downloadable that way. For an R/H system CPU retry with rhTarget primary or backup (RHDownloadProvider).");
             // The same ConnectionConfiguration instance resolves the path and carries the legitimation handler.
             connection = provider.Configuration;
         }

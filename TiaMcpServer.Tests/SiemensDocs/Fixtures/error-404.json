@@ -1,0 +1,8 @@
+{
+ "timestamp": "2026-11-03T07:57:57.295+00:00",
+ "status": 404,
+ "error": "Not Found",
+ "message": "An unexpected error occurred",
+ "path": "/api/khub/maps/doesNotExist123",
+ "requestId": "mweh0x"
+}

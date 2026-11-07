@@ -8,7 +8,7 @@ installiertes TIA Portal V21 verifiziert. Die FakeWorker-Fixture modelliert nur 
 Verhalten von Siemens. Vor dem Verlass auf diese Operationen die [Live-Abnahmeliste](#live-abnahmeliste) an einem Wegwerfprojekt
 abarbeiten.
 
-Die Operationen erweitern bestehende Tools; sie haben kein Tool hinzugefügt (die Zählungen waren 10/27/27, 11/30/30 seit den Bibliotheks-Tools):
+Die Operationen erweitern bestehende Tools; sie haben kein Tool hinzugefügt (die Zählungen waren 10/27/27, 11/30/30 seit den Bibliotheks-Tools, 12/31/31 seit `tia_inbox`, 13/32/32 seit `siemens_docs`):
 
 | Tool | Hinzugefügte Operationen |
 |---|---|
@@ -262,6 +262,10 @@ PROFINET-Verkabelung zwischen Ports: `list_port_connections` (`network_read`, je
   das auch `read_hardware_config` meldet (der Selektor-Auflöser behandelt null und `""` gleich), und ein Element, dessen Selektor
   nicht lesbar ist, ist null (`interfaceOwner`, Partner-`port`) bzw. beim Port selbst Gerätename und Elementname ohne Pfad, jeweils
   mit Hinweis. Nicht live getestet.
+- **Geräteelemente ohne Port (K83, nicht live getestet).** TIA Portal V21 listet `NetworkPort` unter den Diensten jedes
+  Geräteelements (CPU, Kartenleser, Display, OPC UA, DP- und PN-Schnittstellen), liefert ihn aber nur an Ports. Der Lesevorgang
+  fügt nicht mehr je Element eine Meldung hinzu: Eine Meldung oben zählt sie und nennt höchstens 10. Ein ausdrücklich genanntes
+  connect/disconnect-Element bekommt weiter seine eigene Meldung.
 - **Schreiben.** `connect_ports` und `disconnect_ports` nehmen `target` (das Port-Geräteelement) und `partner` (das andere
   Port-Geräteelement, kind `deviceItem`). Die Planung liest `list_port_connections` des Ziels: Ein Ziel ohne Port-Dienst scheitert
   vor jeder Änderung mit `unsupported_capability`; der Effekt trägt `currentSettings.connected` und `linkedPorts`. Eine bestehende
@@ -503,8 +507,10 @@ der Probe gegen die installierte V21-PublicAPI prüft die deklarierten Rückgabe
   implementiert.
 - „Gerät tauschen“ einer ganzen Station: kein dokumentiertes `Device.ChangeType`; das Kopf-/CPU-Element
   mit `change_device_item_type` ändern.
-- `ImConnection` eines Erweiterungsbaugruppenträgers, PSC-Export, Fernwirk-Datenpunkte, Frontpanel-Logo,
-  GSD-`GetPrmData`/`SetPrmData`: nicht im angeforderten Umfang.
+- PSC-Export, Frontpanel-Logo, GSD-`GetPrmData`/`SetPrmData`: nicht im angeforderten Umfang. `ImConnection` eines
+  Erweiterungsbaugruppenträgers, Fernwirk-Datenpunktdateien, Subnetze eines Knotens, der IO-Controller eines Connectors,
+  die PC-Schnittstellenzuordnung, Aktualisierungen der Baugruppenbeschreibung und Kommunikationsverbindungen kamen mit
+  Paket G hinzu (siehe [Referenz Vervollständigung der V21-API](V21_API_COMPLETION_SUMMARY.de.md)).
 - Eine Variable nativ verschieben: kein dokumentiertes Member (siehe `move_tag`); `move_tag` legt sie neu an.
 - Platzieren von Typen mit 64 Bit und mehr mit `find_free_address` (LReal, LWord, LInt, ULInt, LTOD, DT,
   LDT, DTL): Für diese Breiten ist in den Quellen keine I/Q/M-Schreibweise dokumentiert. Bestehende Variablen dieser

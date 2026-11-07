@@ -37,7 +37,7 @@ public class HmiWriteCatalogTests
         // The nine tag, table and alarm writes, the nine screen, script and batch rename writes adopted from BetterTIA
         // the two text list file writes, the five Classic WinCC writes (issue #28) and the five Unified event and
         // dynamization writes and the nine audit class, runtime setting and plant view writes (issue #29).
-        Assert.Equal(39, methods.Count);
+        Assert.Equal(42, methods.Count);
     }
 
     private static HmiWriteOperationRequest Read(string fields) =>
@@ -268,7 +268,7 @@ public class HmiWriteCatalogTests
         Assert.Same(decoded.HmiWriteOutcome, (result with { Error = "identity changed" }).HmiWriteOutcome);
         Assert.Null(result.HmiWriteOutcome.CleanupMessage);
     }    [Theory]
-    [InlineData(TiaMcpServer.Contracts.Safety.McpAccessMode.ReadOnly, 39)]
+    [InlineData(TiaMcpServer.Contracts.Safety.McpAccessMode.ReadOnly, 42)]
     [InlineData(TiaMcpServer.Contracts.Safety.McpAccessMode.ReadWrite, 0)]
     [InlineData(TiaMcpServer.Contracts.Safety.McpAccessMode.Full, 0)]
     public void AccessMode_UsesSharedPolicy(TiaMcpServer.Contracts.Safety.McpAccessMode mode, int denied)

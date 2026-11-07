@@ -7,6 +7,27 @@ History lives in the ADRs, the acceptance reports and the archive tag; see
 are recorded in the [orchestration ledger](https://github.com/Czarnak/tia-portal-mcp/blob/docs-archive-2026-10-30/docs/superpowers/plans/2026-10-24-workstream-c-followups-orchestration.md).
 An accepted implementation does not establish unexecuted native or plant acceptance.
 
+## Open: siemens_docs live acceptance on the Windows PC (2026-11-03)
+
+`siemens_docs` was built and tested offline; its endpoints were checked live only from the Linux cloud container
+(see the [Siemens documentation reference](SupportedOperations/SIEMENS_DOCS_SUMMARY.md#live-endpoint-checks)).
+
+- Run the acceptance steps of the reference on the owner's Windows PC (company network, system proxy), including the
+  first filtered `search` that loads the 16.6 MB publication list (time it; the cap is 64 MiB, the timeout 120 s).
+- Watch for site changes: a changed JSON shape is `docs_response_invalid`; re-record the fixtures then.
+- Possible follow-ups, not built: a `doctor` check that reaches the hosts; shipping THIRD_PARTY_NOTICES.md in the
+  NuGet package (the MIT notices of ported code are in the repository only, as for the other MIT sources).
+
+## Open: Claude in TIA, first live run
+
+The Add-In, `tia_inbox` and the Claude bridge are offline-qualified only ([reference](SupportedOperations/CLAUDE_IN_TIA.md)).
+Open: run `scripts/install-claude-in-tia.ps1` against the installed V21 (every compile error is an assumed Add-In API
+signature; fix the stub and the provenance row), validate `AddInPublisherConfig.xml` against the installed Publisher XSD
+(namespace and permission element spelling), confirm the user add-in folder, then the five live acceptance checks of the
+reference; for the bridge, check the default command template against `claude --help` on the PC and that
+`--permission-prompts none` refuses tools outside the allow-list. Later: a path-restricted file permission once its XML
+form is known; signing the `.addin`.
+
 ## Open: SIMATIC SD and fail-safe live findings of 2026-11-02, live re-test of the fixes
 
 Findings E1-E9, E7b and D14 of the [live report](superpowers/acceptance/reports/2026-11-02-simatic-sd-and-safety-live.md)

@@ -5,7 +5,7 @@
 Diese Referenz deckt Issue #28 (klassisches WinCC: Comfort/Advanced Panels) und Issue #29 (WinCC Unified: Ereignisse,
 Dynamisierungen, Formen und Widgets, Audit, Anlagenobjekte) ab. Alles hier ist **nicht live getestet**. Beleg für jedes
 Siemens-Member ist die V21-IntelliSense-Beschreibung (`Siemens.Engineering.WinCC.xml`, `Siemens.Engineering.WinCCUnified.xml`,
-`PublicAPI\V21\net48`, 29.10.2025); kein Member außerhalb davon wird verwendet. Tools, Zugriffsmodi und Zählungen (11/30/30)
+`PublicAPI\V21\net48`, 29.10.2025); kein Member außerhalb davon wird verwendet. Tools, Zugriffsmodi und Zählungen (13/32/32)
 bleiben gleich: Es sind weitere `hmi_read`- und `hmi_write`-Operationen mit den Regeln der
 [HMI-Referenz](HMI_OPERATIONS_SUMMARY.de.md) (50 Einträge, Reihenfolge des Aufrufers, Stopp beim ersten Fehler, kein
 Rollback, `dryRun:true` als Vorschau, Schreibvertrag `2.0`, Lesevertrag `1.1`).
@@ -201,6 +201,8 @@ Worker `Openness/HmiExtensions/HmiUnifiedConfiguration.cs` (außerhalb von `Open
 | Schreiben von Schnittstellen-Membern und Archivvariablen von Anlagenobjekten (`PlantObjectInterfaceMember`, `PlantObjectLoggingTag`) | In diesem Paket nicht gebaut; Lesevorgänge melden nur die Namen der Schnittstellen. |
 | Teile von Formen (`Points` von Polylinien/Polygonen und andere `UI.Parts`-Kompositionen) | In diesem Paket nicht gebaut; die Geometrie von Box-Objekten läuft über `set_screen_item_property`. |
 | SiVArc, HMI-Übersetzen | Wie bisher außerhalb des Umfangs (`compile_check` bleibt nur für PLCs). |
+
+Paket G ergänzt diese Familie um `resize_screen`, `set_log_duration` und `set_opcua_alarm_type_node`; siehe [Referenz Vervollständigung der V21-API](V21_API_COMPLETION_SUMMARY.de.md).
 
 Noch offene Live-Prüfungen für Issue #29: jede Operation oben an einem WinCC-Unified-Projekt (keines war verfügbar); die
 Bindung der Ereignis-Enum bei anderen Bildobjekttypen als der dokumentierten Schaltfläche; ob `Trigger.Tags` eine

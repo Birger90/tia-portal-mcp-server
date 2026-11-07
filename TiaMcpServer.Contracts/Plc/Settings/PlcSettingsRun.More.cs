@@ -11,6 +11,8 @@ public static partial class PlcSettingsRun
         => method switch
         {
             PlcUmacMethods.GetUmac => ReadUmac(plcs, project, result),
+            PlcUmacMethods.GetUmcServerUser or PlcUmacMethods.CheckUmcConsistency => ReadUmcServer(method, project, result, info),
+            _ when PlcSettingsCatalog.Find(method) is { Issue: PlcSettingsCatalog.PackageG } => ReadObjects(method, project, result, info),
             PlcCertificateMethods.GetCpuCertificates => ReadCertificates(plcs, result),
             PlcSafetyValidationMethods.GetSafetyValidation or PlcSafetyValidationMethods.CheckActivationTest => ReadSafetyValidation(method, project, result, info),
             _ => throw new Shared.RuntimeBindingException(Worker.WorkerFailureCategories.ValidationError, $"Unsupported settings read '{method}'."),
@@ -22,5 +24,6 @@ public static partial class PlcSettingsRun
             || WriteUmac(method, definition, context, info, result, warnings)
             || WriteCertificates(method, definition, context, info, result, warnings)
             || WriteSafetyPrintout(method, definition, context, info, result, warnings)
-            || WriteSafetyValidation(method, definition, context, info, result, warnings);
+            || WriteSafetyValidation(method, definition, context, info, result, warnings)
+            || WriteObjects(method, definition, context, info, result, warnings);
 }

@@ -512,9 +512,9 @@ public class PlcOperationCatalogTests
         // the four SIMATIC SD writes (insert_network, replace_network, delete_network, create_block_from_document), the project's
         // set_project_compilation_settings (K10, 2026-11-02), export_opcua_xml (adopt 2026-11-02) and the system diagnostics settings
         // export/import (issue #19, alarm family), generate_loadable (issue #26), the six block protection writes (issue #5), the
-        // three project language and project text writes (issue #8) and download_to_folder plus the two online master secret writes (issue #16) were added after the batch tools were retired;
+        // three project language and project text writes (issue #8) and download_to_folder plus the two online master secret writes (issue #16) and the two actual-value loads (package G) were added after the batch tools were retired;
         // the settings family (issues #15, #13, #12, #14, #21, #25) adds its writes from PlcSettingsCatalog, the OPC UA writes (issue #24) from PlcOpcUaMethods.
-        Assert.Equal(119 + TiaMcpServer.Contracts.Plc.Settings.PlcSettingsCatalog.Write.Count + TiaMcpServer.Contracts.Plc.OpcUa.PlcOpcUaMethods.Write.Count, PlcOperationCatalog.WriteOperationNames.Count);
+        Assert.Equal(121 + TiaMcpServer.Contracts.Plc.Settings.PlcSettingsCatalog.Write.Count + TiaMcpServer.Contracts.Plc.OpcUa.PlcOpcUaMethods.Write.Count, PlcOperationCatalog.WriteOperationNames.Count);
         Assert.Equal(ExpectedWriteFields.Concat(ExpectedBlockEditFields).Select(e => e.Name)
                 .Concat(TiaMcpServer.Contracts.PlcOnline.PlcOnlineMethods.ContentWriteMethods)
                 .Concat(TiaMcpServer.Contracts.Plc.PlcSourceFolderMethods.AllWrites)

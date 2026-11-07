@@ -241,6 +241,28 @@ public static class HardwareModuleWritePlanner
 
                 break;
             }
+            case var feature when HardwareFeatureMethods.IsFeature(feature):
+            {
+                // Package G: the worker binds and reads back; planning names the partner and the requested values.
+                if (item.Partner is { } partnerTarget)
+                {
+                    var partner = SnapshotResolve(state, partnerTarget, "partner");
+                    if (partner.Error is { } partnerError)
+                        return ItemReplan<NetworkWriteEffect>.Fail(partnerError.Category, $"Operation '{item.OperationId}': {partnerError.Message}");
+                    container = partner.Identity;
+                    requested["partner"] = Describe(partner.Identity!);
+                }
+
+                if (item.NodeName is not null) requested["nodeName"] = item.NodeName;
+                if (item.NewSubnetName is not null) requested["newSubnetName"] = item.NewSubnetName;
+                if (item.PartnerNodeName is not null) requested["partnerNodeName"] = item.PartnerNodeName;
+                if (item.AssignmentMode is not null) requested["assignmentMode"] = item.AssignmentMode;
+                if (item.ConnectionType is not null) requested["connectionType"] = item.ConnectionType;
+                if (item.ConnectionIndex is { } index) requested["connectionIndex"] = index.ToString(CultureInfo.InvariantCulture);
+                if (item.ConnectionName is not null) requested["connectionName"] = item.ConnectionName;
+                if (item.FilePath is not null) requested["filePath"] = item.FilePath;
+                break;
+            }
             case HardwareModuleMethods.DisconnectFromIoSystem:
             {
                 var systems = state.Subnets.SelectMany(subnet => subnet.IoSystems.Select(system => (Subnet: subnet, System: system)))
@@ -376,6 +398,23 @@ public static class HardwareModuleWritePlanner
                     $"import_cax adds or changes hardware from '{item.FilePath}' (importOption {item.ImportOption}) with no rollback; "
                     + $"the project currently has {effect?.CurrentSettings.GetValueOrDefault("deviceCount") ?? "?"} device(s). Use a test project or save before.");
                 break;
+            case var feature when HardwareFeatureMethods.IsFeature(feature) && hardware is not null:
+                yield return new FiredGuard(NetworkGuardDefinitions.HardwareFeatureChanges, item.OperationId, feature switch
+                {
+                    HardwareFeatureMethods.CreateAndConnectSubnet => $"create_subnet_and_connect_node creates subnet '{item.NewSubnetName}' and connects the node of {Describe(hardware.Target!)} to it.",
+                    HardwareFeatureMethods.DisconnectFromSubnet => $"disconnect_node_from_subnets disconnects the node of {Describe(hardware.Target!)} from its subnet; IO system and connection assignments over it may be lost.",
+                    HardwareFeatureMethods.ConnectImPort => $"connect_im_port connects the IM connection of {Describe(hardware.Target!)} to {Describe(hardware.Container!)}.",
+                    HardwareFeatureMethods.DisconnectImPort => $"disconnect_im_port disconnects the IM connection of {Describe(hardware.Target!)}.",
+                    HardwareFeatureMethods.AssignPcInterface => $"assign_pc_interface assigns the PC interface {Describe(hardware.Target!)} to {item.AssignmentMode}.",
+                    HardwareFeatureMethods.UpdateModuleDescription => $"update_module_description updates the module description of {Describe(hardware.Target!)} to the newest installed version; parameters may change.",
+                    HardwareFeatureMethods.ExportTelecontrolDataPoints => $"export_telecontrol_data_points writes the data points of {Describe(hardware.Target!)} to '{item.FilePath}'"
+                        + (item.Overwrite == true ? " and replaces it if it exists (overwrite:true)." : "."),
+                    HardwareFeatureMethods.ImportTelecontrolDataPoints => $"import_telecontrol_data_points imports the data points of '{item.FilePath}' into {Describe(hardware.Target!)}; TIA Portal decides what changes.",
+                    HardwareFeatureMethods.CreateCommunicationConnection => $"create_communication_connection creates a {item.ConnectionType} from {Describe(hardware.Target!)} to {Describe(hardware.Container!)}.",
+                    HardwareFeatureMethods.DeleteCommunicationConnection => $"delete_communication_connection deletes connection {item.ConnectionIndex} of {Describe(hardware.Target!)}; later indexes shift.",
+                    _ => $"{feature} changes {Describe(hardware.Target!)}.",
+                });
+                break;
             case HardwareModuleMethods.ExportIoMap when effect?.CurrentSettings.GetValueOrDefault("fileExists") == "true":
                 yield return new FiredGuard(NetworkGuardDefinitions.ExportOverwritesFile, item.OperationId,
                     $"export_io_map replaces the existing file '{item.FilePath}' (overwrite:true).");
@@ -411,6 +450,14 @@ public static class HardwareModuleWritePlanner
             // An import can change any device: it supersedes every earlier hardware item of the call conservatively.
             HardwareModuleMethods.ImportCax => new[] { "device" },
             HardwareModuleMethods.ExportIoMap => new[] { $"file\n{item.FilePath!.ToUpperInvariant()}" },
+            HardwareFeatureMethods.ExportTelecontrolDataPoints => new[] { $"file\n{item.FilePath!.ToUpperInvariant()}" },
+            HardwareFeatureMethods.CreateAndConnectSubnet or HardwareFeatureMethods.DisconnectFromSubnet => new[] { $"{Key(hardware?.Target)}\nnode\n{item.NodeName}" },
+            HardwareFeatureMethods.ConnectImPort or HardwareFeatureMethods.DisconnectImPort => new[] { $"{Key(hardware?.Target)}\nimConnection" },
+            HardwareFeatureMethods.AssignPcInterface => new[] { $"{Key(hardware?.Target)}\npcInterfaceAssignment" },
+            HardwareFeatureMethods.UpdateModuleDescription => new[] { Key(hardware?.Target) },
+            HardwareFeatureMethods.ImportTelecontrolDataPoints => new[] { $"{Key(hardware?.Target)}\ntelecontrol" },
+            // Indexes shift after a create or delete: any later connection item of the same owner supersedes.
+            HardwareFeatureMethods.CreateCommunicationConnection or HardwareFeatureMethods.DeleteCommunicationConnection => new[] { $"{Key(hardware?.Target)}\nconnections" },
             _ => Array.Empty<string>(),
         };
     }

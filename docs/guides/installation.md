@@ -191,17 +191,17 @@ Exit codes: `0` (success), `1` (general failure), `2` (invalid arguments), `3` (
 
 The server supports three access modes, enforced at discovery, host dispatch, and worker dispatch:
 
-- **read-only** - eleven tools: ten observation tools (including `plcsim_read`, `plc_online_read` and `library_read`) plus `bind_project`; no
+- **read-only** - thirteen tools: eleven observation tools (including `plcsim_read`, `plc_online_read`, `library_read` and `siemens_docs`, the Siemens documentation reader that needs no TIA Portal), `tia_inbox` ("Claude in TIA") plus `bind_project`; no
   compile, edits, simulation control, download, online changes, going online, station upload, or lifecycle. `plc_read`
   `compare_to_online` (an Openness online compare that changes nothing) and `scan_accessible_devices` (live network
   discovery through one explicitly named PC interface, changes nothing) are observation and work in every mode.
-- **read-write** (server startup default) - thirty tools: the read-only surface plus
+- **read-write** (server startup default) - thirty-two tools: the read-only surface plus
   `compile_check`, `network_write`, `plc_write`, `hmi_write`, `vci_write`, `library_write`, `plcsim_write`, `plcsim_test`, all seven lifecycle tools, `plc_download`
   (to PLCSIM or to real hardware), `plc_online_write` (configured S7-1500 CPUs), `plc_tia_online` (TIA Portal go online/offline)
   and `plc_station_upload`. Every actual lifecycle, download, online-write, online-connection or upload call, and every `library_write`
   call that opens, retrieves, creates, saves or closes a global library, requires one confirmation form; the download prompt states when
   the target is a real controller. The other domain write calls (library content items included) and the PLCSIM tools never prompt.
-- **full** - the same thirty tools and operations; lifecycle, download, online writes, online connections, uploads and global library lifecycle run without
+- **full** - the same thirty-two tools and operations; lifecycle, download, online writes, online connections, uploads and global library lifecycle run without
   server elicitation, so the AI can download to a real controller (and answer its download configurations) or change a configured CPU
   online without asking. Unknown operations remain denied.
 
@@ -343,3 +343,12 @@ call. See the [lifecycle reference](../SupportedOperations/PROJECT_OPERATIONS_SU
 for dry-run examples, lifecycle/local-source guards, and the staged major-release input/output migration.
 
 The package includes the `openness-worker` and `plcsim-worker` folders and required non-Siemens dependencies, plus the host's MIT-licensed S7-1500 Web API client `Siemens.Simatic.S7.Webserver.API.dll` from nuget.org. It intentionally excludes `Siemens.Engineering*.dll` and every S7-PLCSIM Advanced assembly; those are loaded from the local TIA Portal and (optional) S7-PLCSIM Advanced installations at runtime. `tia-mcp doctor` reports where the PLCSIM Advanced API would be loaded from (`TIA_MCP_PLCSIM_API_DIR` or the registry) without loading it.
+
+### Optional: Claude in TIA (TIA Portal Add-In)
+
+The Add-In "Claude in TIA" adds a context menu **Claude** in TIA Portal that hands the selected objects to Claude through
+the MCP tool `tia_inbox`; the optional Claude bridge starts Claude without a chat. Not live-tested. One-time setup:
+run `scripts\install-claude-in-tia.ps1` from a source checkout (add `-InstallBridge -BridgeAutostart` for the bridge),
+activate the Add-In in TIA Portal's task card **Add-Ins**, and for the bridge register the server with Claude Code
+(`claude mcp add -s user tia-portal -- "<path>\TiaMcpServer.exe"`) and switch the bridge on in TiaMcp Passwortverwaltung,
+tab **Zugriffsmodus**. Details, unverified points and the request format: [Claude in TIA](../SupportedOperations/CLAUDE_IN_TIA.md).

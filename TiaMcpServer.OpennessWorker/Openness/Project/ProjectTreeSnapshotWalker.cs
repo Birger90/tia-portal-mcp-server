@@ -100,7 +100,13 @@ public sealed class ProjectTreeSnapshotWalker
         catch (EngineeringException ex) { Skip(skipped, parent, ProjectTreeNodeTypes.SoftwareUnit, "software units", $"PLC software '{plcSoftware.Name}'", ex); }
         if (unitProvider is null) yield break;
 
-        foreach (PlcUnit unit in unitProvider.UnitGroup.Units)
+        // Audit T4: safety units appear as software units (same path form, as list_safety_blocks shows them).
+        foreach (var unit in Plc.PlcUnits.All(unitProvider.UnitGroup, reason => skipped.Add(new ProjectTreeSkippedNodeInfo
+                 {
+                     ParentPath = parent.Select(s => new ProjectTreeSelectorSegment { NodeType = s.NodeType, Name = s.Name }).ToList(),
+                     NodeType = ProjectTreeNodeTypes.SoftwareUnit,
+                     Reason = reason,
+                 })))
         {
             var unitPath = Down(parent, ProjectTreeNodeTypes.SoftwareUnit, unit.Name);
             yield return new ProjectTreeNode

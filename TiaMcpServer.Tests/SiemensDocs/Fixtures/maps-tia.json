@@ -1,0 +1,534 @@
+[
+ {
+  "title": "TIA Portal Openness: API for automation of engineering workflows",
+  "id": "gpR5ZkKnLSuzVoGX1ovoKg",
+  "mapApiEndpoint": "/api/khub/maps/gpR5ZkKnLSuzVoGX1ovoKg",
+  "metadata": [
+   {
+    "key": "ft:title",
+    "label": "ft:title",
+    "values": [
+     "TIA Portal Openness: API for automation of engineering workflows"
+    ]
+   },
+   {
+    "key": "ft:locale",
+    "label": "ft:locale",
+    "values": [
+     "en-US"
+    ]
+   },
+   {
+    "key": "ft:clusterId",
+    "label": "ft:clusterId",
+    "values": [
+     "TIAPortalOpenness"
+    ]
+   },
+   {
+    "key": "Product",
+    "label": "Product",
+    "values": [
+     "TIAPortal"
+    ]
+   },
+   {
+    "key": "Language",
+    "label": "Language",
+    "values": [
+     "en-US"
+    ]
+   },
+   {
+    "key": "SoftwareVersion",
+    "label": "Software Version",
+    "values": [
+     "21.00.00.00"
+    ]
+   },
+   {
+    "key": "tia:SoftwareVersionFilter",
+    "label": "Version",
+    "values": [
+     "V21"
+    ]
+   },
+   {
+    "key": "ft:lastPublication",
+    "label": "ft:lastPublication",
+    "values": [
+     "2026-04-01T09:48:21.999000"
+    ]
+   },
+   {
+    "key": "ft:prettyUrl",
+    "label": "ft:prettyUrl",
+    "values": [
+     "en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows"
+    ]
+   }
+  ]
+ },
+ {
+  "title": "SiVArc Openness",
+  "id": "TOFaq6RHmuKvo0~qDLnlOg",
+  "mapApiEndpoint": "/api/khub/maps/TOFaq6RHmuKvo0~qDLnlOg",
+  "metadata": [
+   {
+    "key": "ft:title",
+    "label": "ft:title",
+    "values": [
+     "SiVArc Openness"
+    ]
+   },
+   {
+    "key": "ft:locale",
+    "label": "ft:locale",
+    "values": [
+     "en-US"
+    ]
+   },
+   {
+    "key": "ft:clusterId",
+    "label": "ft:clusterId",
+    "values": [
+     "SiVArcOpenness"
+    ]
+   },
+   {
+    "key": "Product",
+    "label": "Product",
+    "values": [
+     "WinCC"
+    ]
+   },
+   {
+    "key": "Language",
+    "label": "Language",
+    "values": [
+     "en-US"
+    ]
+   },
+   {
+    "key": "SoftwareVersion",
+    "label": "Software Version",
+    "values": [
+     "21.00.00.00"
+    ]
+   },
+   {
+    "key": "tia:SoftwareVersionFilter",
+    "label": "Version",
+    "values": [
+     "V21"
+    ]
+   },
+   {
+    "key": "ft:lastPublication",
+    "label": "ft:lastPublication",
+    "values": [
+     "2026-04-01T09:48:20.733000"
+    ]
+   },
+   {
+    "key": "ft:prettyUrl",
+    "label": "ft:prettyUrl",
+    "values": [
+     "en-us/v21/sivarc-openness"
+    ]
+   }
+  ]
+ },
+ {
+  "title": "Readme TIA Portal Openness",
+  "id": "5_QWRtE02wdb1Wg3xHZ4Nw",
+  "mapApiEndpoint": "/api/khub/maps/5_QWRtE02wdb1Wg3xHZ4Nw",
+  "metadata": [
+   {
+    "key": "ft:title",
+    "label": "ft:title",
+    "values": [
+     "Readme TIA Portal Openness"
+    ]
+   },
+   {
+    "key": "ft:locale",
+    "label": "ft:locale",
+    "values": [
+     "en-US"
+    ]
+   },
+   {
+    "key": "ft:clusterId",
+    "label": "ft:clusterId",
+    "values": [
+     "ReadmeTIAPortalOpenness"
+    ]
+   },
+   {
+    "key": "Product",
+    "label": "Product",
+    "values": [
+     "TIAPortal"
+    ]
+   },
+   {
+    "key": "Language",
+    "label": "Language",
+    "values": [
+     "en-US"
+    ]
+   },
+   {
+    "key": "SoftwareVersion",
+    "label": "Software Version",
+    "values": [
+     "21.00.00.00"
+    ]
+   },
+   {
+    "key": "tia:SoftwareVersionFilter",
+    "label": "Version",
+    "values": [
+     "V21"
+    ]
+   },
+   {
+    "key": "ft:lastPublication",
+    "label": "ft:lastPublication",
+    "values": [
+     "2026-04-01T09:48:17.308000"
+    ]
+   },
+   {
+    "key": "ft:prettyUrl",
+    "label": "ft:prettyUrl",
+    "values": [
+     "en-us/v21/readme-tia-portal-openness"
+    ]
+   }
+  ]
+ },
+ {
+  "title": "TIA Portal Openness: API für die Automatisierung von Engineering-Workflows",
+  "id": "bfAoag5ie5daeR1DWAbipQ",
+  "mapApiEndpoint": "/api/khub/maps/bfAoag5ie5daeR1DWAbipQ",
+  "metadata": [
+   {
+    "key": "ft:title",
+    "label": "ft:title",
+    "values": [
+     "TIA Portal Openness: API für die Automatisierung von Engineering-Workflows"
+    ]
+   },
+   {
+    "key": "ft:locale",
+    "label": "ft:locale",
+    "values": [
+     "de-DE"
+    ]
+   },
+   {
+    "key": "ft:clusterId",
+    "label": "ft:clusterId",
+    "values": [
+     "TIAPortalOpenness"
+    ]
+   },
+   {
+    "key": "Product",
+    "label": "Product",
+    "values": [
+     "TIAPortal"
+    ]
+   },
+   {
+    "key": "Language",
+    "label": "Language",
+    "values": [
+     "de-DE"
+    ]
+   },
+   {
+    "key": "SoftwareVersion",
+    "label": "Software Version",
+    "values": [
+     "21.00.00.00"
+    ]
+   },
+   {
+    "key": "tia:SoftwareVersionFilter",
+    "label": "Version",
+    "values": [
+     "V21"
+    ]
+   },
+   {
+    "key": "ft:lastPublication",
+    "label": "ft:lastPublication",
+    "values": [
+     "2026-04-02T04:56:57.534000"
+    ]
+   },
+   {
+    "key": "ft:prettyUrl",
+    "label": "ft:prettyUrl",
+    "values": [
+     "de-de/v21/tia-portal-openness-api-fur-die-automatisierung-von-engineering-workflows"
+    ]
+   }
+  ]
+ },
+ {
+  "title": "TIA Portal Openness: API für die Automatisierung von Engineering-Workflows",
+  "id": "dOX8a9dcOu7gWGb71rKPbw",
+  "mapApiEndpoint": "/api/khub/maps/dOX8a9dcOu7gWGb71rKPbw",
+  "metadata": [
+   {
+    "key": "tia:SoftwareVersionFilter",
+    "label": "Version",
+    "values": [
+     "V20"
+    ]
+   },
+   {
+    "key": "Language",
+    "label": "Language",
+    "values": [
+     "de-DE"
+    ]
+   },
+   {
+    "key": "Product",
+    "label": "Product",
+    "values": [
+     "TIAPortal"
+    ]
+   },
+   {
+    "key": "ft:locale",
+    "label": "ft:locale",
+    "values": [
+     "de-DE"
+    ]
+   },
+   {
+    "key": "SoftwareVersion",
+    "label": "Software Version",
+    "values": [
+     "20.00.00.00"
+    ]
+   },
+   {
+    "key": "ft:clusterId",
+    "label": "ft:clusterId",
+    "values": [
+     "TIAPortalOpenness"
+    ]
+   },
+   {
+    "key": "ft:title",
+    "label": "ft:title",
+    "values": [
+     "TIA Portal Openness: API für die Automatisierung von Engineering-Workflows"
+    ]
+   },
+   {
+    "key": "ft:lastPublication",
+    "label": "ft:lastPublication",
+    "values": [
+     "2025-01-17T06:32:31.700000"
+    ]
+   },
+   {
+    "key": "ft:prettyUrl",
+    "label": "ft:prettyUrl",
+    "values": [
+     "de-de/v20/tia-portal-openness-api-fur-die-automatisierung-von-engineering-workflows"
+    ]
+   }
+  ]
+ },
+ {
+  "title": "TIA Portal Openness: API for automation of engineering workflows",
+  "id": "Rc0LxW522mLHDCX_sejL~A",
+  "mapApiEndpoint": "/api/khub/maps/Rc0LxW522mLHDCX_sejL~A",
+  "metadata": [
+   {
+    "key": "tia:SoftwareVersionFilter",
+    "label": "Version",
+    "values": [
+     "V20"
+    ]
+   },
+   {
+    "key": "Language",
+    "label": "Language",
+    "values": [
+     "en-US"
+    ]
+   },
+   {
+    "key": "Product",
+    "label": "Product",
+    "values": [
+     "TIAPortal"
+    ]
+   },
+   {
+    "key": "ft:locale",
+    "label": "ft:locale",
+    "values": [
+     "en-US"
+    ]
+   },
+   {
+    "key": "SoftwareVersion",
+    "label": "Software Version",
+    "values": [
+     "20.00.00.00"
+    ]
+   },
+   {
+    "key": "ft:clusterId",
+    "label": "ft:clusterId",
+    "values": [
+     "TIAPortalOpenness"
+    ]
+   },
+   {
+    "key": "ft:title",
+    "label": "ft:title",
+    "values": [
+     "TIA Portal Openness: API for automation of engineering workflows"
+    ]
+   },
+   {
+    "key": "ft:lastPublication",
+    "label": "ft:lastPublication",
+    "values": [
+     "2025-01-17T06:32:31.700000"
+    ]
+   },
+   {
+    "key": "ft:prettyUrl",
+    "label": "ft:prettyUrl",
+    "values": [
+     "en-us/v20/tia-portal-openness-api-for-automation-of-engineering-workflows"
+    ]
+   }
+  ]
+ },
+ {
+  "title": "SIMATIC S7-PCT",
+  "id": "Toeeq1xw2MFBDR_l7eaUuw",
+  "mapApiEndpoint": "/api/khub/maps/Toeeq1xw2MFBDR_l7eaUuw",
+  "metadata": [
+   {
+    "key": "ft:title",
+    "label": "ft:title",
+    "values": [
+     "SIMATIC S7-PCT"
+    ]
+   },
+   {
+    "key": "ft:locale",
+    "label": "ft:locale",
+    "values": [
+     "it-IT"
+    ]
+   },
+   {
+    "key": "ft:clusterId",
+    "label": "ft:clusterId",
+    "values": [
+     "S7-PCT"
+    ]
+   },
+   {
+    "key": "Language",
+    "label": "Language",
+    "values": [
+     "it-IT"
+    ]
+   },
+   {
+    "key": "Product",
+    "label": "Product",
+    "values": [
+     "SIMATIC S7-PCT"
+    ]
+   },
+   {
+    "key": "SoftwareVersion",
+    "label": "Software Version",
+    "values": [
+     "3.5.4.3"
+    ]
+   },
+   {
+    "key": "tia:SoftwareVersionFilter",
+    "label": "Version",
+    "values": [
+     "V03.05.04.03"
+    ]
+   },
+   {
+    "key": "ft:lastPublication",
+    "label": "ft:lastPublication",
+    "values": [
+     "2026-10-20T13:09:23.266975"
+    ]
+   },
+   {
+    "key": "ft:prettyUrl",
+    "label": "ft:prettyUrl",
+    "values": [
+     "it-it/v03.05.04.03/simatic-s7-pct"
+    ]
+   }
+  ]
+ },
+ {
+  "title": "SIMATIC WinCC V8",
+  "id": "xWMmkdCEVhBr7xLa7FDbqg",
+  "mapApiEndpoint": "/api/khub/maps/xWMmkdCEVhBr7xLa7FDbqg",
+  "metadata": [
+   {
+    "key": "ft:title",
+    "label": "ft:title",
+    "values": [
+     "SIMATIC WinCC V8"
+    ]
+   },
+   {
+    "key": "ft:locale",
+    "label": "ft:locale",
+    "values": [
+     "en-US"
+    ]
+   },
+   {
+    "key": "Product",
+    "label": "Product",
+    "values": [
+     "WinCC"
+    ]
+   },
+   {
+    "key": "ft:clusterId",
+    "label": "ft:clusterId",
+    "values": [
+     "Getting Started with WinCC V8"
+    ]
+   },
+   {
+    "key": "ft:lastPublication",
+    "label": "ft:lastPublication",
+    "values": [
+     "2026-05-07T07:17:13.812000"
+    ]
+   }
+  ]
+ }
+]

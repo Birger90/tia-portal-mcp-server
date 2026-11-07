@@ -19,8 +19,8 @@ TOs are PLC software content, addressed like tag tables and watch tables: a PLC 
 and a group path (`folderPath`). The existing PLC tools already carry every mechanism the domain needs (the guarded
 single-call pipeline with dry run, info guards, read-back verification and audit; the PLC working state that lets a
 later item use an object an earlier item created; the content-hash round trip of the watch/force tables), so the
-operations were added there instead of a new tool pair. The tool surface stays **11 tools in read-only, 30 in
-read-write and 30 in full** (since `retrieve_project`) (`library_read`/`library_write` became a pair because a library selector is not a PLC).
+operations were added there instead of a new tool pair. The tool surface stays **13 tools in read-only, 32 in
+read-write and 32 in full** (since `siemens_docs`; 12/31/31 since `tia_inbox`; 11/30/30 since `retrieve_project`) (`library_read`/`library_write` became a pair because a library selector is not a PLC).
 The field set of `PlcOperationRequest` grows; every field is restricted per operation by the catalog
 (`PlcOperationCatalog.TechnologyObjects.cs`), so an unused field is a `validation_error`.
 
@@ -350,7 +350,7 @@ known well enough to compile against. `ref/*.dll` is unchanged.
 | Startdrive connection interfaces (`AxisHardwareConnectionSDRProvider`, `EncoderHardwareConnectionSDRProvider`, `*SDRInterface.Connect(Telegram[, ConnectOption])`) | They are in `Siemens.Engineering.Startdrive.dll`, which the worker does not reference, and take `Telegram` objects of Startdrive drive objects (drives are a separate, not yet designed domain). Address, module and DB-member connections cover the documented Step7 path. |
 | Disconnect of the ident interface; removing a `PlcTag` from a parameter | Not documented. |
 | Moving a TO between groups | No documented member; export, delete and import into the other group are separate items. |
-| Cam data (`CamDataSupport.LoadCamData`/`SaveCamData`/binary/point list) and interpreter programs (`InterpreterProgramSupport.LoadSource`/`SaveSource`) | The methods are documented, but how these objects are obtained from a TO is not stated, and the `CamDataFormat`/`CamDataFormatSeparator` members are not listed. They need the same service discovery plus live evidence; deferred. |
+| Interpreter programs (`InterpreterProgramSupport.LoadSource`/`SaveSource`) | The methods are documented, but how the object is obtained from a TO is not stated; deferred. Cam data are now `plc_write save_cam_data`/`load_cam_data` (package G, the TO's `GetServiceInfos()`; see the [V21 API completion reference](V21_API_COMPLETION_SUMMARY.md)). |
 | Master value couplings (`SynchronousAxisMasterValues`, `ConveyorTrackingLeadingValues`, `SuperimposingAxes` with `SetPointCoupling`/`ActualValueCoupling`/`DelayedCoupling`, `TechnologicalInstanceDBAssociation.Add/Remove`), interpreter mappings (`InterpreterMappings`, `TOMapping`, `DBMemberMapping`) and `OutputCamMeasuringInputContainer` | How these objects are reached and the coupling property types are not stated in the sources; deferred until live discovery evidence exists. |
 | `ShowInEditor` | A UI action; not documented for TOs in the sources. |
 | TOs in software units | Not supported by TIA Portal (Siemens skill). |

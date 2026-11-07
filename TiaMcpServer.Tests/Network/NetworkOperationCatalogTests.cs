@@ -156,6 +156,23 @@ public class NetworkOperationCatalogTests
             ["export_cax"] = (NetworkOperationCategory.Write, new[] { "filePath" }, new[] { "deviceName", "logFilePath", "overwrite" }),
             ["import_cax"] = (NetworkOperationCategory.Write, new[] { "filePath", "importOption" }, new[] { "logFilePath", "overwrite" }),
             ["export_io_map"] = (NetworkOperationCategory.Write, new[] { "filePath" }, new[] { "deviceName", "plcName", "includeTagMatches", "overwrite", "csvDelimiter", "rawCells" }),
+            // Package G hardware features.
+            ["get_interface_nodes"] = (NetworkOperationCategory.Read, new[] { "target" }, Array.Empty<string>()),
+            ["create_subnet_and_connect_node"] = (NetworkOperationCategory.Write, new[] { "target", "newSubnetName" }, new[] { "nodeName" }),
+            ["disconnect_node_from_subnets"] = (NetworkOperationCategory.Write, new[] { "target" }, new[] { "nodeName" }),
+            ["get_io_controller"] = (NetworkOperationCategory.Read, new[] { "target" }, Array.Empty<string>()),
+            ["get_im_partner_port"] = (NetworkOperationCategory.Read, new[] { "target" }, Array.Empty<string>()),
+            ["connect_im_port"] = (NetworkOperationCategory.Write, new[] { "target", "partner" }, Array.Empty<string>()),
+            ["disconnect_im_port"] = (NetworkOperationCategory.Write, new[] { "target" }, Array.Empty<string>()),
+            ["get_pc_interface_assignment"] = (NetworkOperationCategory.Read, new[] { "target" }, Array.Empty<string>()),
+            ["assign_pc_interface"] = (NetworkOperationCategory.Write, new[] { "target", "assignmentMode" }, new[] { "partner" }),
+            ["get_module_description_update"] = (NetworkOperationCategory.Read, new[] { "target" }, Array.Empty<string>()),
+            ["update_module_description"] = (NetworkOperationCategory.Write, new[] { "target" }, Array.Empty<string>()),
+            ["export_telecontrol_data_points"] = (NetworkOperationCategory.Write, new[] { "target", "filePath" }, new[] { "overwrite" }),
+            ["import_telecontrol_data_points"] = (NetworkOperationCategory.Write, new[] { "target", "filePath" }, Array.Empty<string>()),
+            ["list_communication_connections"] = (NetworkOperationCategory.Read, new[] { "target" }, Array.Empty<string>()),
+            ["create_communication_connection"] = (NetworkOperationCategory.Write, new[] { "target", "partner", "connectionType" }, new[] { "nodeName", "partnerNodeName" }),
+            ["delete_communication_connection"] = (NetworkOperationCategory.Write, new[] { "target", "connectionIndex" }, new[] { "connectionName" }),
         };
 
         var actual = NetworkOperationCatalog.All.ToDictionary(spec => spec.Name, StringComparer.Ordinal);

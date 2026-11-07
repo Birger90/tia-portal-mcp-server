@@ -191,17 +191,17 @@ Exit-Codes: `0` (Erfolg), `1` (allgemeiner Fehler), `2` (ungültige Argumente), 
 
 Der Server unterstützt drei Zugriffsmodi, durchgesetzt bei der Discovery, beim Host-Dispatch und beim Worker-Dispatch:
 
-- **read-only** - elf Werkzeuge: zehn Beobachtungswerkzeuge (einschließlich `plcsim_read`, `plc_online_read` und `library_read`) plus `bind_project`; kein
+- **read-only** - dreizehn Werkzeuge: elf Beobachtungswerkzeuge (einschließlich `plcsim_read`, `plc_online_read`, `library_read` und `siemens_docs`, der Leser der Siemens-Dokumentation, der kein TIA Portal braucht), `tia_inbox` („Claude in TIA“) plus `bind_project`; kein
   Übersetzen, keine Änderungen, keine Simulationssteuerung, kein Laden, keine Online-Änderungen, kein Online-Gehen, kein Station-Upload und kein Lifecycle. `plc_read`
   `compare_to_online` (ein Openness-Online-Vergleich, der nichts ändert) und `scan_accessible_devices` (Live-Netzwerkerkennung
   über eine explizit benannte PG/PC-Schnittstelle, ändert nichts) sind Beobachtung und funktionieren in jedem Modus.
-- **read-write** (Standard beim Serverstart) - dreißig Werkzeuge: die Read-only-Oberfläche plus
+- **read-write** (Standard beim Serverstart) - zweiunddreißig Werkzeuge: die Read-only-Oberfläche plus
   `compile_check`, `network_write`, `plc_write`, `hmi_write`, `vci_write`, `library_write`, `plcsim_write`, `plcsim_test`, alle sieben Lifecycle-Werkzeuge, `plc_download`
   (in PLCSIM oder in echte Hardware), `plc_online_write` (konfigurierte S7-1500-CPUs), `plc_tia_online` (TIA Portal online/offline gehen)
   und `plc_station_upload`. Jeder tatsächliche Lifecycle-, Lade-, Online-Schreib-, Online-Verbindungs- oder Upload-Aufruf und jeder
   `library_write`-Aufruf, der eine globale Bibliothek öffnet, dearchiviert, anlegt, speichert oder schließt, erfordert ein Bestätigungsformular; die Rückfrage zum Laden nennt, wenn
   das Ziel eine echte Steuerung ist. Die übrigen Schreibaufrufe der Domänen (einschließlich Bibliotheks-Inhaltselementen) und die PLCSIM-Werkzeuge fragen nie nach.
-- **full** - dieselben dreißig Werkzeuge und Operationen; Lifecycle, Laden, Online-Schreibvorgänge, Online-Verbindungen, Uploads und der Lifecycle globaler Bibliotheken laufen ohne
+- **full** - dieselben zweiunddreißig Werkzeuge und Operationen; Lifecycle, Laden, Online-Schreibvorgänge, Online-Verbindungen, Uploads und der Lifecycle globaler Bibliotheken laufen ohne
   Server-Elicitation, sodass die KI ohne Nachfrage in eine echte Steuerung laden (und deren Download-Konfigurationen beantworten) oder eine konfigurierte CPU
   online ändern kann. Unbekannte Operationen bleiben verweigert.
 
@@ -343,3 +343,13 @@ zu erzwingen. Siehe die [Lifecycle-Referenz](../SupportedOperations/PROJECT_OPER
 für Dry-Run-Beispiele, Lifecycle-/Local-Source-Guards und die gestufte Migration von Ein- und Ausgaben im Major-Release.
 
 Das Paket enthält die Ordner `openness-worker` und `plcsim-worker` und die erforderlichen Nicht-Siemens-Abhängigkeiten sowie den MIT-lizenzierten S7-1500-Web-API-Client des Hosts, `Siemens.Simatic.S7.Webserver.API.dll`, von nuget.org. Es schließt `Siemens.Engineering*.dll` und jede S7-PLCSIM-Advanced-Assembly absichtlich aus; diese werden zur Laufzeit aus den lokalen Installationen von TIA Portal und (optional) S7-PLCSIM Advanced geladen. `tia-mcp doctor` meldet, woher die PLCSIM-Advanced-API geladen würde (`TIA_MCP_PLCSIM_API_DIR` oder die Registry), ohne sie zu laden.
+
+### Optional: Claude in TIA (TIA-Portal-Add-In)
+
+Das Add-In „Claude in TIA“ fügt in TIA Portal ein Kontextmenü **Claude** hinzu, das die markierten Objekte über das
+MCP-Werkzeug `tia_inbox` an Claude übergibt; die optionale Claude-Brücke startet Claude ohne Chat. Nicht live getestet.
+Einmalige Einrichtung: `scripts\install-claude-in-tia.ps1` aus einem Quellstand ausführen (für die Brücke zusätzlich
+`-InstallBridge -BridgeAutostart`), das Add-In in der Task Card **Add-Ins** von TIA Portal aktivieren und für die Brücke
+den Server bei Claude Code eintragen (`claude mcp add -s user tia-portal -- "<Pfad>\TiaMcpServer.exe"`) und die Brücke in
+der TiaMcp Passwortverwaltung, Reiter **Zugriffsmodus**, einschalten. Einzelheiten, ungeprüfte Punkte und das
+Anfrageformat: [Claude in TIA](../SupportedOperations/CLAUDE_IN_TIA.de.md).

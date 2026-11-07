@@ -61,6 +61,9 @@ namespace Siemens.Engineering.Download.Configurations
         /// <summary>Whether a password was supplied; the stand-in never keeps or reveals it.</summary>
         public bool PasswordSupplied { get; private set; }
 
+        /// <summary>Audit T1: V21 documents IsSecureCommunication on DownloadPasswordConfiguration; the stand-in reports a secure channel.</summary>
+        public bool IsSecureCommunication { get; set; } = true;
+
         public void SetPassword(SecureString password)
         {
             ArgumentNullException.ThrowIfNull(password);

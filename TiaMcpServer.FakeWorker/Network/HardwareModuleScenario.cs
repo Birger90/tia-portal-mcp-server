@@ -32,6 +32,8 @@ sealed class HardwareModuleScenario
         public Siemens.Engineering.HW.Features.NetworkPort? Port { get; set; }
         /// <summary>The NetworkInterface stand-in of an interface item (transfer areas, IO connector); null for every other item.</summary>
         public FakeNetworkInterface? Interface { get; set; }
+        /// <summary>Package G: the hardware feature stand-ins the item lists among its services.</summary>
+        public List<object> Features { get; } = new();
         public Dictionary<string, (string Type, object? Value, bool Writable)> Attributes { get; } = new(StringComparer.Ordinal)
         {
             ["Author"] = ("System.String", "", true),
@@ -68,12 +70,20 @@ sealed class HardwareModuleScenario
         x1.Items.Add(new Item("Port_1", "System:PortPN", 32769) { Port = new Siemens.Engineering.HW.Features.NetworkPort() });
         x1.Items.Add(new Item("Port_2", "System:PortPN", 32770) { Port = new Siemens.Engineering.HW.Features.NetworkPort() });
         cpu.Items.Add(x1);
-        cpu.Items.Add(new Item("PROFINET interface_2", "System:InterfacePN", 33024) { Interface = new FakeNetworkInterface() });
+        // Package G: X1 offers NetworkInterface (one node, one IO connector), ImConnection, PcInterfaceAssignment and CommunicationManagement;
+        // the DI module offers ModuleDescriptionUpdater and TelecontrolManagement.
+        var features = new Siemens.Engineering.HW.Features.NetworkInterface();
+        features.IoConnectors.Add(new Siemens.Engineering.HW.IoConnector(new Siemens.Engineering.HW.IoController(cpu)));
+        x1.Features.AddRange(new object[] { features, new Siemens.Engineering.HW.Features.ImConnection(), new Siemens.Engineering.HW.Features.PcInterfaceAssignment(), new Siemens.Engineering.HW.Features.CommunicationManagement() });
+        var x2 = new Item("PROFINET interface_2", "System:InterfacePN", 33024) { Interface = new FakeNetworkInterface() };
+        x2.Features.Add(new Siemens.Engineering.HW.Features.NetworkInterface());
+        cpu.Items.Add(x2);
         rack.Items.Add(cpu);
         var di = new Item("DI 16x24VDC_1", "OrderNumber:6ES7 521-1BH00-0AB0/V2.1", 2);
         di.Addresses.Add(new HardwareIoAddressInfo { Index = 0, IoType = "Input", StartAddress = 0, Length = 2, Context = "None", ProcessImage = 0, IsochronousMode = false });
         var dq = new Item("DQ 16x24VDC_1", "OrderNumber:6ES7 522-1BH00-0AB0/V2.1", 3);
         dq.Addresses.Add(new HardwareIoAddressInfo { Index = 0, IoType = "Output", StartAddress = 0, Length = 2, Context = "None", ProcessImage = 0, IsochronousMode = false });
+        di.Features.AddRange(new object[] { new Siemens.Engineering.HW.Features.ModuleDescriptionUpdater(), new Siemens.Engineering.HW.Features.TelecontrolManagement() });
         rack.Items.Add(di);
         rack.Items.Add(dq);
         _deviceItems = new List<Item> { rack };
@@ -335,6 +345,28 @@ sealed class HardwareModuleScenario
             case HardwareModuleMethods.SetCustomIdentity:
             case HardwareModuleMethods.RemoveCustomIdentity:
                 return CustomIdentity(method, request);
+            case var feature when HardwareFeatureMethods.IsFeature(feature):
+            {
+                var (item, identity) = Resolve(request.Target);
+                var partner = request.Partner is null ? null : Resolve(request.Partner).Item;
+                var context = new HardwareFeatureContext
+                {
+                    Target = (object?)item ?? DeviceName,
+                    TargetIdentity = identity,
+                    Partner = partner,
+                    ServiceTypes = owner => owner is Item withFeatures ? withFeatures.Features.Select(f => f.GetType()).ToList() : Array.Empty<Type>(),
+                    Service = (owner, type) => owner is Item withFeatures ? withFeatures.Features.FirstOrDefault(f => f.GetType() == type) : null,
+                    Describe = value => value is Item described ? $"device item '{described.Name}'" : value?.ToString() ?? "(none)",
+                };
+                try
+                {
+                    return HardwareFeatureRun.Run(feature, context, request);
+                }
+                catch (TiaMcpServer.Contracts.Shared.RuntimeBindingException exception)
+                {
+                    throw new WorkerOperationRefusal(exception.Category, exception.Message);
+                }
+            }
             case HardwareModuleMethods.ListPortConnections:
             {
                 var (item, identity) = Resolve(request.Target);

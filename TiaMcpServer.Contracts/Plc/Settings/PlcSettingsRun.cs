@@ -26,6 +26,19 @@ public sealed class PlcSettingsContext
     /// <summary>The CPU device item hosting the PLC software; null for a project-wide operation.</summary>
     public object? Cpu { get; set; }
 
+    /// <summary>Package G: the bound engineering root (a standalone project or a local session's project), for services of any root.</summary>
+    public object? EngineeringRoot { get; set; }
+
+    /// <summary>Package G: the bound Multiuser local session (its MarkingService); null when the bound container is no local session.</summary>
+    public object? LocalSession { get; set; }
+
+    /// <summary>Package G: the engineering object of an object path (<see cref="PlcObjectPaths"/>); throws <see cref="RuntimeBindingException"/> when absent.</summary>
+    public Func<string, object> ResolveObject { get; set; } = path =>
+        throw new RuntimeBindingException(WorkerFailureCategories.UnsupportedCapability, $"Object paths are not resolved here ('{path}').");
+
+    /// <summary>Package G: a short description of an engineering object (its kind and name), for results.</summary>
+    public Func<object?, string> DescribeObject { get; set; } = value => value is null ? "(null)" : $"{value.GetType().Name} '{DefaultName(value) ?? "(unnamed)"}'";
+
     /// <summary>The PLC software (some services are documented on it).</summary>
     public object? Software { get; set; }
 

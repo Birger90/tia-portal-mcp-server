@@ -32,7 +32,7 @@ tables, granular block edits) and adds a domain to an existing tool when it fits
 (hardware modules became `network_read`/`network_write` operations). Text lists, alarm texts,
 supervisions and ProDiag objects belong to a PLC (`plcName`, a block path or a tag) and use the
 existing PLC binding, planner, guards, verification and audit. The tool surface therefore stays
-**11/30/30**. The common alarm classes are the one project-wide part: they are reached through
+**13/32/32**. The common alarm classes are the one project-wide part: they are reached through
 `Project.GetService<AlarmClassDataProvider>()`, take no `plcName`, show an empty `plcName` in the
 effect target and are delivered for standalone projects only (their own `standaloneOnly` capability
 rows). A separate pair (the library precedent) was not needed: libraries span projects and global

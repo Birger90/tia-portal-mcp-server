@@ -38,6 +38,23 @@ public static class PlcUmacMethods
     public const string UpdateUmcUser = "update_umc_user";
     public const string DeleteUmcUser = "delete_umc_user";
     public const string SetUmacPasswordPolicy = "set_umac_password_policy";
+
+    // Package G (V21 API completion; Siemens.Engineering.Base.xml, namespace Siemens.Engineering.Umac and ProjectBase):
+    /// <summary>ProjectBase.ProtectProject(String, SecureString): protects the project with an administrator (acknowledge guard).</summary>
+    public const string ProtectProject = "protect_project";
+    /// <summary>UmcUserComposition.CreateOfflineUmcUser(String).</summary>
+    public const string CreateOfflineUmcUser = "create_offline_umc_user";
+    /// <summary>UmcUserGroupComposition.CreateOfflineUmcUserGroup(), then UmcUserGroup.SetName(String) when a name is given.</summary>
+    public const string CreateOfflineUmcUserGroup = "create_offline_umc_user_group";
+    /// <summary>UmcServer.GetUserByName/GetUserGroupByName, then UmcUserComposition.Create(UmcUserInfo) / UmcUserGroupComposition.Create(UmcUserGroupInfo).</summary>
+    public const string ImportUmcUser = "import_umc_user";
+    /// <summary>plc_read: UmcServer.GetUserByName(String) / GetUserGroupByName(String) (contacts the UMC server).</summary>
+    public const string GetUmcServerUser = "get_umc_server_user";
+    /// <summary>plc_read: UmcServerConfigurator.CheckConsistency() (contacts the UMC server).</summary>
+    public const string CheckUmcConsistency = "check_umc_consistency";
+
+    /// <summary>The reads that contact the UMC server (OnlineObserve: they reach a server, change nothing).</summary>
+    public static readonly string[] UmcServerReads = { GetUmcServerUser, CheckUmcConsistency };
 }
 
 public static class PlcUmacNames
@@ -45,6 +62,8 @@ public static class PlcUmacNames
     public const string Configurator = "Siemens.Engineering.Umac.UmacConfigurator";
     public const string Device = "Siemens.Engineering.Umac.UmacDevice";
     public const string PasswordPolicy = "Siemens.Engineering.Umac.PasswordPolicyConfigurator";
+    /// <summary>Found among the project's (then the UmacConfigurator's) GetServiceInfos(); how it is obtained is not documented.</summary>
+    public const string UmcServerConfigurator = "Siemens.Engineering.Umac.UmcServerConfigurator";
 
     public static readonly string[] RoleProperties = { "Comment", "SessionTimeOut" };
 
@@ -94,5 +113,12 @@ public static partial class PlcSettingsCatalog
         Add(new(PlcUmacMethods.DeleteUmcUser, true, Issue, true, PlcUmacNames.Configurator));
         Add(new(PlcUmacMethods.SetUmacPasswordPolicy, true, Issue, true, PlcUmacNames.PasswordPolicy, PlcUmacNames.PasswordPolicyProperties,
             new[] { ("IncludesLowerCaseAndUpperCaseCharacters", "false"), ("EnablePasswordAging", "false") }, requiresSettings: true));
+        // Package G.
+        Add(new(PlcUmacMethods.ProtectProject, true, Issue, true, PlcUmacNames.Configurator, raises: true));
+        Add(new(PlcUmacMethods.CreateOfflineUmcUser, true, Issue, true, PlcUmacNames.Configurator));
+        Add(new(PlcUmacMethods.CreateOfflineUmcUserGroup, true, Issue, true, PlcUmacNames.Configurator));
+        Add(new(PlcUmacMethods.ImportUmcUser, true, Issue, true, PlcUmacNames.UmcServerConfigurator));
+        Add(new(PlcUmacMethods.GetUmcServerUser, false, Issue, true, PlcUmacNames.UmcServerConfigurator));
+        Add(new(PlcUmacMethods.CheckUmcConsistency, false, Issue, true, PlcUmacNames.UmcServerConfigurator));
     }
 }

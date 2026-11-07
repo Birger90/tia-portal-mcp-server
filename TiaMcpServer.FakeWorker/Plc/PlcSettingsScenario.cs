@@ -32,6 +32,15 @@ sealed partial class PlcSettingsScenario
     private sealed class FakeProject
     {
         public string Name => "Project1";
+
+        /// <summary>Package G: what ProtectProject does in the fake (adds the administrator as a project user).</summary>
+        public Action<string, System.Security.SecureString>? Protect { get; set; }
+
+        public void ProtectProject(string administratorUsername, System.Security.SecureString administratorUserPassword)
+        {
+            if (string.IsNullOrEmpty(administratorUsername)) throw new ArgumentException("Administrator user name must be provided.");
+            (Protect ?? throw new InvalidOperationException("No UMAC in this fake project."))(administratorUsername, administratorUserPassword);
+        }
     }
 
     public PlcSettingsScenario()
@@ -62,6 +71,8 @@ sealed partial class PlcSettingsScenario
 
     partial void InitializeMore();
 
+    partial void ConfigureObjects(PlcSettingsContext context);
+
     private PlcSettingsContext Context(bool project)
     {
         var context = new PlcSettingsContext
@@ -73,6 +84,7 @@ sealed partial class PlcSettingsScenario
             Resolve = PlcSettingsRun.Resolver(Environment.GetEnvironmentVariable, null),
             ActiveCulture = culture => culture is "en-US" or "de-DE" ? CultureInfo.GetCultureInfo(culture) : null,
         };
+        ConfigureObjects(context);
         if (project) return context;
         context.PlcName = "PLC_1";
         context.DeviceName = "Station_1";

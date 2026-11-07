@@ -38,9 +38,11 @@ public static class McpToolRegistration
                 closeNestedSchemas: true, transformSchemaNode: ProjectBindingToolRegistration.AllowNullForceRebind,
                 decorate: (_, strict) => new BindProjectArgumentValidatingTool(strict)),
             [typeof(NetworkReadTools)] = builder => builder.WithClosedTools(typeof(NetworkReadTools),
-                (_, _, message) => NetworkReadTools.Error(ValidationError, message), closeNestedSchemas: false),
+                (_, _, message) => NetworkReadTools.Error(ValidationError, message), closeNestedSchemas: false,
+                transformSchemaNode: NetworkWriteToolRegistration.ShortenRepeatedSelectors),
             [typeof(PlcReadTools)] = builder => builder.WithClosedTools(typeof(PlcReadTools),
-                (_, _, message) => PlcReadTools.Error(ValidationError, message), closeNestedSchemas: false),
+                (_, _, message) => PlcReadTools.Error(ValidationError, message), closeNestedSchemas: false,
+                transformSchemaNode: PlcItemSchema.ShortenFieldDescriptions),
             [typeof(Hmi.HmiReadTools)] = builder => builder.WithClosedTools(typeof(Hmi.HmiReadTools),
                 (_, _, message) => Hmi.HmiReadTools.Error(ValidationError, message), closeNestedSchemas: false),
             [typeof(CrossReferences.CrossReferenceReadTools)] = builder => builder.WithClosedTools(
@@ -50,14 +52,16 @@ public static class McpToolRegistration
                 (_, _, message) => Vci.VciReadTools.Error(ValidationError, message), closeNestedSchemas: true),
             [typeof(Library.LibraryReadTools)] = builder => builder.WithClosedTools(typeof(Library.LibraryReadTools),
                 (_, _, message) => Library.LibraryReadTools.Error(ValidationError, message), closeNestedSchemas: true),
+            [typeof(ClaudeInbox.TiaInboxTools)] = builder => builder.WithClosedTools(typeof(ClaudeInbox.TiaInboxTools),
+                (_, _, message) => ClaudeInbox.TiaInboxTools.Error(ValidationError, message), closeNestedSchemas: true),
             [typeof(ProjectEngineeringTools)] = builder => builder.WithClosedTools(typeof(ProjectEngineeringTools),
                 (_, tool, message) => Standalone<CompileCheckReport>(tool, message), closeNestedSchemas: false),
             [typeof(NetworkWriteTools)] = builder => builder.WithClosedTools(typeof(NetworkWriteTools),
                 (services, _, message) => WriteRejection(new NetworkWriteDomain(Client(services)), message),
-                closeNestedSchemas: true, transformSchemaNode: NetworkWriteToolRegistration.AllowNullCurrentSettings),
+                closeNestedSchemas: true, transformSchemaNode: NetworkWriteToolRegistration.TransformWrite),
             [typeof(PlcWriteTools)] = builder => builder.WithClosedTools(typeof(PlcWriteTools),
                 (services, _, message) => WriteRejection(new PlcWriteDomain(Client(services)), message),
-                closeNestedSchemas: true, transformSchemaNode: PlcWriteToolRegistration.AddObEventClassEnum,
+                closeNestedSchemas: true, transformSchemaNode: PlcItemSchema.TransformWrite,
                 retiredItemMembers: PlcWriteToolRegistration.RetiredItemMembers),
             [typeof(Hmi.HmiWriteTools)] = builder => builder.WithClosedTools(typeof(Hmi.HmiWriteTools),
                 (services, _, message) => WriteRejection(new Hmi.HmiWriteDomain(Client(services)), message),
@@ -81,6 +85,8 @@ public static class McpToolRegistration
             [typeof(PlcDownload.PlcDownloadTools)] = builder => builder.WithClosedTools(typeof(PlcDownload.PlcDownloadTools),
                 (services, _, message) => WriteRejection(new PlcDownload.PlcDownloadWriteDomain(Client(services)), message),
                 closeNestedSchemas: true, transformSchemaNode: PlcDownload.PlcDownloadToolRegistration.TransformSchema),
+            [typeof(SiemensDocs.SiemensDocsTools)] = builder => builder.WithClosedTools(typeof(SiemensDocs.SiemensDocsTools),
+                (_, _, message) => SiemensDocs.SiemensDocsTools.Error(ValidationError, message), closeNestedSchemas: true),
             [typeof(PlcWebApi.PlcWebApiReadTools)] = builder => builder.WithClosedTools(typeof(PlcWebApi.PlcWebApiReadTools),
                 (_, _, message) => PlcWebApi.PlcWebApiReadTools.Error(ValidationError, message), closeNestedSchemas: true),
             [typeof(PlcWebApi.PlcWebApiWriteTools)] = builder => builder.WithClosedTools(typeof(PlcWebApi.PlcWebApiWriteTools),
@@ -99,7 +105,7 @@ public static class McpToolRegistration
         _ = McpAccessModeNames.ToName(mode); // Reject an invalid configuration before registration.
         foreach (var type in new[] { typeof(ProjectReadTools), typeof(ProjectBindingTools), typeof(NetworkReadTools), typeof(PlcReadTools),
                      typeof(Hmi.HmiReadTools), typeof(CrossReferences.CrossReferenceReadTools), typeof(Vci.VciReadTools), typeof(PlcSim.PlcSimReadTools),
-                     typeof(PlcWebApi.PlcWebApiReadTools), typeof(Library.LibraryReadTools) })
+                     typeof(PlcWebApi.PlcWebApiReadTools), typeof(Library.LibraryReadTools), typeof(ClaudeInbox.TiaInboxTools), typeof(SiemensDocs.SiemensDocsTools) })
             builder.WithProductionTools(type);
         if (OperationPolicyCatalog.IsCapabilityAllowed(mode, OperationCapability.Compile))
             builder.WithProductionTools(typeof(ProjectEngineeringTools));

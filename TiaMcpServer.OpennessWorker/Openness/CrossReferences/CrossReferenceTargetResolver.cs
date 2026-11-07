@@ -156,10 +156,10 @@ public static class CrossReferenceTargetResolver
                 try { provider = software.GetService<PlcUnitProvider>(); }
                 catch (Exception ex) when (IsRecoverable(ex)) { }
                 if (provider is not null)
-                    foreach (PlcUnit unit in provider.UnitGroup.Units)
+                    foreach (var unit in Plc.PlcUnits.All(provider.UnitGroup)) // Audit T4: safety units too.
                         Add(children, ProjectTreeNodeTypes.SoftwareUnit, () => unit.Name, unit);
                 break;
-            case PlcUnit unit:
+            case PlcUnitBase unit:
                 Add(children, ProjectTreeNodeTypes.BlockFolder, () => unit.BlockGroup.Name, unit.BlockGroup);
                 Add(children, ProjectTreeNodeTypes.TagTableFolder, () => unit.TagTableGroup.Name, unit.TagTableGroup);
                 Add(children, ProjectTreeNodeTypes.TypeFolder, () => unit.TypeGroup.Name, unit.TypeGroup);

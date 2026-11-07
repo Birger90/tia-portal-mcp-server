@@ -26,7 +26,7 @@ dazu die Lesezugriffe für Online/Offline-Vergleich, Online-Zustand, Station-Upl
 `read_cross_references` ist ein eigenständiges Tool. `execute_read_batch` wurde außer Dienst gestellt.
 Hardware-/Kataloglesezugriffe nutzen `network_read`. Lesezugriffe auf WinCC-Unified-HMIs nutzen `hmi_read`; Schreibzugriffe auf Variablentabellen, Variablen und Meldungen nutzen `hmi_write`. Siehe [HMI_OPERATIONS_SUMMARY.md](HMI_OPERATIONS_SUMMARY.de.md).
 
-Projektbindung, Status, Durchsuchen des Projektbaums und Übersetzen sind getrennte Tools: `bind_project`, `get_project_status`, `browse_project_tree` und `compile_check`. Die ersten drei sind in jedem Modus verfügbar; Übersetzen, Lebenszyklus, `plc_download`, `plc_online_write`, `plc_tia_online` und `plc_station_upload` sind in read-write und full verfügbar. Full fügt keine Tools oder Operationen hinzu; das Openness-PLC-Run/Stop (`start_plc`/`stop_plc`) wurde entfernt, und der Betriebszustand einer realen CPU ändert sich nur über `plc_online_write change_operating_mode` über die Web API. Siehe [Installation](../guides/installation.md#access-modes) für die Oberflächen 11/30/30 und die Bestätigungsrichtlinie.
+Projektbindung, Status, Durchsuchen des Projektbaums und Übersetzen sind getrennte Tools: `bind_project`, `get_project_status`, `browse_project_tree` und `compile_check`. Die ersten drei sind in jedem Modus verfügbar; Übersetzen, Lebenszyklus, `plc_download`, `plc_online_write`, `plc_tia_online` und `plc_station_upload` sind in read-write und full verfügbar. Full fügt keine Tools oder Operationen hinzu; das Openness-PLC-Run/Stop (`start_plc`/`stop_plc`) wurde entfernt, und der Betriebszustand einer realen CPU ändert sich nur über `plc_online_write change_operating_mode` über die Web API. Siehe [Installation](../guides/installation.md#access-modes) für die Oberflächen 13/32/32 und die Bestätigungsrichtlinie.
 
 `plc_download` lädt die PLC des gebundenen eigenständigen Projekts in die PLC-Simulation (die PC-Schnittstelle `PLCSIM`) oder in eine reale Steuerung (jede andere PC-Schnittstelle) und bestätigt jeden tatsächlichen read-write-Aufruf; der Zugriffsmodus ist die einzige Kontrolle über Hardware-Downloads. Siehe die [PLC-Download-Referenz](PLC_DOWNLOAD_SUMMARY.de.md); sie ist nicht live getestet.
 
@@ -77,6 +77,14 @@ aufgeführt; Tools nennen nur ein `target`. `plc_online_write` bestätigt jeden 
 noch nicht live getestet. Siehe die [PLC-Online-Referenz](PLC_ONLINE_WEBAPI_SUMMARY.de.md) für die Voraussetzungen
 in TIA Portal, das Dateiformat, die Operationen, Guards, die Herkunft und die Schritte der Live-Abnahme.
 
+### Siemens-Dokumentation (`siemens_docs`)
+
+`siemens_docs` (jeder Modus, kein TIA Portal nötig) durchsucht und liest die offizielle Siemens-Dokumentation auf
+docs.tia.siemens.cloud und docs.industrial-operations-x.siemens.cloud: `search`, `read_page` (Markdown, seitenweise),
+`get_toc`, `list_publications`. Nur die freigegebenen Hosts werden kontaktiert; Referenzen werden in Ids aufgelöst,
+nie selbst abgerufen. Auf dem Windows-PC nicht live getestet; die Endpunkte wurden live aus dem Cloud-Container
+geprüft. Siehe die [Referenz zur Siemens-Dokumentation](SIEMENS_DOCS_SUMMARY.de.md).
+
 ### S7-PLCSIM-Advanced-Tools
 
 `plcsim_read` (jeder Modus), `plcsim_write` und `plcsim_test` (read-write und full) steuern
@@ -111,14 +119,17 @@ Leseantworten können `warnings` für unvollständige oder eingeschränkte Daten
 | PLC online über die S7-1500 Web API (`plc_online_read`, `plc_online_write`) | [PLC_ONLINE_WEBAPI_SUMMARY.md](PLC_ONLINE_WEBAPI_SUMMARY.de.md) |
 | PLC online über Openness: Vergleich, Online-Zustand, online/offline gehen, Station-Upload, Beobachtungs-/Forcetabellen (`plc_tia_online`, `plc_station_upload`) | [PLC_ONLINE_OPENNESS_SUMMARY.md](PLC_ONLINE_OPENNESS_SUMMARY.de.md) |
 | S7-PLCSIM Advanced (`plcsim_read`, `plcsim_write`, `plcsim_test`) | [PLCSIM_OPERATIONS_SUMMARY.md](PLCSIM_OPERATIONS_SUMMARY.de.md) |
+| Siemens-Dokumentation (`siemens_docs`) | [SIEMENS_DOCS_SUMMARY.md](SIEMENS_DOCS_SUMMARY.de.md) |
 | HMI | [HMI_OPERATIONS_SUMMARY.md](HMI_OPERATIONS_SUMMARY.de.md), [HMI_CLASSIC_UNIFIED_EXTENSIONS_SUMMARY.md](HMI_CLASSIC_UNIFIED_EXTENSIONS_SUMMARY.de.md) |
 | Eigenständige VCI-Arbeitsbereiche (`vci_read`, `vci_write`) | [VCI_OPERATIONS_SUMMARY.md](VCI_OPERATIONS_SUMMARY.de.md) |
 | Projekt- und globale Bibliotheken, Typen, Kopiervorlagen (`library_read`, `library_write`) | [LIBRARY_OPERATIONS_SUMMARY.md](LIBRARY_OPERATIONS_SUMMARY.de.md) |
+| „Claude in TIA“: TIA-Portal-Add-In, Übergabe an Claude über Ein- und Ausgang (`tia_inbox`), Claude-Brücke | [CLAUDE_IN_TIA.md](CLAUDE_IN_TIA.de.md) |
 | Externe Quellen, Projektbaumordner (Suchen, Umbenennen, Erstellen/Löschen von Typ- und Variablentabellengruppen), Software Units (Erstellen, Löschen, Umbenennen), Variablenkommentare, CSV- und Batch-Dateiexporte, Scan erreichbarer Geräte | [PLC_SOURCES_FOLDERS_SUMMARY.md](PLC_SOURCES_FOLDERS_SUMMARY.de.md) |
 | PLC-Meldungen, Meldeklassen, Textlisten, ProDiag-Überwachungen und -Zuordnungen (`plc_read`, `plc_write`) | [PLC_ALARMS_TEXTLISTS_SUMMARY.md](PLC_ALARMS_TEXTLISTS_SUMMARY.de.md) |
 | Technologieobjekte: Auflisten, Parameter, Hardwareverbindungen, Export/Import (`plc_read`, `plc_write`) | [TECHNOLOGY_OBJECTS_SUMMARY.md](TECHNOLOGY_OBJECTS_SUMMARY.de.md) |
 | CPU-Schutz: jede Zugriffsstufe mit Stufenpasswörtern, Schutz vertraulicher Konfigurationsdaten aktivieren/ändern/aufheben aus Passwortquellen, Hardware-Übersetzen (`plc_read`, `plc_write`, `compile_check`) | [PLC_SECURITY_SUMMARY.md](PLC_SECURITY_SUMMARY.de.md) |
 | CPU- und Projekteinstellungen (Issue #15), Webserver- und OPC-UA-Benutzer (Issue #13), UMAC (Issue #12), CPU-Zertifikate (Issue #14), Safety-Ausdruck (Issue #21), Safety Validation Assistant (Issue #25): Kontosperre, Passwortrichtlinien, Syslog, Webseiten, Zugriff auf Beobachtungs-/Forcetabellen, Display-Passwort, Frontdisplay, Projektsprache, IP-Erreichbarkeit (`plc_read`, `plc_write`) | [PLC_SETTINGS_SUMMARY.de.md](PLC_SETTINGS_SUMMARY.de.md) |
+| Vervollständigung der V21-API (Paket G): dokumentierte V21-Methoden in den bestehenden Tools, mit der Liste der ausgelassenen (`plc_write`, ...) | [V21_API_COMPLETION_SUMMARY.de.md](V21_API_COMPLETION_SUMMARY.de.md) |
 | Fehlersichere (F-)PLCs: Safety Administration, F-Baustein-Signaturen, Safety-Anmeldung und -Passwort, F-Ablaufgruppen, Antwort für den F-Programm-Download (`plc_read`, `plc_write`, `plc_download`) | [PLC_SAFETY_SUMMARY.md](PLC_SAFETY_SUMMARY.de.md) |
 | Von rickgaiser/TiaMcp gemeldete Fallstricke in TIA Portal V21: Guards, Lese-Flags, Export-Ledger, Liste für die Live-Abnahme | [V21_PITFALLS.md](V21_PITFALLS.de.md) |
 | SIMATIC SD (.s7dcl/.s7res): sd-Lesezugriffe, `list_networks`, Netzwerk einfügen/ersetzen/löschen, `update_block_logic` sd, `create_block_from_document` (`plc_read`, `plc_write`) | [PLC_SIMATIC_SD_SUMMARY.md](PLC_SIMATIC_SD_SUMMARY.de.md) |

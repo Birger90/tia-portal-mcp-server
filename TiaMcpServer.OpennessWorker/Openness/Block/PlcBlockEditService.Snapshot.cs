@@ -26,7 +26,9 @@ namespace TiaMcpServer.OpennessWorker.Openness.Block;
 /// Neither service type nor <c>WithReadOnly</c> is in the compile stubs or the Siemens skills: the services are found
 /// among <c>GetServiceInfos()</c> by exact short name in a Siemens.Engineering namespace, the members bound by exact name
 /// and argument types (<see cref="LibraryRuntimeBinding"/>), the enum member parsed by name; anything missing is
-/// <c>api_member_missing</c> with nothing changed. The value-loading members of ValueService are never bound.
+/// <c>api_member_missing</c> with nothing changed. The value-loading members of ValueService (<c>LoadSnapshotAsActualValues</c>,
+/// <c>LoadStartValuesAsActualValues</c>) are bound only by plc_write's online operations of the same names (package G,
+/// <see cref="ResolveValueService"/>, OnlineControl behind an acknowledge guard).
 /// </summary>
 internal static partial class PlcBlockEditService
 {
@@ -123,6 +125,16 @@ internal static partial class PlcBlockEditService
         if (create)
             info.Messages.Add("TIA Portal stores the snapshot in the offline project, which now shows as changed; save_project keeps it.");
         return info;
+    }
+
+    /// <summary>The ValueService of a DB's interface, the DB's canonical path and the CPU device item (for the online check).</summary>
+    internal static (object Values, string CanonicalPath, Siemens.Engineering.HW.DeviceItem? Host, string PlcName) ResolveValueService(ProjectBase project, string? blockPath)
+    {
+        var address = ParseBlock(Require(blockPath, "blockPath"));
+        var discovered = PlcSoftwareLocator.FindUnique(project, address.PlcName);
+        var located = BlockLocator.Locate(discovered.Software, address);
+        var db = RequireDataBlock(located);
+        return (RequireService(db.Interface, ValueServiceName, located.CanonicalPath, "the block interface"), located.CanonicalPath, discovered.HostDeviceItem, discovered.Software.Name);
     }
 
     private static object RequireService(object target, string shortName, string blockPath, string what)

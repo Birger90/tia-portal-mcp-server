@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    TiaMcp Claude bridge (TiaMcpClaudeBridge.exe): watches %APPDATA%\TiaMcpServer\inbox and starts one headless Claude
+    run per new request from the "Claude in TIA" Add-In, with the command, time limit and tool allow-list of the server
+    settings file (member claudeBridge, edited in TiaMcp Passwortverwaltung). Siemens-free; all logic is in
+    TiaMcpServer.Contracts (Shared/ClaudeBridge, Shared/ClaudeInbox) and tested on Linux. WinExe: no console window when
+    started at logon. Not live-tested.
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>TiaMcpClaudeBridge</AssemblyName>
+    <RootNamespace>TiaMcpServer.ClaudeBridge</RootNamespace>
+    <Product>TiaMcp Claude-Brücke</Product>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TiaMcpServer.Contracts\TiaMcpServer.Contracts.csproj" />
+  </ItemGroup>
+</Project>

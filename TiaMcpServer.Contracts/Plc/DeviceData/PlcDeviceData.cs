@@ -18,9 +18,25 @@ public static class PlcDeviceDataMethods
     /// <summary>plc_write: deletes the master secret of the online PLC (OnlineControl).</summary>
     public const string ResetMasterSecretOnline = "reset_plc_master_secret_online";
 
-    public static IReadOnlyList<string> Write { get; } = new[] { DownloadToFolder, SetMasterSecretOnline, ResetMasterSecretOnline };
+    /// <summary>
+    /// plc_write: <c>ValueService.LoadSnapshotAsActualValues()</c> of a DB's interface: writes the DB's stored snapshot into the actual
+    /// values of the ONLINE PLC (OnlineControl; package G, V21 Siemens.Engineering.Step7.xml "Loads the snapshot as actual values").
+    /// </summary>
+    public const string LoadSnapshotAsActualValues = "load_snapshot_as_actual_values";
 
-    public static IReadOnlyList<string> Online { get; } = new[] { SetMasterSecretOnline, ResetMasterSecretOnline };
+    /// <summary>plc_write: <c>ValueService.LoadStartValuesAsActualValues()</c>: writes the DB's start values into the actual values of the ONLINE PLC (OnlineControl).</summary>
+    public const string LoadStartValuesAsActualValues = "load_start_values_as_actual_values";
+
+    public static IReadOnlyList<string> Write { get; } = new[] { DownloadToFolder, SetMasterSecretOnline, ResetMasterSecretOnline, LoadSnapshotAsActualValues, LoadStartValuesAsActualValues };
+
+    public static IReadOnlyList<string> Online { get; } = new[] { SetMasterSecretOnline, ResetMasterSecretOnline, LoadSnapshotAsActualValues, LoadStartValuesAsActualValues };
+
+    /// <summary>The two operations that write actual values of a DB into the online PLC.</summary>
+    public static IReadOnlyList<string> ActualValues { get; } = new[] { LoadSnapshotAsActualValues, LoadStartValuesAsActualValues };
+
+    public static bool IsActualValues(string? method) => method is not null && ActualValues.Contains(method, StringComparer.Ordinal);
+
+    public static bool IsMasterSecret(string? method) => method is SetMasterSecretOnline or ResetMasterSecretOnline;
 
     public static bool IsWorkerMethod(string? method) => method is not null && Write.Contains(method, StringComparer.Ordinal);
 
@@ -57,6 +73,9 @@ public sealed class PlcDeviceDataRequestInfo
 
     /// <summary>download_to_folder: a non-empty target directory is refused unless true (security review F3).</summary>
     public bool Overwrite { get; set; }
+
+    /// <summary>load_snapshot_as_actual_values / load_start_values_as_actual_values: the global or instance DB (PLC/.../DB name).</summary>
+    public string? BlockPath { get; set; }
 }
 
 /// <summary>The Siemens-free rules of download_to_folder's target directory and of the confirmation evidence (security review F3, F6).</summary>
@@ -131,6 +150,9 @@ public sealed class PlcDeviceDataResultInfo
 
     /// <summary>download_to_folder: the download configurations TIA Portal presented and how each was answered (type short name: answer).</summary>
     public List<string> ConfigurationsSeen { get; set; } = new();
+
+    /// <summary>The actual-values loads: the DB whose values were loaded (its canonical path); null for the other operations.</summary>
+    public string? BlockPath { get; set; }
 
     /// <summary>The online state read before an online call (Online is required).</summary>
     public string? OnlineState { get; set; }

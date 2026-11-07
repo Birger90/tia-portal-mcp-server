@@ -25,7 +25,7 @@ internal static class PlcSettingsService
         => exception is EngineeringException engineering && OpennessExceptions.IsRecoverable(engineering)
             && engineering is not EngineeringObjectDisposedException;
 
-    public static PlcSettingsReadInfo Read(ProjectBase project, string method, PlcSettingsRequestInfo info)
+    public static PlcSettingsReadInfo Read(ProjectBase project, string method, PlcSettingsRequestInfo info, object? localSession = null)
     {
         var contexts = new List<PlcSettingsContext>();
         if (!PlcSettingsCatalog.IsProjectScoped(method))
@@ -39,12 +39,15 @@ internal static class PlcSettingsService
             contexts.AddRange(plcs.Select(plc => Context(project, plc)));
         }
 
-        return Bind(() => PlcSettingsRun.Read(method, contexts, Context(project, null), info));
+        var projectContext = Context(project, null);
+        projectContext.LocalSession = localSession;
+        return Bind(() => PlcSettingsRun.Read(method, contexts, projectContext, info));
     }
 
-    public static (PlcSettingsResultInfo Result, List<string> Warnings) Write(ProjectBase project, string method, PlcSettingsRequestInfo info)
+    public static (PlcSettingsResultInfo Result, List<string> Warnings) Write(ProjectBase project, string method, PlcSettingsRequestInfo info, object? localSession = null)
     {
         var context = PlcSettingsCatalog.IsProjectScoped(method) ? Context(project, null) : Context(project, PlcSoftwareLocator.FindUnique(project, info.PlcName));
+        context.LocalSession = localSession;
         return Bind(() => PlcSettingsRun.Write(method, context, info));
     }
 
@@ -59,6 +62,7 @@ internal static class PlcSettingsService
             PlcName = plc?.Software.Name,
             DeviceName = plc?.DeviceName,
             Project = project as global::Siemens.Engineering.Project,
+            EngineeringRoot = project,
             Cpu = cpu,
             Software = plc?.Software,
             CpuItems = cpu is null ? Array.Empty<object>() : Descendants(cpu).Cast<object>().ToList(),
@@ -70,6 +74,19 @@ internal static class PlcSettingsService
             // Password sources resolve in the worker only (environment of the worker process, or Windows generic credentials).
             Resolve = PlcSettingsRun.Resolver(Environment.GetEnvironmentVariable, WindowsCredentialReader.Instance),
             ActiveCulture = culture => ActiveCulture(project, culture),
+            // Package G: object paths, resolved with the worker's locators; a refusal becomes a RuntimeBindingException of its category.
+            ResolveObject = path =>
+            {
+                try
+                {
+                    return EngineeringObjectResolver.Resolve(project, path);
+                }
+                catch (WorkerOperationException exception)
+                {
+                    throw new RuntimeBindingException(exception.FailureCategory, exception.Message);
+                }
+            },
+            DescribeObject = EngineeringObjectResolver.Describe,
         };
         if (plc is not null)
         {

@@ -13,11 +13,14 @@ internal static partial class Program
     {
         var info = request.PlcSettings ?? throw new WorkerOperationException(
             WorkerFailureCategories.ValidationError, $"{request.Method} requires the settings request.");
-        return WithEngineeringRoot(request, project =>
+        return WithActiveContext(request, session =>
         {
+            var project = session.EngineeringRoot!;
+            // Package G: the MarkingService is a member of the bound Multiuser local session.
+            var localSession = (session.ActiveContext?.Owner as TiaMcpServer.OpennessWorker.Openness.Project.LocalSessionOwner)?.LocalSession;
             if (PlcSettingsCatalog.IsRead(request.Method))
-                return Success(PlcSettingsService.Read(project, request.Method, info));
-            var (result, warnings) = PlcSettingsService.Write(project, request.Method, info);
+                return Success(PlcSettingsService.Read(project, request.Method, info, localSession));
+            var (result, warnings) = PlcSettingsService.Write(project, request.Method, info, localSession);
             return new WorkerResponse
             {
                 Success = true,

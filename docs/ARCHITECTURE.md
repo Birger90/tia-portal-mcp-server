@@ -53,6 +53,13 @@ TiaMcpServer (net10.0 host) -- PlcWebApiService, one session per configured targ
 S7-1500 CPU web server (or a PLCSIM Advanced instance with the web server enabled)
 ```
 
+The Siemens documentation reader (`siemens_docs`) needs no worker and no TIA Portal either: `SiemensDocsService`
+in the host reads the Fluid Topics REST API of the allowed documentation hosts (default `docs.tia.siemens.cloud` and
+`docs.industrial-operations-x.siemens.cloud`) over HTTPS, without redirects, with a per-host minimum interval,
+timeouts and size caps, and converts topics to Markdown with its own parser. Requests are built only from the
+allowed host and validated ids, never from a caller URL. See the
+[Siemens documentation reference](SupportedOperations/SIEMENS_DOCS_SUMMARY.md).
+
 The PLCSIM worker never touches TIA Portal, the Openness worker or the project binding. The host
 recycles it when the worker sets `WorkerResponse.WorkerRestartRequired` (or a probe reports a failed
 API initialization): .NET keeps a failed type initializer for the process lifetime. A missing DLL
@@ -126,6 +133,11 @@ addresses, certificate rules, credential variable names, timeouts) is registered
 `PlcWebApiService`; startup stderr reports the target count. Credential values are read only at login
 time. See the [PLC online reference](SupportedOperations/PLC_ONLINE_WEBAPI_SUMMARY.md#configuration).
 
+`SiemensDocs/SiemensDocsOptions` resolves `--docs-hosts`, `--docs-locale` and `--docs-min-interval-ms` (separate or `=`
+form), then `TIA_MCP_DOCS_HOSTS`, `TIA_MCP_DOCS_LOCALE`, `TIA_MCP_DOCS_MIN_INTERVAL_MS`, then the defaults (the two
+Siemens hosts, `en-US`, 300 ms), once at startup; a host that is not a plain DNS name (scheme, port, path, IP
+address, `localhost`) or another invalid value rejects startup, and stderr reports the resolved settings.
+
 `Cli/WorkerTimeoutParser` resolves `--worker-timeout-minutes` (separate or `=` form), then
 `TIA_MCP_WORKER_TIMEOUT_MINUTES`, then the default of 5 minutes, once at startup. Whole minutes
 from 5 (the floor) to 60 are accepted; invalid values reject startup. `Program` passes the
@@ -137,7 +149,7 @@ for client limits and mutation recovery.
 
 ### Read-write mode
 
-Read-write exposes thirty tools: ten observation tools (including `plcsim_read`, `plc_online_read` and `library_read`), `bind_project`,
+Read-write exposes thirty-two tools: eleven observation tools (including `plcsim_read`, `plc_online_read`, `library_read` and `siemens_docs`), `tia_inbox`, `bind_project`,
 `compile_check`, `network_write`, `plc_write`, `hmi_write`, `vci_write`, `library_write`, `plcsim_write`, `plcsim_test`, seven
 lifecycle tools, `plc_download`, `plc_online_write`, `plc_tia_online` and `plc_station_upload`. It permits `Observe`, `TemporaryExport`, `SessionSelection`, `Compile`,
 `ProjectMutation`, `ProjectLifecycle`, `OnlineControl`, `SimulationControl` and `OnlineObserve`. The four domain write tools and the
@@ -147,7 +159,7 @@ Reads never bind, switch, or open; `bind_project` selects an already-open projec
 
 ### Full mode
 
-Full exposes the same thirty tools and permits the same capabilities; it adds no tools or
+Full exposes the same thirty-two tools and permits the same capabilities; it adds no tools or
 operations. Lifecycle, `plc_download`, `plc_online_write`, `plc_tia_online`, `plc_station_upload` and global-library lifecycle items of `library_write` run under policy without server elicitation. Block guards stop the call in
 every mode. The Openness PLC run/stop (`start_plc`/`stop_plc`) was removed. `OperationCapability.OnlineControl`
 classifies `plc_download` (PLCSIM or real hardware; the access mode is the only control) and the seven `webapi_*` control
@@ -176,8 +188,8 @@ archives, or closes a project; never compiles;
 and never performs project-data mutations. It operates only on a project that
 is already open in the attached TIA Portal instance.
 
-The read-only surface contains eleven tools: ten observations (including `plcsim_read`,
-`plc_online_read` and `library_read`) and `bind_project` for explicit session selection. Binding can switch the selected Portal/project without project mutation.
+The read-only surface contains thirteen tools: eleven observations (including `plcsim_read`,
+`plc_online_read`, `library_read` and `siemens_docs`), `tia_inbox` and `bind_project` for explicit session selection. Binding can switch the selected Portal/project without project mutation.
 
 Content tools act on the bound project only; with no verified binding (a configured `--project` is grounded by status first) they fail closed with `binding_conflict`; call `bind_project` first.
 Only `bind_project` and `open_project` accept a public `projectPath`; ordinary observation/read tools reject it as an unknown member and never use a path to open or switch projects.
@@ -472,7 +484,7 @@ null and active connection observation `unknown` without a supported owner/endpo
 Explicit endpoint inventory has separate attachment/endpoint-scoped history; refresh timestamps
 do not create identity churn or prove an active-session reconnection. Capability descriptions
 grant no permission. Strict required-member/coherence decoding precedes existing 60,000-value
-and 180,000-document budgets. Current counts are 11/30/30 (read-only/read-write/full).
+and 180,000-document budgets. Current counts are 13/32/32 (read-only/read-write/full; `tia_inbox` of "Claude in TIA" is in every mode).
 PR4's [scoped live report](superpowers/acceptance/reports/2026-10-08-multiuser-pr4-live-verification.md)
 retains both failed noninteractive offline opens, UI-assisted success, restoration and
 unexecuted rows. Content/session/markings/mutations remain undelivered; see the
@@ -576,7 +588,7 @@ directories and remove them in `finally` blocks.
 
 ## 7. Batch and network execution
 
-`PlcOperationCatalog` and `PlcWorkerInvoker` own the 54 `plc_read` operations and the 202 `plc_write`
+`PlcOperationCatalog` and `PlcWorkerInvoker` own the 63 `plc_read` operations and the 212 `plc_write`
 operations, sharing one `PlcOperationRequest` between read and write. The granular block edits
 (`PlcBlockEditMethods`) keep that split: interface member edits are planned by
 `PlcInterfaceEditPlanner` on the exported SimaticML with the Siemens-free
@@ -1507,7 +1519,7 @@ types is bound at runtime by the Siemens-free `PlcAccessibleDeviceProjection` (C
 ### PLC alarms, alarm classes, text lists, supervisions and ProDiag (`plc_read`, `plc_write`)
 
 The six reads and sixteen writes are `plc_read`/`plc_write` operations (`PlcAlarmMethods`, Contracts) whose worker
-methods carry the public names and whose parameters travel in `WorkerRequest.PlcAlarm`; the tool surface stays 11/30/30.
+methods carry the public names and whose parameters travel in `WorkerRequest.PlcAlarm`; the tool surface stays 13/32/32.
 Host code lives in `TiaMcpServer/PlcAlarms/`: the catalog partial `PlcOperationCatalog.Alarms.cs` (field sets and shape
 rules, including "a cell update cannot follow another change of the same PLC in one call"), `PlcAlarmPayloadContract`
 (one declared result type per operation; TIA Portal confirmation evidence checked and declined dialogs failing the item),

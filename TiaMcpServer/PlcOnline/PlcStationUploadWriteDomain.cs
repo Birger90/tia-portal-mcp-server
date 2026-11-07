@@ -65,6 +65,7 @@ public sealed class PlcStationUploadWriteDomain
             + (effect.DecisionKeys.Count + effect.PasswordKeys.Count == 0
                 ? "Any upload decision or password prompt aborts the upload."
                 : $"Prompts are answered only for: {ConfirmationText.Line(string.Join(", ", effect.DecisionKeys.Concat(effect.PasswordKeys)))}; any other aborts.")
+            + TiaMcpServer.PlcDownload.PlcDownloadWriteDomain.PasswordChannelSentence(effect.PasswordKeys.Count > 0, effect.AllowInsecurePasswordTransfer == true)
             + TiaMcpServer.PlcDownload.PlcDownloadWriteDomain.TrustSentence(effect.TrustedCertificates, "upload") + " "
             + PlcOnlineConnectionWriteDomain.PortalConfirmationSentence(effect.PortalConfirmations);
     }
@@ -151,6 +152,7 @@ public sealed class PlcStationUploadWriteDomain
             Passwords = item.Passwords.ToList(),
             PortalConfirmations = planned.PortalConfirmations,
             TrustedCertificates = planned.TrustedCertificates.ToList(),
+            AllowInsecurePasswordTransfer = planned.AllowInsecurePasswordTransfer == true,
         });
     }
 
@@ -168,7 +170,7 @@ public sealed class PlcStationUploadWriteDomain
     {
         PlcStationUploadResultInfo Decode(string payload, bool requireUploadResult)
             => PlcOnlinePayloadContract.DecodeUpload(payload, planned.Address, planned.Path, decisions, passwords, requireUploadResult,
-                planned.PortalConfirmations, planned.TrustedCertificates);
+                planned.PortalConfirmations, planned.TrustedCertificates, planned.AllowInsecurePasswordTransfer == true);
 
         if (!result.Success)
         {

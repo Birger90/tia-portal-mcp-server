@@ -95,6 +95,7 @@ public static partial class PlcSettingsRun
         PlcSettingsResultInfo result, List<string> warnings)
     {
         if (PlcSettingsCatalog.Find(method) is not { Issue: 12 }) return false;
+        if (WriteUmacMore(method, context, info, result)) return true;
         if (method == M.SetUmacPasswordPolicy)
         {
             var (policy, policyOwner) = RequireService(context, new[] { RequireProject(context) }, N.PasswordPolicy, "The project");

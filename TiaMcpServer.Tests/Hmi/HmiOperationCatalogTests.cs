@@ -41,7 +41,7 @@ public class HmiOperationCatalogTests
     [Fact]
     public void SharedReadAndWriteLists_AreDisjoint()
     {
-        Assert.Equal(63, HmiReadMethods.All.Concat(HmiWriteMethods.All).Distinct(StringComparer.Ordinal).Count());
+        Assert.Equal(66, HmiReadMethods.All.Concat(HmiWriteMethods.All).Distinct(StringComparer.Ordinal).Count());
     }
 
     // Wire field name -> setter. The same names the catalog and the tool schema use.

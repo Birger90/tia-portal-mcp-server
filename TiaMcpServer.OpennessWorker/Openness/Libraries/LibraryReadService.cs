@@ -84,8 +84,11 @@ internal static partial class LibraryReadService
 
         if (content != LibraryPolicy.TreeContents.MasterCopies)
         {
-            var root = LibraryResolver.ResolveFolder(library.Library, start);
-            Walk(root, start.ToList(), 1);
+            // K82: a library without a type folder (system libraries) lists no types; the master copies are still walked.
+            if (start.Count == 0 && LibraryResolver.TypeFolderOrNull(library.Library) is null)
+                Incomplete("the library has no type folder (ILibrary.TypeFolder is null, as for some system libraries), so no types are listed");
+            else
+                Walk(LibraryResolver.ResolveFolder(library.Library, start), start.ToList(), 1);
         }
 
         void Walk(LibraryTypeFolder folder, List<string> path, int depth)

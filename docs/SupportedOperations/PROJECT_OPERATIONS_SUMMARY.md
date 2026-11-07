@@ -88,7 +88,7 @@ Results add conditional `result.value.inspection`, with observed PID and typed n
 `transition:"none"` and `project:null`. Whole-value omission includes the inventory. See the
 [Multiuser reference](MULTIUSER_OPERATIONS_SUMMARY.md) for selectors, examples, current-user scope,
 lock/error/omission limits and scoped live evidence. PR3 discovery was 7/17/17;
-current discovery is 11/30/30 with the standalone VCI and library tools, `plc_download`, `plc_tia_online`, `plc_station_upload`, the S7-PLCSIM Advanced tools and the S7-1500 Web API tools.
+current discovery is 13/32/32 with the standalone VCI and library tools, `plc_download`, `plc_tia_online`, `plc_station_upload`, the S7-PLCSIM Advanced tools and the S7-1500 Web API tools.
 
 ### Local-session identity and basic status
 
@@ -314,7 +314,7 @@ the plain project status only — it never enumerates history or the extended me
 ## Lifecycle operations
 
 All seven lifecycle tools are available in read-write and full; the complete mode counts are
-11/30/30. Read-write requires one confirmation form per actual call; full executes under policy
+13/32/32. Read-write requires one confirmation form per actual call; full executes under policy
 without server elicitation. Block guards stop a call in every mode. Ordinary reads never bind,
 switch or open; use `bind_project` for already-open projects and open/create for deliberate opening.
 
@@ -396,6 +396,20 @@ mapping; message text is matched only for this one recognised case. Siemens also
 of a modified project with `saveBeforeArchive:false`; save first or use `saveBeforeArchive:true`
 before archiving. These are typed
 attempted-operation failures, so inspect state before a new call.
+
+### Clearer failure texts (audit T6/T9/T11, not live-tested)
+
+- `open_project` (and the open inside `bind_project`/rebind): `ProjectComposition.Open(FileInfo)` documents
+  `MissingProductsException`; it now fails `worker_operation_failed` with a text that names the missing products,
+  optional packages or support packages and says nothing was opened, plus the Siemens message in `engineeringError`
+  (matched by exact full name, `EngineeringFailureHints`). The UMAC open (`UmacDelegate`) and the `Authentication` event stay
+  out of this package.
+- Any `EngineeringSecurityException` keeps its category and gets a text that names a security refusal and, for
+  UMAC-protected projects, the Openness function right (name from a third-party guide, not verified).
+- `portal_lost` (a `NonRecoverableException` or a lost Portal) and a worker that stopped during a read no longer say a
+  retry is safe: the text says not to repeat the same call unattended and to check TIA Portal and its crash report first
+  (the diagnostics folder is named from a third-party guide, not verified). A read timeout says a retry changes nothing in
+  the project but may hang TIA Portal again.
 
 ### Retrieving an archive (`retrieve_project`)
 

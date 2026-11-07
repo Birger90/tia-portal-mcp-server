@@ -222,7 +222,8 @@ public sealed class PlcCallbackRecorderTlsTests
         var recorder = new PlcCallbackRecorder(null, null, new PlcCallbackReflectionAccess(OnlineAndUpload, _ => null, _ => null),
             trustedCertificates: new[] { TestCertificates.Sha256(leaf) });
 
-        Assert.Throws<PlcCallbackAbortedException>(() => recorder.Handle(new Siemens.Engineering.Upload.Configurations.UploadMissingProducts()));
+        // Audit T2: the unanswered UploadMissingProducts is answered NoAction and recorded as the abort without a throw.
+        recorder.Handle(new Siemens.Engineering.Upload.Configurations.UploadMissingProducts());
         // Even an approved certificate is never trusted after an abort; NonTrusted is set and nothing is thrown (K27).
         var late = new TlsVerificationConfiguration("PLC_1", "info", leaf);
         recorder.Handle(late);
@@ -388,9 +389,10 @@ public sealed class PlcCallbackRecorderTlsTests
         Assert.Contains(TestCertificates.Sha256(leaf), message);
         Assert.Contains("trustedCertificates", message);
 
-        // Every later download configuration is recorded as aborted, answered nothing and thrown (unchanged; no live evidence).
-        Assert.Throws<PlcDownloadAbortedException>(() => recorder.PreDownload(new Siemens.Engineering.Download.Configurations.StopModules()));
-        Assert.Equal(PlcDownloadPolicy.Decisions.Aborted, result.ConfigurationsSeen[1].Decision);
+        // Audit T2: a later download selection with a documented NoAction is answered NoAction (source policy) without a throw.
+        recorder.PreDownload(new Siemens.Engineering.Download.Configurations.StopModules());
+        Assert.Equal((PlcDownloadPolicy.Decisions.Selected, "NoAction", PlcDownloadPolicy.Sources.Policy),
+            (result.ConfigurationsSeen[1].Decision, result.ConfigurationsSeen[1].Selection, result.ConfigurationsSeen[1].Source));
         // A later TLS question is refused again without a throw, and the first abort stays.
         var again = new TlsVerificationConfiguration("PLC_1", "info", leaf);
         recorder.OnlineLegitimation(again);

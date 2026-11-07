@@ -59,6 +59,10 @@ public static partial class HmiWriteCatalog
         ["create_plant_view_node"] = Op("plantViewName nodeName", "nodePath plantObjectType"),
         ["delete_plant_view_node"] = Op("plantViewName nodePath"),
         ["set_plant_object_interface_property"] = Op("plantViewName nodePath interfaceName propertyName value", "culture"),
+        // Package G (not live-tested).
+        ["resize_screen"] = Op("screenName", "groupPath"),
+        ["set_log_duration"] = Op("objectName propertyName value"),
+        ["set_opcua_alarm_type_node"] = Op("objectName value connection"),
     };
 
     private static readonly (string Name, Func<HmiWriteOperationRequest, object?> Get)[] Fields =

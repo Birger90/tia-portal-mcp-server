@@ -74,4 +74,25 @@ public class HmiUnifiedConfigurationMcpTests
         Assert.Contains("'nodeName' is invalid", Error(new() { OperationId = "a", Operation = "create_plant_view_node", PlantViewName = "P", NodeName = "a/b" }));
         Assert.True(HmiWriteCatalog.ValidateWrite(new[] { new HmiWriteOperationRequest { OperationId = "a", Operation = "set_runtime_setting", SettingsSection = "OpcUaServerRuntimeSettings", PropertyName = "Port", Value = "4840" } }).IsValid);
     }
+
+    [Fact]
+    public async Task PackageG_ResizeLogDurationAndOpcUaAlarmTypeNode()
+    {
+        using var audit = new TempAuditDirectory();
+        await using var harness = await McpProtocolTestHarness.StartProductionSurfaceAsync(McpAccessMode.ReadWrite, audit.Path, Scenario);
+        foreach (var operation in new object[]
+        {
+            new { operationId = "r", operation = "resize_screen", hmiName = "H", screenName = "Main" },
+            new { operationId = "l", operation = "set_log_duration", hmiName = "H", objectName = "DataLog_1", propertyName = "DataLog.LogTimePeriod", value = "7:0:0:0" },
+            new { operationId = "o", operation = "set_opcua_alarm_type_node", hmiName = "H", objectName = "OpcUaAlarm_1", value = "ns=2;s=Alarm", connection = "OPC_1" },
+        })
+        {
+            var applied = await CallAsync(harness, "hmi_write", [operation]);
+            Assert.True(applied.GetProperty("success").GetBoolean(), applied.GetRawText());
+        }
+
+        var invalid = await CallAsync(harness, "hmi_write", [new { operationId = "x", operation = "set_log_duration", hmiName = "H", objectName = "DataLog_1", propertyName = "LogTimePeriod", value = "7 days" }]);
+        Assert.False(invalid.GetProperty("success").GetBoolean());
+        Assert.Contains("days:hours:minutes:seconds", invalid.GetRawText(), StringComparison.Ordinal);
+    }
 }

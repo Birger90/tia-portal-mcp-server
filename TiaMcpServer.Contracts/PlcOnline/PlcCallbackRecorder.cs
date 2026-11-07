@@ -67,10 +67,16 @@ public static class PlcCallbackPolicy
         /// <summary>A TLS verification configuration whose presented certificates are not all in <c>trustedCertificates</c>.</summary>
         public const string CertificateNotTrusted = PlcTlsTrustPolicy.CertificateNotTrustedReason;
 
+        /// <summary>
+        /// Audit T1: a password configuration whose <c>IsSecureCommunication</c> is false or unreadable, without the call's
+        /// <c>allowInsecurePasswordTransfer</c>; the password was not sent (<see cref="PlcPasswordChannel"/>).
+        /// </summary>
+        public const string InsecureCommunication = PlcPasswordChannel.InsecureCommunicationReason;
+
         public static IReadOnlyList<string> All { get; } = new[]
         {
             DecisionMissing, UnsupportedConfiguration, SelectionUnavailable, PasswordUnavailable,
-            DecisionNotApplicable, AnswerRejected, ConfigurationLimitExceeded, CertificateNotTrusted,
+            DecisionNotApplicable, AnswerRejected, ConfigurationLimitExceeded, CertificateNotTrusted, InsecureCommunication,
         };
     }
 
@@ -305,7 +311,14 @@ public sealed class PlcCallbackRecorder
     private readonly IReadOnlyList<string> _trusted;
     private readonly bool _plcSimInterface;
     private readonly Func<object, IReadOnlyCollection<string>, PlcTlsVerificationInfo> _readTls;
+    private readonly bool _allowInsecurePasswordTransfer;
+    private readonly Func<object, bool?> _readSecureCommunication;
 
+    /// <param name="allowInsecurePasswordTransfer">
+    /// Audit T1: the caller's <c>allowInsecurePasswordTransfer</c>. False: a password configuration whose <c>IsSecureCommunication</c>
+    /// is false or unreadable aborts with <c>insecure_communication</c> before <c>SetPassword</c>.
+    /// </param>
+    /// <param name="readSecureCommunication">Reads <c>IsSecureCommunication</c>; defaults to <see cref="PlcPasswordChannel.TryRead"/>.</param>
     /// <param name="trustedCertificates">
     /// Normalized SHA-256 fingerprints (<see cref="PlcTlsTrustPolicy.NormalizeFingerprint"/>) the caller approved; the only
     /// way a TLS verification configuration can be answered <c>Trusted</c>. Null or empty trusts nothing.
@@ -313,9 +326,11 @@ public sealed class PlcCallbackRecorder
     /// <param name="readTls">Reads the TLS evidence of a live configuration; defaults to <see cref="PlcTlsTrustPolicy.Read"/>.</param>
     public PlcCallbackRecorder(IReadOnlyList<PlcCallbackDecisionInfo>? decisions, IReadOnlyList<PlcCallbackPasswordInfo>? passwords,
         IPlcCallbackAccess access, Func<Exception, bool>? isFatal = null, IReadOnlyList<string>? trustedCertificates = null,
-        Func<object, IReadOnlyCollection<string>, PlcTlsVerificationInfo>? readTls = null, bool plcSimInterface = false)
+        Func<object, IReadOnlyCollection<string>, PlcTlsVerificationInfo>? readTls = null, bool plcSimInterface = false,
+        bool allowInsecurePasswordTransfer = false, Func<object, bool?>? readSecureCommunication = null)
     {
         _plcSimInterface = plcSimInterface;
+        _allowInsecurePasswordTransfer = allowInsecurePasswordTransfer;
         _selections = (decisions ?? Array.Empty<PlcCallbackDecisionInfo>()).ToDictionary(d => d.Type, d => d.Selection, StringComparer.Ordinal);
         _passwords = (passwords ?? Array.Empty<PlcCallbackPasswordInfo>()).ToDictionary(p => p.Type, p => p.Variable, StringComparer.Ordinal);
         _access = access ?? throw new ArgumentNullException(nameof(access));
@@ -323,6 +338,7 @@ public sealed class PlcCallbackRecorder
         // Only normalized fingerprints can ever match (the evidence is normalized); anything else is ignored.
         _trusted = (trustedCertificates ?? Array.Empty<string>()).Where(PlcTlsTrustPolicy.IsNormalizedFingerprint).Distinct(StringComparer.Ordinal).ToArray();
         _readTls = readTls ?? ((configuration, trusted) => PlcTlsTrustPolicy.Read(configuration, trusted, _isFatal));
+        _readSecureCommunication = readSecureCommunication ?? (configuration => PlcPasswordChannel.TryRead(configuration, _isFatal));
     }
 
     /// <summary>A snapshot of every presented configuration, in order.</summary>
@@ -372,6 +388,14 @@ public sealed class PlcCallbackRecorder
             if (_seen.Count <= PlcCallbackPolicy.MaxConfigurations) _seen.Add(late);
             // A later TLS question is never trusted; it is refused with NonTrusted without a throw where possible (K27).
             if (PlcTlsTrustPolicy.IsTlsVerification(late.CanonicalType) && RefuseTlsAfterAbort(configuration, late)) return;
+            // Audit T2: a later selection with a documented NoAction is answered NoAction without a throw.
+            if (!PlcTlsTrustPolicy.IsTlsVerification(late.CanonicalType) && _seen.Count <= PlcCallbackPolicy.MaxConfigurations
+                && OffersNoAction(late) && TryApply(configuration, PlcPasswordChannel.NoActionSelection))
+            {
+                Answered(late, PlcPasswordChannel.NoActionSelection);
+                return;
+            }
+
             throw new PlcCallbackAbortedException(AbortMessage(_abort));
         }
 
@@ -399,9 +423,18 @@ public sealed class PlcCallbackRecorder
     private void AnswerSelection(object configuration, PlcCallbackConfigurationInfo entry, string key)
     {
         if (_passwords.ContainsKey(key))
-            Fail(entry, PlcCallbackPolicy.AbortReasons.DecisionNotApplicable, "a password was supplied, but it is a selection configuration");
+        {
+            FailOrNoAction(configuration, entry, PlcCallbackPolicy.AbortReasons.DecisionNotApplicable, "a password was supplied, but it is a selection configuration");
+            return;
+        }
+
         if (!_selections.TryGetValue(key, out var selection))
-            Fail(entry, PlcCallbackPolicy.AbortReasons.DecisionMissing, $"no decision was supplied; pass decisions {{ \"{key}\": \"<one of the available selections>\" }}");
+        {
+            FailOrNoAction(configuration, entry, PlcCallbackPolicy.AbortReasons.DecisionMissing,
+                $"no decision was supplied; pass decisions {{ \"{key}\": \"<one of the available selections>\" }}");
+            return;
+        }
+
         _used.Add(key);
         bool applied;
         try
@@ -414,9 +447,33 @@ public sealed class PlcCallbackRecorder
             throw;
         }
 
-        if (!applied) Fail(entry, PlcCallbackPolicy.AbortReasons.SelectionUnavailable, $"'{selection}' is not a member of its selection enum");
+        if (!applied)
+        {
+            FailOrNoAction(configuration, entry, PlcCallbackPolicy.AbortReasons.SelectionUnavailable, $"'{selection}' is not a member of its selection enum");
+            return;
+        }
+
         entry.Decision = PlcCallbackPolicy.Decisions.Selected;
         entry.Selection = selection;
+    }
+
+    private static bool OffersNoAction(PlcCallbackConfigurationInfo entry)
+        => entry.Kind == PlcCallbackPolicy.Kinds.Selection && entry.AvailableSelections.Contains(PlcPasswordChannel.NoActionSelection, StringComparer.Ordinal);
+
+    /// <summary>
+    /// Audit T2: an unanswered selection configuration whose live enum documents <c>NoAction</c> is answered NoAction and the
+    /// abort is recorded WITHOUT a throw (TIA Portal then fails or skips the step itself; K27); otherwise it aborts by throwing.
+    /// </summary>
+    private void FailOrNoAction(object configuration, PlcCallbackConfigurationInfo entry, string reason, string detail)
+    {
+        if (OffersNoAction(entry) && TryApply(configuration, PlcPasswordChannel.NoActionSelection))
+        {
+            _abort = AbortOf(entry, reason, detail + "; answered NoAction instead of aborting by a throw");
+            Answered(entry, PlcPasswordChannel.NoActionSelection);
+            return;
+        }
+
+        Fail(entry, reason, detail);
     }
 
     private void AnswerPassword(object configuration, PlcCallbackConfigurationInfo entry, string key)
@@ -426,6 +483,21 @@ public sealed class PlcCallbackRecorder
         if (!_passwords.TryGetValue(key, out var variable))
             Fail(entry, PlcCallbackPolicy.AbortReasons.DecisionMissing, $"no password was supplied; pass passwords {{ \"{key}\": \"<NAME of an environment variable of the server process>\" }}");
         _used.Add(key);
+        // Audit T1: IsSecureCommunication before SetPassword; only a fatal exception escapes the reader.
+        bool? secure;
+        try
+        {
+            secure = _readSecureCommunication(configuration);
+        }
+        catch (Exception ex)
+        {
+            Rejected(entry, ex);
+            throw;
+        }
+
+        entry.SecureCommunication = secure;
+        if (!PlcPasswordChannel.MaySend(secure, _allowInsecurePasswordTransfer))
+            Fail(entry, PlcCallbackPolicy.AbortReasons.InsecureCommunication, PlcPasswordChannel.RefusalDetail(secure));
         bool applied;
         try
         {

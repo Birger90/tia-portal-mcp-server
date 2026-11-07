@@ -240,6 +240,23 @@ public class CrossReferenceReaderTests
     }
 
     [Fact]
+    public void SafetyUnitContainer_IsReadLikeASoftwareUnit_AndThePlcIncludesIt()
+    {
+        // Audit T4: PlcUnitSystemGroup.SafetyUnits are part of the PLC's owners.
+        var (project, plc) = Fixture();
+        var safety = new PlcSafetyUnit { Name = "SafetyUnit_1" };
+        safety.BlockGroup.Blocks.Items.Add(new FC { Name = "F_FC", CrossReferenceService = Service("safetyFC") });
+        plc.UnitProvider = new PlcUnitProvider();
+        plc.UnitProvider.UnitGroup.SafetyUnits.Items.Add(safety);
+        var path = PlcPath.Path.Append(new ProjectTreeSelectorSegment { NodeType = ProjectTreeNodeTypes.SoftwareUnit, Name = "SafetyUnit_1" }).ToList();
+
+        var report = CrossReferenceReader.Read(project, new CrossReferenceSelectorInfo { Path = path }, CrossReferenceFilterNames.AllObjects);
+
+        Assert.Equal(new[] { "safetyFC" }, report.Sources.Select(source => source.Name));
+        Assert.True(report.IsComplete);
+    }
+
+    [Fact]
     public void MemberTargetQueriesOnlyThatMember()
     {
         var (project, plc) = Fixture();

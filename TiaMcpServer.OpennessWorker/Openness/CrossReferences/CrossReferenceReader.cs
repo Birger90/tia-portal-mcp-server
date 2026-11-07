@@ -56,7 +56,7 @@ public static class CrossReferenceReader
             case PlcSoftware software:
                 ReadSoftware(software, query, report);
                 break;
-            case PlcUnit unit:
+            case PlcUnitBase unit:
                 ReadUnit(unit, query, report);
                 break;
             case PlcSystemBlockGroup group:
@@ -89,11 +89,12 @@ public static class CrossReferenceReader
         {
             var provider = software.GetService<PlcUnitProvider>();
             if (provider is null) return; // Software units are optional, not a missing source-owner service.
-            Visit(() => provider.UnitGroup.Units, unit => ReadUnit(unit, query, report), report);
+            // Audit T4: standard and safety units.
+            Visit(() => Plc.PlcUnits.All(provider.UnitGroup), unit => ReadUnit(unit, query, report), report);
         }, report);
     }
 
-    private static void ReadUnit(PlcUnit unit, Action<IEngineeringServiceProvider> query, CrossReferenceReport report)
+    private static void ReadUnit(PlcUnitBase unit, Action<IEngineeringServiceProvider> query, CrossReferenceReport report)
     {
         TryRead(() => ReadBlocks(unit.BlockGroup, query, report), report);
         TryRead(() => ReadTags(unit.TagTableGroup, query, report), report);

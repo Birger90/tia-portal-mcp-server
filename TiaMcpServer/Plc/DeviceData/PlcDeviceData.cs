@@ -49,6 +49,13 @@ internal static class PlcDeviceData
                 guards.Add(new FiredGuard(PlcGuardDefinitions.MasterSecretOnline, item.OperationId,
                     $"reset_plc_master_secret_online deletes the master secret of the ONLINE PLC '{plc.PlcName}' (a real controller or simulation, connected with plc_tia_online); protected confidential data of the PLC may become unusable."));
                 break;
+            case PlcDeviceDataMethods.LoadSnapshotAsActualValues:
+            case PlcDeviceDataMethods.LoadStartValuesAsActualValues:
+                changes.Add(new("blockPath", null, item.BlockPath));
+                guards.Add(new FiredGuard(PlcGuardDefinitions.LoadsActualValuesOnline, item.OperationId,
+                    $"{item.Operation} overwrites the actual values of DB '{item.BlockPath}' in the ONLINE PLC '{plc.PlcName}' (a real controller or simulation, connected with plc_tia_online) with the DB's "
+                    + (item.Operation == PlcDeviceDataMethods.LoadSnapshotAsActualValues ? "stored snapshot (plc_read get_db_snapshot shows it)." : "start values (the offline project's StartValue of each member).")));
+                break;
         }
 
         return (new PlcWriteEffect(item.Operation, target, changes, item.DirectoryPath, null, null, null), guards);
@@ -56,9 +63,11 @@ internal static class PlcDeviceData
 
     public static PlcDeviceDataRequestInfo ToRequest(PlcOperationRequest op) => new()
     {
-        Operation = op.Operation, PlcName = op.PlcName, DirectoryPath = op.DirectoryPath, RhSystem = op.RhSystem == true,
+        Operation = op.Operation,
+        PlcName = PlcDeviceDataMethods.IsActualValues(op.Operation) && op.BlockPath is not null ? Contracts.Block.BlockAddress.Parse(op.BlockPath).PlcName : op.PlcName, DirectoryPath = op.DirectoryPath, RhSystem = op.RhSystem == true,
         Overwrite = op.Operation == PlcDeviceDataMethods.DownloadToFolder && op.Overwrite == true,
         PasswordVariable = op.PasswordVariable,
+        BlockPath = PlcDeviceDataMethods.IsActualValues(op.Operation) ? op.BlockPath : null,
         PortalConfirmations = op.PortalConfirmations ?? PlcDownloadPolicy.PortalConfirmationPolicies.Decline,
     };
 
@@ -79,7 +88,9 @@ internal static class PlcDeviceData
                 && (result.Evidence != "verified" || result.Files.Count == 0 || result.Files.Any(f => f.Sha256 is not { Length: 64 })))
                 throw new JsonException("A folder download result without its files.");
             if (PlcDeviceDataMethods.IsOnline(item.Operation) && (result.Evidence != "notReadBack" || result.OnlineState != "Online"))
-                throw new JsonException("An online master secret result without its online state.");
+                throw new JsonException("An online result without its online state.");
+            if (PlcDeviceDataMethods.IsActualValues(item.Operation) != (result.BlockPath is not null))
+                throw new JsonException("An actual-values result without its DB, or another result with one.");
             if (item.Operation == PlcDeviceDataMethods.SetMasterSecretOnline && result.PasswordSource != item.PasswordVariable)
                 throw new JsonException("The master secret result names another password source.");
         }).Element;
@@ -87,7 +98,9 @@ internal static class PlcDeviceData
     public static WriteOperationVerification Verify(PlcOperationRequest item, StructuredOperationFailure? failure, IReadOnlyDictionary<string, JsonElement> results)
     {
         if (failure is not null)
-            return new(item.OperationId, false, Check, null, null, PlcDeviceDataMethods.IsOnline(item.Operation)
+            return new(item.OperationId, false, Check, null, null, PlcDeviceDataMethods.IsActualValues(item.Operation)
+                ? $"Operation '{item.OperationId}' failed with {failure.Category}; actual values of DB '{item.BlockPath}' in the online PLC may or may not have changed. Inspect the PLC before retrying."
+                : PlcDeviceDataMethods.IsOnline(item.Operation)
                 ? $"Operation '{item.OperationId}' failed with {failure.Category}; the online PLC's master secret may or may not have changed. Inspect the PLC before retrying."
                 : $"Operation '{item.OperationId}' failed with {failure.Category}; files may already have been written to '{item.DirectoryPath}'.");
         if (!results.TryGetValue(item.OperationId, out var element))
@@ -97,11 +110,12 @@ internal static class PlcDeviceData
             ? new(item.OperationId, true, Check, null, null,
                 $"Operation '{item.OperationId}': {result.Call} wrote {result.Files.Count} file(s) into '{result.DirectoryPath}', re-read and hashed by the worker.")
             : new(item.OperationId, false, Check, null, null,
-                $"Operation '{item.OperationId}': {result.Call} returned on the online PLC (state {result.OnlineState}), but no documented member reads the master secret back: {result.Note}");
+                $"Operation '{item.OperationId}': {result.Call} returned on the online PLC (state {result.OnlineState}), but nothing documented reads it back: {result.Note}");
     }
 
     public static IReadOnlyList<string> ObjectKeys(PlcOperationRequest item, string scope)
         => item.Operation == PlcDeviceDataMethods.DownloadToFolder
             ? new[] { $"{scope}downloadfolder\n{item.DirectoryPath}" }
+            : PlcDeviceDataMethods.IsActualValues(item.Operation) ? new[] { $"{scope}online\nactualvalues\n{item.BlockPath}" }
             : new[] { $"{scope}online\nmastersecret" };
 }

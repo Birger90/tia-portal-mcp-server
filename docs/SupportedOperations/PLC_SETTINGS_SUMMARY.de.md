@@ -245,3 +245,5 @@ Ausgelassen (Issue #25), nach der Regel, dass der MCP nie für eine Person einen
 - **`SafetyFunction.Export`** (SimaticML einer Funktion): zusammen mit den zugehörigen Importen ausgelassen; `export_activation_test`
   exportiert den ganzen Test.
 - **Überladungen von `Export` mit `DocumentInfoOptions`:** Die Optionen sind über ihren Typ hinaus nicht dokumentiert.
+
+Paket G ergänzt die UMAC-Operationen um `protect_project`, `create_offline_umc_user`, `create_offline_umc_user_group`, `import_umc_user` und die Lesezugriffe `get_umc_server_user`, `check_umc_consistency`; siehe [Referenz Vervollständigung der V21-API](V21_API_COMPLETION_SUMMARY.de.md).

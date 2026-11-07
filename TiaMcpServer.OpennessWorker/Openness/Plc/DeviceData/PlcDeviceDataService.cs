@@ -96,6 +96,36 @@ internal static class PlcDeviceDataService
                 result.Note = "No documented member reads the PLC's master secret back; inspect the PLC (plc_read get_plc_security shows the offline configuration only).";
                 return result;
             }
+            case PlcDeviceDataMethods.LoadSnapshotAsActualValues:
+            case PlcDeviceDataMethods.LoadStartValuesAsActualValues:
+            {
+                // Package G (not live-tested): ValueService is a service of the DB's Interface (BetterTIA/watch, see PlcBlockEditService.Snapshot);
+                // both members are documented in V21 Siemens.Engineering.Step7.xml without parameters. Bound before the online check.
+                var (values, canonicalPath, _, _) = Openness.Block.PlcBlockEditService.ResolveValueService(project, request.BlockPath);
+                var name = request.Operation == PlcDeviceDataMethods.LoadSnapshotAsActualValues ? "LoadSnapshotAsActualValues" : "LoadStartValuesAsActualValues";
+                var method = TiaMcpServer.Contracts.Library.LibraryRuntimeBinding.Find(values.GetType(), name, Type.EmptyTypes, out var error)
+                    ?? throw new WorkerOperationException(WorkerFailureCategories.ApiMemberMissing, $"ValueService.{name}() is not available: {error} Nothing was changed.");
+                var online = host.GetService<OnlineProvider>() ?? throw new WorkerOperationException(WorkerFailureCategories.TargetKindUnsupported,
+                    $"PLC '{plc.Software.Name}' offers no OnlineProvider.");
+                result.OnlineState = online.State.ToString();
+                if (result.OnlineState != "Online")
+                    throw new WorkerOperationException(WorkerFailureCategories.StateChanged,
+                        $"PLC '{plc.Software.Name}' is {result.OnlineState}, not Online: connect first with plc_tia_online go_online. Nothing was changed.");
+                result.BlockPath = canonicalPath;
+                result.Call = $"ValueService.{name}()";
+                try
+                {
+                    method.Invoke(values, Array.Empty<object>());
+                }
+                catch (System.Reflection.TargetInvocationException exception) when (exception.InnerException is not null)
+                {
+                    System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(exception.InnerException).Throw();
+                }
+
+                result.Evidence = "notReadBack";
+                result.Note = "Openness documents no read of a CPU's actual values; check them in TIA Portal (monitor the DB online) or with plc_online_read over the Web API.";
+                return result;
+            }
             default:
                 throw new WorkerOperationException(WorkerFailureCategories.ValidationError, $"Unsupported operation '{request.Operation}'.");
         }
@@ -113,10 +143,9 @@ internal static class PlcDeviceDataService
         object provider;
         if (request.RhSystem)
         {
-            var offered = TechnologyObjectRuntime.ServiceTypes(host);
-            var (service, unavailable) = RuntimeServiceValues.Find(offered, type => TechnologyObjectRuntime.TryService(host, offered, type.FullName!, out _), PlcDeviceDataNames.RhDownloadProvider);
-            provider = service ?? throw new WorkerOperationException(WorkerFailureCategories.UnsupportedCapability,
-                (unavailable ?? RuntimeServiceValues.NotListed($"The device item of PLC '{result.PlcName}'", PlcDeviceDataNames.RhDownloadProvider)) + " Nothing was written.");
+            // Audit T3: the CPU device item, then its parents up to the Device (not live-tested).
+            provider = RhSystemProviders.Find(host, PlcDeviceDataNames.RhDownloadProvider, result.PlcName ?? string.Empty, out _, out var notFound)
+                ?? throw new WorkerOperationException(WorkerFailureCategories.UnsupportedCapability, notFound + " Nothing was written.");
             result.Call = "RHDownloadProvider.Download(DirectoryInfo, DownloadConfigurationDelegate)";
         }
         else

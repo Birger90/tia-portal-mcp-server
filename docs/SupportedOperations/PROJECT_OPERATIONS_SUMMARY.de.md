@@ -91,7 +91,7 @@ fügen bedingt `result.value.inspection` hinzu, mit beobachteter PID und typisie
 `transition:"none"` und `project:null`. Das Weglassen des gesamten Werts schließt das Inventar ein. Siehe die
 [Multiuser-Referenz](MULTIUSER_OPERATIONS_SUMMARY.de.md) für Selektoren, Beispiele, den Umfang des aktuellen
 Benutzers, Grenzen für Sperren/Fehler/Weglassungen und den abgegrenzten Live-Nachweis. Die Discovery in PR3 war
-7/17/17; die aktuelle Discovery ist 11/30/30 mit den Standalone-Tools für VCI und Bibliotheken, `plc_download`,
+7/17/17; die aktuelle Discovery ist 13/32/32 mit den Standalone-Tools für VCI und Bibliotheken, `plc_download`,
 `plc_tia_online`, `plc_station_upload`, den S7-PLCSIM-Advanced-Tools und den S7-1500-Web-API-Tools.
 
 ### Identität und Basisstatus lokaler Sessions
@@ -320,7 +320,7 @@ sie zählt nie den Verlauf oder die erweiterte Metadatenoberfläche auf.
 
 ## Lifecycle-Operationen
 
-Alle sieben Lifecycle-Tools sind in read-write und full verfügbar; die vollständigen Modusanzahlen sind 11/30/30.
+Alle sieben Lifecycle-Tools sind in read-write und full verfügbar; die vollständigen Modusanzahlen sind 13/32/32.
 Read-write verlangt ein Bestätigungsformular je tatsächlichem Aufruf; full führt unter Policy ohne
 Server-Elicitation aus. Block-Guards stoppen einen Aufruf in jedem Modus. Gewöhnliche Lesevorgänge binden, schalten
 um oder öffnen nie; für bereits geöffnete Projekte dient `bind_project`, für bewusstes Öffnen open/create.
@@ -405,6 +405,21 @@ Ein anderer Wortlaut (eine andere UI-Sprache) behält die generische Zuordnung; 
 einen erkannten Fall abgeglichen. Siemens lehnt auch das Archivieren eines geänderten Projekts mit
 `saveBeforeArchive:false` ab; vor dem Archivieren zuerst speichern oder `saveBeforeArchive:true` verwenden. Dies
 sind typisierte Fehlschläge versuchter Operationen, daher ist vor einem neuen Aufruf der Zustand zu inspizieren.
+
+### Klarere Fehlertexte (Audit T6/T9/T11, nicht live getestet)
+
+- `open_project` (und das Öffnen in `bind_project`/beim Neubinden): `ProjectComposition.Open(FileInfo)` dokumentiert
+  `MissingProductsException`; das scheitert jetzt mit `worker_operation_failed` und einem Text, der die fehlenden Produkte,
+  Optionspakete oder Support Packages nennt und sagt, dass nichts geöffnet wurde, dazu die Siemens-Meldung in
+  `engineeringError` (Abgleich über den exakten vollen Namen, `EngineeringFailureHints`). Das UMAC-Öffnen (`UmacDelegate`) und
+  das Ereignis `Authentication` bleiben außerhalb dieses Pakets.
+- Jede `EngineeringSecurityException` behält ihre Kategorie und bekommt einen Text, der eine Sicherheitsablehnung nennt und,
+  für UMAC-geschützte Projekte, das Openness-Funktionsrecht (Name aus einer Fremdanleitung, nicht geprüft).
+- `portal_lost` (eine `NonRecoverableException` oder ein verlorenes Portal) und ein Worker, der während eines Lesevorgangs
+  stehen blieb, sagen nicht mehr, eine Wiederholung sei sicher: Der Text sagt, denselben Aufruf nicht unbeaufsichtigt zu
+  wiederholen und zuerst TIA Portal und seinen Absturzbericht zu prüfen (der Diagnoseordner stammt aus einer Fremdanleitung,
+  nicht geprüft). Eine Zeitüberschreitung beim Lesen sagt, dass eine Wiederholung das Projekt nicht ändert, TIA Portal aber
+  erneut hängen lassen kann.
 
 ### Ein Archiv dearchivieren (`retrieve_project`)
 

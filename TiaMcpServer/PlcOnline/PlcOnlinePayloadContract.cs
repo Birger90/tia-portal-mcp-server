@@ -82,7 +82,7 @@ public static class PlcOnlinePayloadContract
     /// <summary>Decodes a go-online/go-offline result and checks it describes exactly the planned request.</summary>
     public static PlcOnlineActionResultInfo DecodeOnlineAction(string payload, string action, string plcName, string deviceName,
         PlcConnectionPathInfo? path, IReadOnlyList<PlcCallbackPasswordInfo> passwords, string portalConfirmations,
-        IReadOnlyCollection<string>? trustedCertificates = null)
+        IReadOnlyCollection<string>? trustedCertificates = null, bool allowInsecurePasswordTransfer = false)
     {
         var result = CanonicalJson.DeserializeWorkerPayload<PlcOnlineActionResultInfo>(payload);
         ValidatePortalConfirmations(portalConfirmations, result.PortalConfirmationPolicy, result.PortalConfirmations,
@@ -102,14 +102,14 @@ public static class PlcOnlinePayloadContract
         if (result.GoalReached && result.StateAfter != (action == "go_online" ? PlcOnlinePolicy.States.Online : PlcOnlinePolicy.States.Offline))
             throw new JsonException(ProtocolFailureMessage);
         ValidateCallbacks(result.ConfigurationsSeen, result.Abort, Array.Empty<PlcCallbackDecisionInfo>(), passwords, trustedCertificates,
-            PlcTlsTrustPolicy.IsPlcSimInterface(path?.PcInterface?.Name));
+            PlcTlsTrustPolicy.IsPlcSimInterface(path?.PcInterface?.Name), allowInsecurePasswordTransfer);
         return result;
     }
 
     /// <summary>Decodes a station-upload result and checks it describes exactly the planned request and the caller's answers.</summary>
     public static PlcStationUploadResultInfo DecodeUpload(string payload, string address, PlcConnectionPathInfo path,
         IReadOnlyList<PlcCallbackDecisionInfo> decisions, IReadOnlyList<PlcCallbackPasswordInfo> passwords, bool requireUploadResult,
-        string portalConfirmations, IReadOnlyCollection<string>? trustedCertificates = null)
+        string portalConfirmations, IReadOnlyCollection<string>? trustedCertificates = null, bool allowInsecurePasswordTransfer = false)
     {
         var result = CanonicalJson.DeserializeWorkerPayload<PlcStationUploadResultInfo>(payload);
         ValidatePortalConfirmations(portalConfirmations, result.PortalConfirmationPolicy, result.PortalConfirmations,
@@ -131,7 +131,7 @@ public static class PlcOnlinePayloadContract
 
         ValidateMessages(result.Messages);
         ValidateCallbacks(result.ConfigurationsSeen, result.Abort, decisions, passwords, trustedCertificates,
-            PlcTlsTrustPolicy.IsPlcSimInterface(path.PcInterface?.Name));
+            PlcTlsTrustPolicy.IsPlcSimInterface(path.PcInterface?.Name), allowInsecurePasswordTransfer);
         var keys = decisions.Select(d => d.Type).Concat(passwords.Select(p => p.Type)).ToHashSet(StringComparer.Ordinal);
         if (result.UnusedDecisions.Any(key => !keys.Contains(key))) throw new JsonException(ProtocolFailureMessage);
         return result;
@@ -294,7 +294,7 @@ public static class PlcOnlinePayloadContract
     /// </summary>
     internal static void ValidateCallbacks(List<PlcCallbackConfigurationInfo>? seen, PlcCallbackAbortInfo? abort,
         IReadOnlyList<PlcCallbackDecisionInfo> decisions, IReadOnlyList<PlcCallbackPasswordInfo> passwords,
-        IReadOnlyCollection<string>? trustedCertificates = null, bool plcSimInterface = false)
+        IReadOnlyCollection<string>? trustedCertificates = null, bool plcSimInterface = false, bool allowInsecurePasswordTransfer = false)
     {
         Require(seen);
         if (seen!.Count > PlcCallbackPolicy.MaxConfigurations + 1) throw new JsonException(ProtocolFailureMessage);
@@ -309,6 +309,11 @@ public static class PlcOnlinePayloadContract
             if (string.IsNullOrWhiteSpace(entry.Type) || entry.Kind is not (PlcCallbackPolicy.Kinds.Selection or PlcCallbackPolicy.Kinds.Password or PlcCallbackPolicy.Kinds.Other)
                 || (entry.CanonicalType is null) != (entry.DecisionKey is null)
                 || entry.DecisionKey is not null && PlcCallbackPolicy.DecisionKey(entry.CanonicalType) != entry.DecisionKey)
+                throw new JsonException(ProtocolFailureMessage);
+            // Audit T1: IsSecureCommunication is read only for a password configuration the caller has a password for.
+            // (compare_to_online validates without the merged password list, so the key is not checked against it here.)
+            if (entry.SecureCommunication is not null && (entry.Kind != PlcCallbackPolicy.Kinds.Password || entry.DecisionKey is null)
+                || entry.Decision == PlcCallbackPolicy.Decisions.PasswordSet && entry.SecureCommunication != true && !allowInsecurePasswordTransfer)
                 throw new JsonException(ProtocolFailureMessage);
             var tlsEntry = PlcTlsTrustPolicy.IsTlsVerification(entry.CanonicalType);
             var trustedAnswer = tlsEntry && entry.Decision == PlcCallbackPolicy.Decisions.Selected && entry.Selection == PlcTlsTrustPolicy.Trusted;
@@ -336,6 +341,16 @@ public static class PlcOnlinePayloadContract
                         || entry.Selection != PlcTlsTrustPolicy.Trusted)
                         throw new JsonException(ProtocolFailureMessage);
                     break;
+                case PlcCallbackPolicy.Decisions.Selected when entry.Selection == PlcPasswordChannel.NoActionSelection && abort is not null
+                    && entry.DecisionKey is not null
+                    && (aborted || !selections.TryGetValue(entry.DecisionKey, out var callerChoice) || callerChoice != PlcPasswordChannel.NoActionSelection):
+                    // Audit T2: an unanswered selection answered NoAction by the server instead of a throw; it is (or follows) the abort.
+                    if (entry.Kind != PlcCallbackPolicy.Kinds.Selection || entry.PasswordVariable is not null
+                        || !entry.AvailableSelections.Contains(PlcPasswordChannel.NoActionSelection, StringComparer.Ordinal))
+                        throw new JsonException(ProtocolFailureMessage);
+                    aborted = true;
+                    firstAborted ??= entry;
+                    break;
                 case PlcCallbackPolicy.Decisions.Selected:
                     if (aborted || entry.Kind != PlcCallbackPolicy.Kinds.Selection || entry.PasswordVariable is not null || entry.DecisionKey is null
                         || !selections.TryGetValue(entry.DecisionKey, out var selection) || entry.Selection != selection)
@@ -360,6 +375,8 @@ public static class PlcOnlinePayloadContract
             || abort.AvailableSelections is null
             || !string.Equals(CanonicalJson.Serialize(abort.Tls), CanonicalJson.Serialize(firstAborted!.Tls), StringComparison.Ordinal)
             || abort.Tls is not null && !PlcTlsTrustPolicy.IsTlsVerificationKey(abort.DecisionKey)
+            || abort.Reason == PlcCallbackPolicy.AbortReasons.InsecureCommunication
+                && (allowInsecurePasswordTransfer || firstAborted!.Kind != PlcCallbackPolicy.Kinds.Password || firstAborted.SecureCommunication == true)
             || abort.Reason == PlcCallbackPolicy.AbortReasons.CertificateNotTrusted
                 && (!PlcTlsTrustPolicy.IsTlsVerificationKey(abort.DecisionKey) || abort.Tls is not { } refused || PlcTlsTrustPolicy.Trusts(refused))))
             throw new JsonException(ProtocolFailureMessage);

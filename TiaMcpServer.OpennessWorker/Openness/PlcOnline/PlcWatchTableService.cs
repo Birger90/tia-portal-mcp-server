@@ -166,7 +166,9 @@ public static class PlcWatchTableService
     /// <c>TiaPortal.ExclusiveAccess</c> and a project <c>Transaction</c> that is committed only when the
     /// returned object does not indicate failure (<see cref="PlcUpdateProgramOutcome"/>): a failing state,
     /// error count or success member fails the call and leaves the transaction uncommitted (TIA Portal rolls
-    /// an uncommitted transaction back); nothing interpretable is reported as <c>uninterpreted</c> with a warning.
+    /// an uncommitted transaction back); nothing interpretable is reported as <c>uninterpreted</c> with a warning. The commit
+    /// is requested only when <c>Transaction.CanCommit</c> is true (audit T5, like <c>PlcRoundTrip</c>); otherwise the call fails
+    /// and says the change was rolled back. Not live-tested.
     /// </summary>
     public static PlcWatchTableMutationResultInfo UpdateProgram(ProjectBase project, string? plcName, TiaPortal? portal)
     {
@@ -197,6 +199,13 @@ public static class PlcWatchTableService
                 throw new WorkerOperationException(WorkerFailureCategories.WorkerOperationFailed,
                     $"PlcSoftware.UpdateProgram() on PLC '{plc.Software.Name}' reported failure: {interpretation.Reason} The transaction was not committed, "
                     + "so TIA Portal rolls the change back; compile the PLC and inspect it before retrying.");
+            // Audit T5/K88: PlcUpdateProgramOutcome swallows getter exceptions of the returned object inside this transaction; TIA Portal
+            // may then refuse the commit. Commit only when CanCommit, otherwise report the rollback instead of claiming success.
+            if (!transaction.CanCommit)
+                throw new WorkerOperationException(WorkerFailureCategories.WorkerOperationFailed,
+                    $"PlcSoftware.UpdateProgram() on PLC '{plc.Software.Name}' returned ({interpretation.Outcome}), but TIA Portal reports that the transaction "
+                    + "cannot be committed (Transaction.CanCommit false), so it was not committed and TIA Portal rolls the change back. "
+                    + "Compile the PLC and inspect it before retrying.");
             transaction.CommitOnDispose();
             result.ReturnedType = returned?.GetType().FullName;
             result.Outcome = interpretation.Outcome;

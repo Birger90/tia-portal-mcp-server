@@ -16,7 +16,7 @@ document (header pragma, declaration, interface, networks) and an `.s7res` docum
 Siemens V21 skill `simatic-sd` (MIT, Siemens AG, `openness_development/skills/simatic-sd/SKILL.md`) calls this "the
 correct path for adding LAD/FBD/SCL networks to existing blocks via Openness". These operations make it a network-level
 editing path, so an agent can change LAD (KOP), FBD (FUP) and F-LAD/F-FBD logic without a SimaticML (FlgNet XML) round
-trip. No tool was added (11/30/30 stay); every operation is a `plc_read` or `plc_write` operation.
+trip. No tool was added (13/32/32 stay); every operation is a `plc_read` or `plc_write` operation.
 
 For the LAD/FBD syntax itself, with evidence per construct, see [Writing LAD and FBD as SIMATIC SD](../guides/lad-fbd-simatic-sd.md).
 

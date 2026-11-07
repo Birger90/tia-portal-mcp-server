@@ -256,6 +256,21 @@ namespace Siemens.Engineering.Umac
 
         public UmcUser? Find(string name) => Items.FirstOrDefault(u => u.Name == name);
 
+        // Package G.
+        public UmcUser CreateOfflineUmcUser(string name)
+        {
+            var user = new UmcUser(this, name);
+            Items.Add(user);
+            return user;
+        }
+
+        public UmcUser Create(UmcUserInfo info)
+        {
+            var user = new UmcUser(this, info.Name);
+            Items.Add(user);
+            return user;
+        }
+
         public IEnumerator<UmcUser> GetEnumerator() => Items.GetEnumerator();
 
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
@@ -263,9 +278,26 @@ namespace Siemens.Engineering.Umac
 
     public sealed class UmcUserGroupComposition : IEnumerable<UmcUser>
     {
+        private readonly UmcUserComposition _owner = new();
+
         public List<UmcUser> Items { get; } = new();
 
         public UmcUser? Find(string name) => Items.FirstOrDefault(u => u.Name == name);
+
+        // Package G: the fake keeps groups as UmcUser stand-ins (Name, SetName, Delete on this list).
+        public UmcUser CreateOfflineUmcUserGroup()
+        {
+            var group = new UmcUser(_owner, "UmcUserGroup_" + (Items.Count + 1));
+            Items.Add(group);
+            return group;
+        }
+
+        public UmcUser Create(UmcUserGroupInfo info)
+        {
+            var group = new UmcUser(_owner, info.UserGroupName);
+            Items.Add(group);
+            return group;
+        }
 
         public IEnumerator<UmcUser> GetEnumerator() => Items.GetEnumerator();
 
@@ -300,6 +332,60 @@ namespace Siemens.Engineering.Umac
         public UmcUserGroupComposition UmcUserGroups { get; } = new();
     }
 
+    // Package G: the UMC server. The fake server knows "DOMAIN\\operator" and the group "DOMAIN\\Operators" and accepts only the user
+    // "umcadmin" with a password of at least 8 characters, given through the Authentication event.
+    public sealed class UmcUserInfo(string name)
+    {
+        public string Name { get; } = name;
+    }
+
+    public sealed class UmcUserGroupInfo(string name, string description)
+    {
+        public string UserGroupName { get; } = name;
+
+        public string Description { get; } = description;
+    }
+
+    public sealed class UmcAuthenticationEventArgs : EventArgs
+    {
+        public Siemens.Engineering.UmacCredentials UmcCredentials { get; } = new();
+    }
+
+    public sealed class UmcServer
+    {
+        public event EventHandler<UmcAuthenticationEventArgs>? Authentication;
+
+        public int Authentications { get; private set; }
+
+        private void Authenticate()
+        {
+            var args = new UmcAuthenticationEventArgs();
+            Authentication?.Invoke(this, args);
+            Authentications++;
+            if (args.UmcCredentials.Name != "umcadmin" || args.UmcCredentials.PasswordLength < 8 || args.UmcCredentials.Type != Siemens.Engineering.UmacUserType.Global)
+                throw new InvalidOperationException("The UMC server refused the credentials.");
+        }
+
+        public UmcUserInfo? GetUserByName(string userName)
+        {
+            Authenticate();
+            return userName == "DOMAIN\\operator" ? new UmcUserInfo(userName) : null;
+        }
+
+        public UmcUserGroupInfo? GetUserGroupByName(string userGroupName)
+        {
+            Authenticate();
+            return userGroupName == "DOMAIN\\Operators" ? new UmcUserGroupInfo(userGroupName, "Operators of line 1") : null;
+        }
+    }
+
+    public sealed class UmcServerConfigurator
+    {
+        public UmcServer UmcServer { get; } = new();
+
+        public bool CheckConsistency() => true;
+    }
+
     public sealed class PasswordPolicyConfigurator
     {
         public int MinimumLength { get; set; } = 8;
@@ -317,5 +403,25 @@ namespace Siemens.Engineering.Umac
         public int PasswordValidityPrewarningTime { get; set; } = 7;
 
         public int MinimumUserPasswordsBlockedForReuse { get; set; } = 3;
+    }
+}
+
+namespace Siemens.Engineering
+{
+    public enum UmacUserType
+    {
+        Global,
+        Project,
+    }
+
+    public sealed class UmacCredentials
+    {
+        public string? Name { get; set; }
+
+        public UmacUserType Type { get; set; } = UmacUserType.Project;
+
+        public int PasswordLength { get; private set; }
+
+        public void SetPassword(System.Security.SecureString password) => PasswordLength = password.Length;
     }
 }

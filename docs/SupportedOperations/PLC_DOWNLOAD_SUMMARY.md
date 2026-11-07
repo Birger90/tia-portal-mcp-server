@@ -54,6 +54,7 @@ session returns `unsupported_capability`.
 | `portalConfirmations` | `decline` | TIA Portal `Confirmation` dialogs raised during the download: `decline` answers each No, records it and fails the call; `accept` answers each Yes and records it. See [confirmation dialogs](#tia-portal-confirmation-dialogs-during-a-download). |
 | `trustedCertificates` | none | SHA-256 fingerprints of the device's TLS certificates that **the user** checked and approved: a JSON array of strings, each 64 hexadecimal characters (case-insensitive; colons and spaces are ignored), at most 16, no repeats after normalization. The only way the TLS certificate check of the download's connection (`TlsVerificationConfiguration`, online legitimation) is answered `Trusted`; omitted, explicit `null` or empty trusts nothing. See [TLS certificate trust](#tls-certificate-trust-online-legitimation). Not live-tested. |
 | `rhTarget` | none | R/H system only (issue #16, not live-tested): `primary` or `backup` downloads to that CPU through `RHDownloadProvider.DownloadToPrimary`/`DownloadToBackup(IConfiguration, DownloadConfigurationDelegate, DownloadConfigurationDelegate, DownloadOptions)`, found among the CPU device item's `GetServiceInfos()` by exact full name and bound at runtime; the path is re-resolved on `RHDownloadProvider.Configuration`. Same decisions, passwords, guards and confirmation as a normal download; the prompt and `effects.rhTarget` name the CPU. A PLC without the provider fails `unsupported_capability` before anything is downloaded. Omitted: `DownloadProvider.Download`. |
+| `allowInsecurePasswordTransfer` | `false` | Audit T1 (not live-tested): `false` sends a password only when the password configuration reports `IsSecureCommunication` true; false or unreadable aborts with `insecure_communication` and nothing is sent. `true` sends it anyway over the non-secure (legacy) connection, as TIA Portal allows; set it only after the user agreed. The prompt says which rule applies; `effects.allowInsecurePasswordTransfer` is `true` only when set. See [passwords](#passwords). |
 | `dryRun` | `false` | Resolve the PLC, path and guards and return `phase: preview` without touching the target or prompting. |
 
 Argument-shape errors (unknown root or nested members, nulls for non-nullable values, an explicit
@@ -305,6 +306,19 @@ caller decision in the prompt before anything happens.
 | `decision_rejected` | Setting the answer threw (TIA Portal rejected it). | inspect `engineeringError` |
 | `configuration_limit_exceeded` | More than 100 configurations. | nothing; report it |
 | `certificate_not_trusted` | `online_legitimation` only: the TLS certificate check presented no certificate, more than 16, or at least one whose SHA-256 is not in `trustedCertificates`; `NonTrusted` was set and `abort.tls` holds the evidence. | `trustedCertificates` listing every presented fingerprint, **only after the user checked them** |
+| `insecure_communication` | A password configuration reported `IsSecureCommunication` false or unreadable and the call had no `allowInsecurePasswordTransfer: true`; the password was not sent (audit T1). | `allowInsecurePasswordTransfer: true`, **only after the user agreed** |
+
+**No throw where V21 documents `NoAction` (audit T2, not live-tested).** A selection configuration that would abort
+with `decision_required`, `selection_unavailable` or `decision_not_applicable`, or that arrives after the abort, and
+whose live enum has the exact member `NoAction` (V21 documents it, "No action", on e.g. `StopModulesSelections`,
+`OverwriteSystemDataSelections`, `DifferentTargetConfigurationSelections`, `DataBlockReinitializationSelections`,
+`ResetModuleSelections`, `StartModulesSelections`, `UploadMissingProductsSelections`) is answered `NoAction`: the entry is
+`selected` `NoAction` with source `policy`, the abort is recorded as before, and the callback returns normally instead
+of throwing (K27: a throw from the TLS callback was followed by TIA Portal terminating). TIA Portal then fails or skips
+the step itself; the call fails with the recorded abort whatever `Download` returned. Configurations without `NoAction`
+(check and password configurations, `TargetForSoftware`, `ConsistentBlocksDownload`, `ProtectionLevelChanged`,
+`UserManagementPreDownload`, ...), a rejected answer and the configuration limit still abort by throwing; whether that
+throw can terminate TIA Portal is not known.
 
 For the TLS certificate check, `decision_not_applicable` means its evidence could not be read completely
 or `CurrentSelection` is missing or not a `TlsVerificationConfigurationSelection` (nothing was set),
@@ -349,6 +363,16 @@ validation. Passwords never appear in results, logs or the audit: the evidence r
 `passwordVariable` (the name) and the effects list `{ type, variable }`. Without a matching
 `passwords` entry a password configuration aborts (`decision_required`, kind `password`). The
 environment string itself cannot be zeroed in managed memory (see limits).
+
+**Secure channel first (audit T1, not live-tested).** Before `SetPassword` the recorder reads
+`IsSecureCommunication` (V21: `DownloadPasswordConfiguration`, `OnlinePasswordConfiguration`,
+`OnlineAuthenticationConfiguration`, `UploadPasswordConfiguration`, "Is secure communication used.") by reflection
+(exactly one public readable `bool` property) and records it as `secureCommunication` on the entry (omitted when
+unreadable). `true`: the password is sent. `false` or unreadable: the password is **not** sent and the download aborts
+with `insecure_communication`, unless the call has `allowInsecurePasswordTransfer: true`. TIA Portal itself allows the
+non-secure channel, so the MCP does not refuse it outright (owner principle) but makes it an explicit, confirmed
+choice. The host rejects evidence that claims `password_set` over a channel not reported secure without the opt-in.
+The same rule applies to the online legitimation passwords of the download's connection.
 
 ## TLS certificate trust (online legitimation)
 
@@ -515,6 +539,7 @@ fails closed with an abort reason, so a wrong assumption cannot crash the worker
 | `StopModulesSelections.StopAll`, `StartModulesSelections.StartModule`/`NoAction`, `ConsistentBlocksDownloadSelections.ConsistentDownload`, `AlarmTextLibrariesDownloadSelections.ConsistentDownload`, `OverwriteSystemDataSelections.Overwrite`, `TargetForSoftwareSelections.PlcSimulationAdvanced` and `.CPU` (default answers, by name) | Base/Step7 | b, c | member names from V21-XML-checked reference (b shows `TargetForSoftwareSelections.CPU` in its callback example and both members in its catalogue); checked at runtime with `Enum.IsDefined` (`selection_unavailable` otherwise) |
 | `DownloadCheckConfiguration.Checked` (public read/write `bool`), set to true | Base | b | **reflection**; member name from V21-XML-checked reference ("Base check configuration exposing `Checked`"); the `bool` type is assumed — a non-`bool` or missing member aborts `decision_not_applicable` |
 | `DownloadPasswordConfiguration.SetPassword(SecureString)` (public instance method, one `System.Security.SecureString` parameter; return type not constrained) | Base | b | **reflection**; signature from V21-XML-checked reference ("Base password configuration with `IsSecureCommunication` and `SetPassword(SecureString)`"); a missing method aborts `decision_not_applicable` |
+| `IsSecureCommunication` of `DownloadPasswordConfiguration`, `OnlinePasswordConfiguration`, `UploadPasswordConfiguration` (public readable `bool`, "Is secure communication used.") | Base | members.txt | **reflection** (`PlcPasswordChannel`, audit T1); read before every `SetPassword`; false or unreadable without `allowInsecurePasswordTransfer` aborts `insecure_communication`; not live-tested |
 | The six defaulted types and the generic answers need no cast: the canonical type is read by name from the type chain, and every answer is applied by reflection on the runtime object | — | — | design (the earlier compiled casts to the six types are gone; the probe still compiles their `CurrentSelection`) |
 | The live configuration's runtime type chain contains its public V21 type in `Siemens.Engineering.Download.Configurations` (exact type match) | — | none | assumed — verify live; a mismatch aborts (fail-closed), it never answers |
 | `EngineeringException`, `EngineeringObjectDisposedException`, `NonRecoverableException` | Base | existing stubs | unchanged existing declarations |
@@ -549,7 +574,7 @@ Deliberately not used: `GetAccessibleDevices()`, `ApplyConfiguration`, the compo
 methods (exact enumeration is used instead, so ordinal uniqueness does not depend on `Find`
 semantics), the `Download` overload with a `ConfigurationAddress`, `DeviceItemClassifications.CPU`
 (the stub enum has no member values, and compiling an invented constant would be wrong at runtime),
-`DownloadPasswordConfiguration.IsSecureCommunication`, `DownloadSelectionConfiguration`,
+`DownloadSelectionConfiguration`,
 `OnlineProvider`, `RHDownloadProvider`, `Download(DirectoryInfo, ...)`, `EnableLegacyCommunication`,
 `OnlineAuthenticationConfiguration`/`OnlineCredentials` (online authentication is not answered) and
 `TlsVerificationConfigurationSelection.NonVerified`.
@@ -558,6 +583,11 @@ semantics), the `Download` overload with a `ConfigurationAddress`, `DeviceItemCl
 
 - `rhTarget` (issue #16) is not live-tested: the path is planned from `list_download_targets` (the `DownloadProvider` inventory) and
   must resolve by the same names on `RHDownloadProvider.Configuration`; whether an R/H CPU offers both providers is unverified.
+  Audit T3 (not live-tested): V21 does not document which object hosts `RHDownloadProvider`; a third-party note says the R/H
+  system `Device`, not a member CPU. `rhTarget` and `download_to_folder rhSystem` therefore search the CPU device item, then
+  each parent up to and including its `Device` (`RhSystemProviders`, exact full name among `GetServiceInfos()`); the
+  `unsupported_capability` message names every object searched. A plain download of a CPU without `DownloadProvider` fails
+  `target_kind_unsupported` with a hint to `rhTarget`.
   Downloading to a folder is `plc_write download_to_folder` ([PLC operations](PLC_OPERATIONS_SUMMARY.md)).
 
 - Not live-tested, neither against PLCSIM nor against hardware; every *assumed* and **reflection**

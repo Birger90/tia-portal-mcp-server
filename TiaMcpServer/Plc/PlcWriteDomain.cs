@@ -42,7 +42,8 @@ public sealed class PlcWriteDomain(OpennessWorkerClient client)
     /// The acknowledge guards a confirming call presents: fail-safe acceptance, the online master secret (issue #16) and the
     /// automatic acceptance of syslog client certificates (security review F8).
     /// </summary>
-    private static bool IsConfirmed(string id) => id is PlcGuardDefinitions.SafetyAcceptance or PlcGuardDefinitions.MasterSecretOnline or PlcGuardDefinitions.SyslogAutoAcceptsCertificates;
+    private static bool IsConfirmed(string id) => id is PlcGuardDefinitions.SafetyAcceptance or PlcGuardDefinitions.MasterSecretOnline or PlcGuardDefinitions.LoadsActualValuesOnline or PlcGuardDefinitions.SyslogAutoAcceptsCertificates
+        or PlcGuardDefinitions.ProtectsProject;
 
     /// <summary>
     /// The read-write prompt of a call with fail-safe items (the pipeline shows the acknowledge guard lines, which carry the
@@ -68,14 +69,30 @@ public sealed class PlcWriteDomain(OpennessWorkerClient client)
                 + string.Join("\n", safety)
                 + (others == 0 ? string.Empty : $"\nThe call also runs {others} other PLC item(s) in order; they stop at the first failure without rollback.")
                 + "\nIt takes effect on the CPU after a download.";
+        var protect = items.Any(item => (_guards.GetValueOrDefault(item.OperationId) ?? Array.Empty<FiredGuard>()).Any(g => g.Id == PlcGuardDefinitions.ProtectsProject));
+        if (protect && !online && !fail && !syslog)
+            return "Confirm plc_write: this call PROTECTS THE PROJECT with UMAC (ProjectBase.ProtectProject); afterwards only users with engineering rights may open and change it:\n"
+                + string.Join("\n", safety)
+                + (others == 0 ? string.Empty : $"\nThe call also runs {others} other PLC item(s) in order; they stop at the first failure without rollback.")
+                + "\nThe administrator password is read by the worker from the named password source; keep it available. Save a copy of the project first.";
+        var actualValues = items.Any(item => Contracts.Plc.DeviceData.PlcDeviceDataMethods.IsActualValues(item.Operation));
+        var masterSecret = items.Any(item => Contracts.Plc.DeviceData.PlcDeviceDataMethods.IsMasterSecret(item.Operation));
+        if (actualValues && !fail)
+            return "Confirm plc_write: this call OVERWRITES ACTUAL VALUES of data blocks in the RUNNING, ONLINE PLC (the connected controller or PLCSIM, not the offline project); the process may react at once:\n"
+                + string.Join("\n", safety)
+                + (others == 0 ? string.Empty : $"\nThe call also runs {others} other PLC item(s) in order; they stop at the first failure without rollback.")
+                + (masterSecret ? "\nThe call also sets or deletes the master secret of an online PLC." : string.Empty)
+                + (syslog ? "\nThe call also makes a CPU accept syslog client certificates automatically (SysLogAutoAcceptClient=true)." : string.Empty)
+                + "\nCheck that the plant is in a safe state. The values are not read back.";
         if (online && !fail)
             return "Confirm plc_write: this call sets or deletes the master secret of the ONLINE PLC (the connected controller, not the offline project):\n"
                 + string.Join("\n", safety)
                 + (others == 0 ? string.Empty : $"\nThe call also runs {others} other PLC item(s) in order; they stop at the first failure without rollback.")
                 + (syslog ? "\nThe call also makes a CPU accept syslog client certificates automatically (SysLogAutoAcceptClient=true)." : string.Empty)
                 + "\nThe secret is read by the worker from the named password source; it never appears in the call, the result or the audit.";
-        return (online ? "Confirm plc_write: this call changes the safety (F-) program or the safety access protection of an F-CPU, or the activation tests of the Safety Validation Assistant, and the master secret of an ONLINE PLC:\n"
+        return (online ? "Confirm plc_write: this call changes the safety (F-) program or the safety access protection of an F-CPU, or the activation tests of the Safety Validation Assistant, and acts on an ONLINE PLC (master secret or actual values):\n"
                 : "Confirm plc_write: this call changes the safety (F-) program or the safety access protection of an F-CPU, or the activation tests of the Safety Validation Assistant:\n")
+            + (actualValues ? "The call also OVERWRITES ACTUAL VALUES of data blocks in the RUNNING, ONLINE PLC.\n" : string.Empty)
             + string.Join("\n", safety)
             + (others == 0 ? string.Empty : $"\nThe call also runs {others} other PLC item(s) in order; they stop at the first failure without rollback.")
             + (syslog ? "\nThe call also makes a CPU accept syslog client certificates automatically (SysLogAutoAcceptClient=true)." : string.Empty)

@@ -123,6 +123,32 @@ public class ProjectTreeWorkerProducerContractTests
     }
 
     [Fact]
+    public void SafetyUnits_AreWalkedLikeSoftwareUnits()
+    {
+        // Audit T4: PlcUnitSystemGroup.SafetyUnits are no longer invisible to browse_project_tree.
+        var unit = new PlcUnit { Name = "MotionUnit" };
+        unit.BlockGroup.Name = "Program blocks";
+        unit.TagTableGroup.Name = "PLC tags";
+        unit.TypeGroup.Name = "PLC data types";
+        var project = ProjectWithLeaves(softwareUnit: unit);
+        var plc = (PlcSoftware)((SoftwareContainer)project.Devices.Items[0].DeviceItems.Items[0].Container!).Software!;
+        var safety = new PlcSafetyUnit { Name = "SafetyUnit_1" };
+        safety.BlockGroup.Name = "Program blocks";
+        safety.TagTableGroup.Name = "PLC tags";
+        safety.TypeGroup.Name = "PLC data types";
+        safety.BlockGroup.Blocks.Items.Add(new FB { Name = "F_Main", Number = 7 });
+        plc.UnitProvider!.UnitGroup.SafetyUnits.Items.Add(safety);
+
+        var snapshot = new ProjectTreeSnapshotWalker().WalkSnapshot(project, startSelector: null, depth: null);
+        var observation = Decode(snapshot, selector: null, depth: null);
+
+        var units = Descendants(observation.Roots).Where(node => node.NodeType == ProjectTreeNodeTypes.SoftwareUnit).Select(node => node.Name).ToArray();
+        Assert.Equal(new[] { "MotionUnit", "SafetyUnit_1" }, units);
+        var decoded = Descendants(observation.Roots).Single(node => node.Name == "SafetyUnit_1");
+        Assert.Contains(Descendants(decoded.Children!), node => node.Name == "F_Main");
+    }
+
+    [Fact]
     public void BlockHeaders_SoftwareUnitBlockRetainsContextAcrossStrictBoundary()
     {
         var unit = new PlcUnit { Name = "MotionUnit" };

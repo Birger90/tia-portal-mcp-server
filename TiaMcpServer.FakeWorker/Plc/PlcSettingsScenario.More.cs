@@ -13,7 +13,10 @@ sealed partial class PlcSettingsScenario
         _services[_cpu].Add(new Features.WebserverUserManagement());
         _services[_cpu].Add(new Features.SimpleWebserverUserManagement());
         _services[_opcUa] = new List<object> { new Features.OpcUaUserManagement() };
-        _services[_project].Add(new Siemens.Engineering.Umac.UmacConfigurator());
+        var umac = new Siemens.Engineering.Umac.UmacConfigurator();
+        _services[_project].Add(umac);
+        _services[_project].Add(new Siemens.Engineering.Umac.UmcServerConfigurator());
+        ((FakeProject)_project).Protect = (name, password) => umac.ProjectUsers.Create(name, password);
         _services[_project].Add(new Siemens.Engineering.Umac.PasswordPolicyConfigurator());
         _services[_cpu].Add(new Siemens.Engineering.Umac.UmacDevice());
         _services[_cpu].Add(new Siemens.Engineering.Security.LocalCertificateManager());

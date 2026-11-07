@@ -1,0 +1,79 @@
+{
+ "title": "Siemens.Simatic.TechnologyObjects.HighSpeedCounter library",
+ "lang": "en-US",
+ "id": "YnqSGjg18sxz1X1czYtfcA",
+ "originId": "@ax/simatic-technology-objects-en-us-4.1.3",
+ "baseId": "@ax/simatic-technology-objects-en-us-4.1.3",
+ "lastEdition": "2026-11-02",
+ "lastPublication": "2026-11-02T05:13:22.506978",
+ "clusterId": "@ax/simatic-1500-technology-objects",
+ "editorialType": "BOOK",
+ "khubVersion": "5.1.76",
+ "openMode": "FLUIDTOPICS",
+ "prettyUrl": "/go/en-us/ax/simatic-technology-objects/4.1.3",
+ "readerUrl": "/r/en-us/ax/simatic-technology-objects/4.1.3",
+ "rightsApiEndpoint": "/api/khub/maps/YnqSGjg18sxz1X1czYtfcA/rights",
+ "topicsApiEndpoint": "/api/khub/maps/YnqSGjg18sxz1X1czYtfcA/topics",
+ "attachmentsApiEndpoint": "/api/khub/maps/YnqSGjg18sxz1X1czYtfcA/attachments",
+ "metadata": [
+  {
+   "key": "Language",
+   "label": "Language",
+   "values": [
+    "English (original)"
+   ]
+  },
+  {
+   "key": "Product",
+   "label": "Product",
+   "values": [
+    "SIMATIC AX"
+   ]
+  },
+  {
+   "key": "SoftwareVersion",
+   "label": "Software version",
+   "values": [
+    "4.1.3"
+   ]
+  },
+  {
+   "key": "ft:title",
+   "label": "ft:title",
+   "values": [
+    "Siemens.Simatic.TechnologyObjects.HighSpeedCounter library"
+   ]
+  },
+  {
+   "key": "ft:locale",
+   "label": "ft:locale",
+   "values": [
+    "en-US"
+   ]
+  },
+  {
+   "key": "ft:clusterId",
+   "label": "ft:clusterId",
+   "values": [
+    "@ax/simatic-1500-technology-objects"
+   ]
+  },
+  {
+   "key": "ft:lastPublication",
+   "label": "ft:lastPublication",
+   "values": [
+    "2026-11-02T05:13:22.506978"
+   ]
+  },
+  {
+   "key": "ft:prettyUrl",
+   "label": "ft:prettyUrl",
+   "values": [
+    "en-us/ax/simatic-technology-objects/4.1.3"
+   ]
+  }
+ ],
+ "fingerprint": "f72d488a625e3dff8107200d518c1f63",
+ "pbkConfidential": false,
+ "translationError": false
+}

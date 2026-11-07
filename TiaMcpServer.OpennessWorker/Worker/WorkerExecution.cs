@@ -65,9 +65,11 @@ internal static class WorkerExecution
             ? WorkerFailureCategories.EngineeringRejected : WorkerFailureCategories.WorkerOperationFailed;
 
     internal static string FailureMessage(EngineeringException exception, string category)
-        => category == WorkerFailureCategories.EngineeringRejected
-            ? $"TIA Portal rejected the operation: {exception.Message}"
-            : $"TIA Portal operation failed: {exception.Message}";
+        => EngineeringFailureHints.Is(exception, EngineeringFailureHints.EngineeringSecurityException)
+            ? EngineeringFailureHints.Security(exception.Message) // Audit T11/K89.
+            : category == WorkerFailureCategories.EngineeringRejected
+                ? $"TIA Portal rejected the operation: {exception.Message}"
+                : $"TIA Portal operation failed: {exception.Message}";
 
     /// <summary>
     /// The exception's type and verbatim message plus its inner chain, outermost first, bounded by
@@ -90,7 +92,7 @@ internal static class WorkerExecution
     private static WorkerResponse PortalLost(Exception exception)
         => Failure(WorkerFailureCategories.PortalLost,
             $"The TIA Portal connection was lost: {exception.Message}. Restart TIA Portal and explicitly bind_project again. "
-            + "An attempted mutation may have completed; inspect the project before retrying.");
+            + "An attempted mutation may have completed; inspect the project before retrying. " + EngineeringFailureHints.NonRecoverableRetry);
 
     private static WorkerResponse Failure(string category, string error, EngineeringErrorInfo? engineeringError = null)
         => new() { Success = false, FailureCategory = category, Error = error, EngineeringError = engineeringError };

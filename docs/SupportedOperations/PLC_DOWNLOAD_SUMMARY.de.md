@@ -58,6 +58,7 @@ Eine lokale Multiuser-Sitzung liefert `unsupported_capability`.
 | `portalConfirmations` | `decline` | TIA-Portal-`Confirmation`-Dialoge, die während des Downloads auftreten: `decline` beantwortet jeden mit Nein, protokolliert ihn und lässt den Aufruf fehlschlagen; `accept` beantwortet jeden mit Ja und protokolliert ihn. Siehe [Bestätigungsdialoge](#tia-portal-bestätigungsdialoge-während-eines-downloads). |
 | `trustedCertificates` | keiner | SHA-256-Fingerabdrücke der TLS-Zertifikate des Geräts, die **der Benutzer** geprüft und freigegeben hat: ein JSON-Array von Strings mit je 64 Hexadezimalzeichen (Groß-/Kleinschreibung egal; Doppelpunkte und Leerzeichen werden ignoriert), höchstens 16, keine Wiederholungen nach der Normalisierung. Der einzige Weg, auf dem die TLS-Zertifikatsprüfung der Verbindung des Downloads (`TlsVerificationConfiguration`, Online-Legitimation) mit `Trusted` beantwortet wird; weggelassen, explizit `null` oder leer vertraut nichts. Siehe [TLS-Zertifikatsvertrauen](#tls-zertifikatsvertrauen-online-legitimation). Nicht live getestet. |
 | `rhTarget` | keiner | Nur R/H-System (Issue #16, nicht live getestet): `primary` oder `backup` lädt über `RHDownloadProvider.DownloadToPrimary`/`DownloadToBackup(IConfiguration, DownloadConfigurationDelegate, DownloadConfigurationDelegate, DownloadOptions)` in diese CPU; der Provider wird unter den `GetServiceInfos()` des CPU-Device-Items über den exakten vollen Namen gefunden und zur Laufzeit gebunden, der Pfad auf `RHDownloadProvider.Configuration` neu aufgelöst. Dieselben Entscheidungen, Passwörter, Guards und Bestätigung wie beim normalen Download; Prompt und `effects.rhTarget` nennen die CPU. Eine PLC ohne den Provider scheitert mit `unsupported_capability`, bevor etwas geladen wird. Weggelassen: `DownloadProvider.Download`. |
+| `allowInsecurePasswordTransfer` | `false` | Audit T1 (nicht live getestet): `false` sendet ein Passwort nur, wenn die Passwortkonfiguration `IsSecureCommunication` true meldet; false oder nicht lesbar bricht mit `insecure_communication` ab, und nichts wird gesendet. `true` sendet es trotzdem über die nicht sichere (Legacy-)Verbindung, wie TIA Portal es erlaubt; nur setzen, nachdem der Benutzer zugestimmt hat. Die Rückfrage nennt die geltende Regel; `effects.allowInsecurePasswordTransfer` ist nur dann `true`, wenn gesetzt. Siehe [Passwörter](#passwörter). |
 | `dryRun` | `false` | PLC, Pfad und Guards auflösen und `phase: preview` zurückgeben, ohne das Ziel zu berühren oder nachzufragen. |
 
 Argumentformfehler (unbekannte Root- oder verschachtelte Member, nulls für nicht nullbare Werte, ein
@@ -343,6 +344,19 @@ bevor irgendetwas geschieht.
 | `decision_rejected` | Das Setzen der Antwort warf eine Ausnahme (TIA Portal hat sie abgelehnt). | `engineeringError` prüfen |
 | `configuration_limit_exceeded` | Mehr als 100 Konfigurationen. | nichts; melden |
 | `certificate_not_trusted` | Nur `online_legitimation`: Die TLS-Zertifikatsprüfung legte kein Zertifikat vor, mehr als 16 oder mindestens eines, dessen SHA-256 nicht in `trustedCertificates` steht; `NonTrusted` wurde gesetzt, und `abort.tls` enthält die Nachweise. | `trustedCertificates` mit jedem vorgelegten Fingerabdruck, **erst nachdem der Benutzer sie geprüft hat** |
+| `insecure_communication` | Eine Passwortkonfiguration meldete `IsSecureCommunication` false oder nicht lesbar, und der Aufruf hatte kein `allowInsecurePasswordTransfer: true`; das Passwort wurde nicht gesendet (Audit T1). | `allowInsecurePasswordTransfer: true`, **erst nachdem der Benutzer zugestimmt hat** |
+
+**Kein Werfen, wo V21 `NoAction` dokumentiert (Audit T2, nicht live getestet).** Eine Auswahlkonfiguration, die mit
+`decision_required`, `selection_unavailable` oder `decision_not_applicable` abbrechen würde oder nach dem Abbruch kommt
+und deren Live-Enum das exakte Member `NoAction` hat (V21 dokumentiert es, „No action“, z. B. an `StopModulesSelections`,
+`OverwriteSystemDataSelections`, `DifferentTargetConfigurationSelections`, `DataBlockReinitializationSelections`,
+`ResetModuleSelections`, `StartModulesSelections`, `UploadMissingProductsSelections`), wird mit `NoAction` beantwortet: Der
+Eintrag ist `selected` `NoAction` mit Quelle `policy`, der Abbruch wird wie bisher festgehalten, und der Callback kehrt
+normal zurück, statt zu werfen (K27: Auf ein Werfen aus dem TLS-Callback folgte das Beenden von TIA Portal). TIA Portal
+lässt den Schritt dann selbst scheitern oder überspringt ihn; der Aufruf scheitert mit dem festgehaltenen Abbruch, was
+`Download` auch zurückgab. Konfigurationen ohne `NoAction` (Prüf- und Passwortkonfigurationen, `TargetForSoftware`,
+`ConsistentBlocksDownload`, `ProtectionLevelChanged`, `UserManagementPreDownload`, ...), eine abgelehnte Antwort und die
+Konfigurationsgrenze brechen weiter durch Werfen ab; ob dieses Werfen TIA Portal beenden kann, ist nicht bekannt.
 
 Bei der TLS-Zertifikatsprüfung bedeutet `decision_not_applicable`, dass ihre Nachweise nicht
 vollständig gelesen werden konnten oder dass `CurrentSelection` fehlt oder kein
@@ -392,6 +406,17 @@ im Audit: Die Nachweise protokollieren nur `passwordVariable` (den Namen), und d
 `{ type, variable }`. Ohne passenden `passwords`-Eintrag bricht eine Passwortkonfiguration ab
 (`decision_required`, Art `password`). Der Umgebungs-String selbst kann im verwalteten Speicher nicht
 genullt werden (siehe Grenzen).
+
+**Zuerst der sichere Kanal (Audit T1, nicht live getestet).** Vor `SetPassword` liest der Recorder
+`IsSecureCommunication` (V21: `DownloadPasswordConfiguration`, `OnlinePasswordConfiguration`,
+`OnlineAuthenticationConfiguration`, `UploadPasswordConfiguration`, „Is secure communication used.“) per Reflection
+(genau eine öffentliche lesbare `bool`-Eigenschaft) und hält es als `secureCommunication` am Eintrag fest (weggelassen,
+wenn nicht lesbar). `true`: Das Passwort wird gesendet. `false` oder nicht lesbar: Das Passwort wird **nicht** gesendet,
+und der Download bricht mit `insecure_communication` ab, außer der Aufruf hat `allowInsecurePasswordTransfer: true`.
+TIA Portal selbst erlaubt den nicht sicheren Kanal, deshalb lehnt der MCP ihn nicht grundsätzlich ab (Eigentümerprinzip),
+sondern macht ihn zu einer ausdrücklichen, bestätigten Entscheidung. Der Host weist Nachweise zurück, die `password_set`
+über einen nicht als sicher gemeldeten Kanal ohne die Zustimmung behaupten. Dieselbe Regel gilt für die
+Online-Legitimationspasswörter der Download-Verbindung.
 
 ## TLS-Zertifikatsvertrauen (Online-Legitimation)
 
@@ -575,6 +600,7 @@ eine falsche Annahme den Worker nicht zum Absturz bringen, aber einen Abbruch au
 | `StopModulesSelections.StopAll`, `StartModulesSelections.StartModule`/`NoAction`, `ConsistentBlocksDownloadSelections.ConsistentDownload`, `AlarmTextLibrariesDownloadSelections.ConsistentDownload`, `OverwriteSystemDataSelections.Overwrite`, `TargetForSoftwareSelections.PlcSimulationAdvanced` und `.CPU` (Standardantworten, nach Name) | Base/Step7 | b, c | Member-Namen aus V21-XML-geprüfter Referenz (b zeigt `TargetForSoftwareSelections.CPU` in seinem Callback-Beispiel und beide Member in seinem Katalog); zur Laufzeit mit `Enum.IsDefined` geprüft (sonst `selection_unavailable`) |
 | `DownloadCheckConfiguration.Checked` (öffentliches, les- und schreibbares `bool`), auf true gesetzt | Base | b | **Reflection**; Member-Name aus V21-XML-geprüfter Referenz ("Base check configuration exposing `Checked`"); der Typ `bool` ist angenommen — ein Nicht-`bool`- oder fehlendes Member bricht mit `decision_not_applicable` ab |
 | `DownloadPasswordConfiguration.SetPassword(SecureString)` (öffentliche Instanzmethode, ein `System.Security.SecureString`-Parameter; Rückgabetyp nicht eingeschränkt) | Base | b | **Reflection**; Signatur aus V21-XML-geprüfter Referenz ("Base password configuration with `IsSecureCommunication` and `SetPassword(SecureString)`"); eine fehlende Methode bricht mit `decision_not_applicable` ab |
+| `IsSecureCommunication` von `DownloadPasswordConfiguration`, `OnlinePasswordConfiguration`, `UploadPasswordConfiguration` (öffentliches lesbares `bool`, „Is secure communication used.“) | Base | members.txt | **Reflection** (`PlcPasswordChannel`, Audit T1); vor jedem `SetPassword` gelesen; false oder nicht lesbar ohne `allowInsecurePasswordTransfer` bricht mit `insecure_communication` ab; nicht live getestet |
 | Die sechs Typen mit Standardantwort und die generischen Antworten brauchen keinen Cast: Der kanonische Typ wird nach Name aus der Typkette gelesen, und jede Antwort wird per Reflection auf dem Laufzeitobjekt angewendet | — | — | Design (die früheren kompilierten Casts auf die sechs Typen sind entfallen; die Probe kompiliert weiterhin deren `CurrentSelection`) |
 | Die Laufzeit-Typkette der Live-Konfiguration enthält ihren öffentlichen V21-Typ in `Siemens.Engineering.Download.Configurations` (exakter Typabgleich) | — | keine | angenommen — live verifizieren; eine Abweichung bricht ab (fail-closed), sie antwortet nie |
 | `EngineeringException`, `EngineeringObjectDisposedException`, `NonRecoverableException` | Base | bestehende Stubs | unveränderte bestehende Deklarationen |
@@ -610,7 +636,7 @@ Bewusst nicht verwendet: `GetAccessibleDevices()`, `ApplyConfiguration`, die `Fi
 Compositions (stattdessen wird exakt enumeriert, sodass die ordinale Eindeutigkeit nicht von der
 Semantik von `Find` abhängt), die `Download`-Überladung mit einer `ConfigurationAddress`,
 `DeviceItemClassifications.CPU` (das Stub-Enum hat keine Member-Werte, und das Kompilieren einer
-erfundenen Konstante wäre zur Laufzeit falsch), `DownloadPasswordConfiguration.IsSecureCommunication`,
+erfundenen Konstante wäre zur Laufzeit falsch),
 `DownloadSelectionConfiguration`, `OnlineProvider`, `RHDownloadProvider`, `Download(DirectoryInfo, ...)`,
 `EnableLegacyCommunication`, `OnlineAuthenticationConfiguration`/`OnlineCredentials`
 (Online-Authentifizierung wird nicht beantwortet) und `TlsVerificationConfigurationSelection.NonVerified`.
@@ -620,6 +646,11 @@ erfundenen Konstante wäre zur Laufzeit falsch), `DownloadPasswordConfiguration.
 - `rhTarget` (Issue #16) ist nicht live getestet: Der Pfad wird aus `list_download_targets` (dem Inventar des `DownloadProvider`)
   geplant und muss sich mit denselben Namen auf `RHDownloadProvider.Configuration` auflösen; ob eine R/H-CPU beide Provider anbietet,
   ist nicht geprüft. Laden in einen Ordner ist `plc_write download_to_folder` ([PLC-Operationen](PLC_OPERATIONS_SUMMARY.de.md)).
+  Audit T3 (nicht live getestet): V21 dokumentiert nicht, welches Objekt `RHDownloadProvider` trägt; ein Fremdhinweis nennt das
+  R/H-System-`Device`, nicht eine Mitglieds-CPU. `rhTarget` und `download_to_folder rhSystem` suchen deshalb im CPU-Geräteelement,
+  dann in jedem Elternobjekt bis einschließlich seines `Device` (`RhSystemProviders`, exakter voller Name in `GetServiceInfos()`);
+  die Meldung `unsupported_capability` nennt jedes durchsuchte Objekt. Ein normaler Download einer CPU ohne `DownloadProvider`
+  scheitert mit `target_kind_unsupported` und einem Hinweis auf `rhTarget`.
 
 - Nicht live getestet, weder gegen PLCSIM noch gegen Hardware; jedes oben *angenommene* und jedes
   **Reflection**-Member kann live fehlschlagen (Reflection schlägt fail-closed mit einem Abbruchgrund

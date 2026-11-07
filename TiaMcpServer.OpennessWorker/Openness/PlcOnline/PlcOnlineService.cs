@@ -110,7 +110,8 @@ public static class PlcOnlineService
         var target = ResolveTarget(configuration, checkedRequest);
         var recorder = new PlcCallbackRecorder(null, checkedRequest.Passwords,
             new PlcCallbackReflectionAccess(PlcCallbackPolicy.OnlineConfigurationsNamespace, _ => null, Environment.GetEnvironmentVariable),
-            IsFatal, checkedRequest.TrustedCertificates, plcSimInterface: PlcTlsTrustPolicy.IsPlcSimInterface(checkedRequest.PcInterfaceName));
+            IsFatal, checkedRequest.TrustedCertificates, plcSimInterface: PlcTlsTrustPolicy.IsPlcSimInterface(checkedRequest.PcInterfaceName),
+            allowInsecurePasswordTransfer: checkedRequest.AllowInsecurePasswordTransfer);
         OnlineConfigurationDelegate legitimation = presented => recorder.Handle(presented);
         configuration.OnlineLegitimation += legitimation;
         try
@@ -228,7 +229,8 @@ public static class PlcOnlineService
         var recorder = new PlcCallbackRecorder(checkedRequest.Decisions, checkedRequest.Passwords,
             new PlcCallbackReflectionAccess(new[] { PlcCallbackPolicy.UploadConfigurationsNamespace, PlcCallbackPolicy.OnlineConfigurationsNamespace },
                 configuration => configuration is UploadConfiguration upload ? upload.Message : null, Environment.GetEnvironmentVariable),
-            IsFatal, checkedRequest.TrustedCertificates, plcSimInterface: PlcTlsTrustPolicy.IsPlcSimInterface(checkedRequest.PcInterfaceName));
+            IsFatal, checkedRequest.TrustedCertificates, plcSimInterface: PlcTlsTrustPolicy.IsPlcSimInterface(checkedRequest.PcInterfaceName),
+            allowInsecurePasswordTransfer: checkedRequest.AllowInsecurePasswordTransfer);
         OnlineConfigurationDelegate legitimation = presented => recorder.Handle(presented);
         connection.OnlineLegitimation += legitimation;
         UploadResult uploaded;

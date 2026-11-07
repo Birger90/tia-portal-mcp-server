@@ -1,0 +1,177 @@
+[
+ {
+  "title": "Siemens.Simatic.TechnologyObjects.HighSpeedCounter library",
+  "id": "YnqSGjg18sxz1X1czYtfcA",
+  "mapApiEndpoint": "/api/khub/maps/YnqSGjg18sxz1X1czYtfcA",
+  "metadata": [
+   {
+    "key": "ft:title",
+    "label": "ft:title",
+    "values": [
+     "Siemens.Simatic.TechnologyObjects.HighSpeedCounter library"
+    ]
+   },
+   {
+    "key": "ft:clusterId",
+    "label": "ft:clusterId",
+    "values": [
+     "@ax/simatic-1500-technology-objects"
+    ]
+   },
+   {
+    "key": "ft:locale",
+    "label": "ft:locale",
+    "values": [
+     "en-US"
+    ]
+   },
+   {
+    "key": "Language",
+    "label": "Language",
+    "values": [
+     "English (original)"
+    ]
+   },
+   {
+    "key": "Product",
+    "label": "Product",
+    "values": [
+     "SIMATIC AX"
+    ]
+   },
+   {
+    "key": "SoftwareVersion",
+    "label": "Software version",
+    "values": [
+     "4.1.3"
+    ]
+   },
+   {
+    "key": "ft:lastPublication",
+    "label": "ft:lastPublication",
+    "values": [
+     "2026-11-02T05:13:22.506978"
+    ]
+   },
+   {
+    "key": "ft:prettyUrl",
+    "label": "ft:prettyUrl",
+    "values": [
+     "en-us/ax/simatic-technology-objects/4.1.3"
+    ]
+   }
+  ]
+ },
+ {
+  "title": "Notification API",
+  "id": "fYJw6NgnY2FrqDNrm1E89Q",
+  "mapApiEndpoint": "/api/khub/maps/fYJw6NgnY2FrqDNrm1E89Q",
+  "metadata": [
+   {
+    "key": "ft:title",
+    "label": "ft:title",
+    "values": [
+     "Notification API"
+    ]
+   },
+   {
+    "key": "Language",
+    "label": "Language",
+    "values": [
+     "en-US (original)"
+    ]
+   },
+   {
+    "key": "Product",
+    "label": "Product",
+    "values": [
+     "Insights Hub APIS & Services Xcelerator"
+    ]
+   },
+   {
+    "key": "ft:locale",
+    "label": "ft:locale",
+    "values": [
+     "en-US"
+    ]
+   },
+   {
+    "key": "ft:clusterId",
+    "label": "ft:clusterId",
+    "values": [
+     "d3794250-0fdc-4793-8d32-44abf6f03a19/notification-fds-v3-4-1-xcelerator.yaml"
+    ]
+   },
+   {
+    "key": "ft:lastPublication",
+    "label": "ft:lastPublication",
+    "values": [
+     "2026-10-30T06:32:58.573268"
+    ]
+   },
+   {
+    "key": "ft:prettyUrl",
+    "label": "ft:prettyUrl",
+    "values": [
+     "en-us/notification-api"
+    ]
+   }
+  ]
+ },
+ {
+  "title": "Notification API",
+  "id": "2l9IiMfTcPSJWE7k_0vnPQ",
+  "mapApiEndpoint": "/api/khub/maps/2l9IiMfTcPSJWE7k_0vnPQ",
+  "metadata": [
+   {
+    "key": "ft:title",
+    "label": "ft:title",
+    "values": [
+     "Notification API"
+    ]
+   },
+   {
+    "key": "Language",
+    "label": "Language",
+    "values": [
+     "en-US (original)"
+    ]
+   },
+   {
+    "key": "Product",
+    "label": "Product",
+    "values": [
+     "Insights Hub APIS & Services Xcelerator"
+    ]
+   },
+   {
+    "key": "ft:locale",
+    "label": "ft:locale",
+    "values": [
+     "en-US"
+    ]
+   },
+   {
+    "key": "ft:clusterId",
+    "label": "ft:clusterId",
+    "values": [
+     "c940faaf-564a-4fd7-8dec-030c66c93da3/notification-fds-v4-4-2-xcelerator.yaml"
+    ]
+   },
+   {
+    "key": "ft:lastPublication",
+    "label": "ft:lastPublication",
+    "values": [
+     "2026-10-30T06:32:50.445261"
+    ]
+   },
+   {
+    "key": "ft:prettyUrl",
+    "label": "ft:prettyUrl",
+    "values": [
+     "en-us/notification-api"
+    ]
+   }
+  ]
+ }
+]

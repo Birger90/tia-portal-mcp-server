@@ -32,16 +32,16 @@ Configure your MCP client to launch the tool command:
 }
 ```
 
-Without explicit access arguments the server starts in `read-write` with thirty tools: edits (library edits included),
+Without explicit access arguments the server starts in `read-write` with thirty-two tools: edits (library edits included),
 compilation, S7-PLCSIM Advanced simulation control, all seven lifecycle tools, `plc_download` (to PLCSIM or to real hardware),
 `plc_online_write` for configured S7-1500 CPUs, `plc_tia_online` and `plc_station_upload`. Each actual lifecycle, download,
 online-write, online-connection or upload call, and each `library_write` call with a global-library lifecycle item, asks once through form
 elicitation `accept` with boolean `confirm:true`, even with no guards or only info guards. A client
 without that capability receives `access_denied`; decline, cancel, timeout, or transport failure
-also denies. Set `"args": ["--access-mode", "full"]` for the same thirty tools with lifecycle, download, online-write,
+also denies. Set `"args": ["--access-mode", "full"]` for the same thirty-two tools with lifecycle, download, online-write,
 online-connection and upload
 policy confirmation and no server elicitation; full adds no tools or operations.
-`tia-mcp install` defaults separately to read-only with eleven tools, including `bind_project`, `plcsim_read`, `plc_online_read` and `library_read`.
+`tia-mcp install` defaults separately to read-only with thirteen tools, including `bind_project`, `plcsim_read`, `plc_online_read`, `library_read`, `siemens_docs` and `tia_inbox`.
 Block guards stop the call in every mode. See [Installation](installation.md#access-modes).
 
 The access mode can also be chosen without any `args`: in "TiaMcp Passwortverwaltung" (`tia-mcp passwords`, tab
@@ -236,6 +236,20 @@ client that stores `env` in a shared configuration file stores the password ther
 server user with only the rights the AI should have. The file format, certificate validation modes,
 prerequisites in TIA Portal and the confirmation model are in the
 [PLC online reference](../SupportedOperations/PLC_ONLINE_WEBAPI_SUMMARY.md).
+
+## Siemens documentation hosts
+
+`siemens_docs` contacts only the allowed documentation hosts. The defaults need no configuration:
+
+| Setting | Command line | Environment variable | Default |
+| --- | --- | --- | --- |
+| Allowed hosts | `--docs-hosts <host,host>` | `TIA_MCP_DOCS_HOSTS` | `docs.tia.siemens.cloud,docs.industrial-operations-x.siemens.cloud` |
+| Default content locale | `--docs-locale <culture>` | `TIA_MCP_DOCS_LOCALE` | `en-US` |
+| Minimum interval per host | `--docs-min-interval-ms <ms>` | `TIA_MCP_DOCS_MIN_INTERVAL_MS` | 300 |
+
+The host list replaces the default and accepts plain DNS host names only (no scheme, port, path, IP address or
+`localhost`). Invalid values reject startup; stderr reports `TIA MCP Siemens documentation: ...`. See the
+[Siemens documentation reference](../SupportedOperations/SIEMENS_DOCS_SUMMARY.md#configuration).
 
 ## Worker timeout
 

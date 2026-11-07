@@ -154,6 +154,52 @@ SOFTWARE.
 | --- | --- | --- |
 | `TiaMcpServer.Contracts/Plc/PlcOpcUaExport.cs`, `TiaMcpServer.OpennessWorker/Openness/Plc/OpcUaExportService.cs` (`plc_write export_opcua_xml`) | commit `f4eb4d7` "feat: add ExportOpcUaXml tool" (`src/TiaMcpServer/Siemens/Portal.OpcUa.cs`) | The feature: export the OPC UA data of one PLC as XML. Reimplemented from `Project.HwUtilities.Find("OPCUAExportProvider")` and `OpcUaExportProvider.Export(DeviceItem, FileInfo)` as documented in `totally-integrated-claude` `skills/tia-import-export/references/plc-blocks.md` §13 and `skills/tia-devices-general/references/device-item-operations.md` (type listed in `api-baselines/v21/base.json`), bound at runtime; the guarded `plc_write` pipeline, file placement and tests are this fork's. |
 
+## Czarnak/siemens-docs-mcp (MIT)
+
+- Source: <https://github.com/Czarnak/siemens-docs-mcp> at `a0a0a24` (2026-11-02), package `siemens_docs_mcp` 0.1.2,
+  cloned read-only. Its `LICENSE` was read first: MIT, `Copyright (c) 2026 Łukasz Czarnacki`.
+- Owner rule: downloaded external code never runs on the owner's PC. The Python package is therefore not installed or
+  shipped; its design was **ported** to reviewed C# in `TiaMcpServer/SiemensDocs/` (the `siemens_docs` tool). For a
+  converter comparison it was run once, isolated (`python -I`, from another directory), only in the cloud container.
+- Every endpoint and JSON shape was re-checked against the live sites on 2026-11-03; where they differ, the live site
+  was followed (see the [Siemens documentation reference](docs/SupportedOperations/SIEMENS_DOCS_SUMMARY.md)).
+- Each ported file carries an origin header naming the upstream module and the licence.
+
+### Ported so far
+
+| Fork file | Upstream module | What was ported |
+| --- | --- | --- |
+| `TiaMcpServer/SiemensDocs/SiemensDocsHttp.cs` | `siemens_docs_mcp/client.py` | The Fluid Topics endpoints, the web-session request before the first API call, per-host minimum interval, one retry after 401/403 (new session) and after 429/5xx (Retry-After). The host allowlist on every request, no redirects, size caps and the failure categories are this fork's. |
+| `TiaMcpServer/SiemensDocs/SiemensDocsCatalog.cs` | `siemens_docs_mcp/catalog.py`, `toc.py` | Publication metadata (product, version keys `tia:SoftwareVersionFilter`/`SoftwareVersion`, pretty URL), case-insensitive filters with close matches, compact references `tia:`/`iox:`, reader-URL resolution (id form, pretty URL tried longest first), TOC parsing with a synthetic root for multi-section publications. The single-map lookup and the bounded caches are this fork's. |
+| `TiaMcpServer/SiemensDocs/SiemensDocsMarkdown.cs` | `siemens_docs_mcp/converter.py`, `content.py` | The Siemens class mapping (BlocktitleFirst/Blocktitle, table_sourcecode/p_table_l_code, safety tables, MkDocs admonitions), the chrome selectors, GFM tables and nested lists. The HTML parser (`SiemensDocsHtml.cs`) and the fixes found on the live HTML (code line breaks, title banner, table captions) are this fork's. |
+| `TiaMcpServer/SiemensDocs/SiemensDocsService.cs`, `SiemensDocsOptions.cs` | `siemens_docs_mcp/tools.py`, `server.py` | The four operations, their limits and the settings (hosts, locale, minimum interval, there `SIEMENS_DOCS_*`, here `--docs-*`/`TIA_MCP_DOCS_*`). The batch tool shape, offset paging of TOC and publication lists and the structured results are this fork's. |
+
+### Notice
+
+```
+MIT License
+
+Copyright (c) 2026 Łukasz Czarnacki
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
 ## Siemens AG `tia-portal-ai-extensions` (MIT)
 
 The SIMATIC SD operations follow the Siemens V21 skill `openness_development/skills/simatic-sd/SKILL.md`

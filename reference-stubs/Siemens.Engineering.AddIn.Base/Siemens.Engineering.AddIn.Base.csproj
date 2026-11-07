@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Compile-only reference stub of the TIA Portal V21 Add-In API (assembly name from the V21 IntelliSense file
+    Siemens.Engineering.AddIn.Base.xml). It declares only what TiaMcpServer.AddIn compiles against; every member has a
+    provenance row in docs/SupportedOperations/CLAUDE_IN_TIA.md. Separate from the hashed Base/Step7/WinCCUnified stub
+    set (scripts/verify-reference-stubs.ps1, ref/): nothing is committed as a DLL; TiaMcpServer.AddIn references this
+    project only when UseTiaPortalReferenceStubs=true. Members throw NotSupportedException; the stub is never loaded at
+    runtime and never shipped. The public key token of the real assembly is assumed to be the Openness one (unverified).
+  -->
+  <PropertyGroup>
+    <AssemblyName>Siemens.Engineering.AddIn.Base</AssemblyName>
+    <TargetFramework>net48</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AssemblyVersion>21.0.0.0</AssemblyVersion>
+    <FileVersion>21.0.0.0</FileVersion>
+    <Deterministic>true</Deterministic>
+    <ProduceReferenceAssembly>true</ProduceReferenceAssembly>
+    <SignAssembly>true</SignAssembly>
+    <DelaySign>true</DelaySign>
+    <AssemblyOriginatorKeyFile>$(MSBuildThisFileDirectory)..\Siemens.Engineering.PublicKey.snk</AssemblyOriginatorKeyFile>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <AssemblyMetadata Include="StubOrigin" Value="tia-portal-mcp" />
+    <AssemblyMetadata Include="StubSourceHash" Value="unverified-addin" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="Siemens.Engineering.Base">
+      <HintPath>$(MSBuildThisFileDirectory)..\..\ref\Siemens.Engineering.Base.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+</Project>

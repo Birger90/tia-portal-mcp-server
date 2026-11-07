@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using TiaMcpServer.Contracts.Hmi;
@@ -54,6 +55,7 @@ public sealed class HmiWriteOperationRequest : IOperationBatchItem
     public bool? Overwrite { get; set; }
 
     // Classic WinCC objects (issue #28).
+    [Description("Classic WinCC object kind: tagTables, tags, screens, screenTemplates, screenPopups, screenSlideins, vbScripts, textLists, graphicLists, connections, cycles, screenGlobalElements or screenOverview.")]
     public string? ClassicKind { get; set; }
     public string? ObjectName { get; set; }
     public List<string>? ObjectNames { get; set; }
@@ -63,12 +65,15 @@ public sealed class HmiWriteOperationRequest : IOperationBatchItem
     public string? ScriptCode { get; set; }
     public string? GlobalDefinitionAreaScriptCode { get; set; }
     public bool? Async { get; set; }
+    [Description("set_dynamization_script trigger: Disabled, T100ms … T10s, CustomCycle, Tags or AutomaticTags.")]
     public string? TriggerType { get; set; }
     public List<string>? TriggerTags { get; set; }
     public string? CustomDuration { get; set; }
     public string? Color { get; set; }
     public string? AlternateColor { get; set; }
+    [Description("set_dynamization_flashing: Always, Never or RangeViolation.")]
     public string? FlashingCondition { get; set; }
+    [Description("set_dynamization_flashing: Slow, Medium or Fast.")]
     public string? FlashingRate { get; set; }
 
     // WinCC Unified audit classes, runtime settings and plant objects (issue #29).

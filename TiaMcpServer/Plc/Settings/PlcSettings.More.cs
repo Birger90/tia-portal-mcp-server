@@ -32,9 +32,14 @@ internal static partial class PlcSettings
         request.SignalUsage = op.SignalUsage;
         request.SignalName = op.SignalName;
         request.Traced = op.Traced;
+        request.ObjectPath = op.ObjectPath;
+        request.ObjectPaths = op.ObjectPaths?.ToList();
+        request.CamFormat = op.CamFormat;
+        request.CamSeparator = op.CamSeparator;
+        request.SamplePoints = op.SamplePoints;
     }
 
-    private static string? MoreObjectName(PlcOperationRequest item) => item.UserName ?? item.TestName;
+    private static string? MoreObjectName(PlcOperationRequest item) => item.UserName ?? item.TestName ?? item.ObjectPath;
 
     private static IEnumerable<(string Field, string? Value)> MoreRequested(PlcOperationRequest item)
     {
@@ -61,6 +66,11 @@ internal static partial class PlcSettings
         if (item.SignalUsage is not null) yield return ("signalUsage", item.SignalUsage);
         if (item.SignalName is not null) yield return ("signalName", item.SignalName);
         if (item.Traced is { } traced) yield return ("traced", traced ? "true" : "false");
+        if (item.ObjectPath is not null) yield return ("objectPath", item.ObjectPath);
+        if (item.ObjectPaths is { } paths) yield return ("objectPaths", string.Join(", ", paths));
+        if (item.CamFormat is not null) yield return ("camFormat", item.CamFormat);
+        if (item.CamSeparator is not null) yield return ("camSeparator", item.CamSeparator);
+        if (item.SamplePoints is { } samples) yield return ("samplePoints", samples.ToString(System.Globalization.CultureInfo.InvariantCulture));
     }
 
     private static IEnumerable<FiredGuard> MoreGuards(PlcOperationRequest item, string where)
@@ -138,6 +148,27 @@ internal static partial class PlcSettings
                     : item.Operation is PlcUmacMethods.AssignDeviceFunctionRight or PlcUmacMethods.UnassignDeviceFunctionRight
                         ? $" (device function right '{item.RightName}' of role '{item.RoleName}' on PLC '{item.PlcName}'); it takes effect on the device after a download of the user management data."
                         : "."));
+        switch (item.Operation)
+        {
+            case PlcObjectMethods.MarkObjects or PlcObjectMethods.UnmarkObjects:
+                yield return new FiredGuard(PlcGuardDefinitions.ChangesMarkings, item.OperationId,
+                    $"{item.Operation} {(item.Operation == PlcObjectMethods.MarkObjects ? "marks" : "unmarks")} {item.ObjectPaths?.Count ?? 0} object(s) of the bound Multiuser local session for check-in; nothing is checked in or sent to the server.");
+                break;
+            case PlcObjectMethods.LoadCamData:
+                yield return new FiredGuard(PlcGuardDefinitions.LoadsCamData, item.OperationId,
+                    $"load_cam_data replaces the cam data of '{item.ObjectPath}' with '{item.FilePath}' (CamDataSupport); no documented member compares them afterwards.");
+                break;
+            case PlcObjectMethods.SaveCamData when item.Overwrite == true:
+                yield return new FiredGuard(PlcGuardDefinitions.ExportOverwritesFile, item.OperationId, $"save_cam_data replaces '{item.FilePath}' if it exists (overwrite:true).");
+                break;
+        }
+
+        if (item.Operation == PlcUmacMethods.ProtectProject)
+            yield return new FiredGuard(PlcGuardDefinitions.ProtectsProject, item.OperationId,
+                $"protect_project protects the project with the administrator '{item.UserName}' (password from source {item.PasswordVariable}); keep the source available, or the project may become inaccessible.");
+        if (item.Operation == PlcUmacMethods.ImportUmcUser)
+            yield return new FiredGuard(PlcGuardDefinitions.LowersCpuProtection, item.OperationId,
+                $"import_umc_user adds the {(item.UserKind == PlcUmacNames.UmcUserGroup ? "UMC user group" : "UMC user")} '{item.Name}' from the UMC server to the project; it gets the rights of the roles assigned to it.");
         if (item.Operation == PlcUmacMethods.SetAnonymousUser && item.Active == true)
             yield return new FiredGuard(PlcGuardDefinitions.LowersCpuProtection, item.OperationId,
                 "set_anonymous_user activates the project's anonymous user: access without a user name and password, with the anonymous user's roles.");

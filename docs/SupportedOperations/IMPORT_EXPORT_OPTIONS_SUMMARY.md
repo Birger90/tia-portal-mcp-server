@@ -169,7 +169,10 @@ Reported by rickgaiser/TiaMcp, not verified on V21; see [V21 pitfalls](V21_PITFA
 | Batch export of all blocks/types of a PLC or group to a directory (SimaticML documents or sources, per-file SHA-256) | Supported (not live-tested) through `plc_write export_blocks`, built on the reads above |
 | Technology objects | SimaticML through `plc_write` `export_technology_object`, `import_technology_object` and `update_technology_object_content`, and `plc_read` `get_technology_object_content`; see [TECHNOLOGY_OBJECTS_SUMMARY.md](TECHNOLOGY_OBJECTS_SUMMARY.md) (not live-tested) |
 | Watch tables and force tables | SimaticML through `plc_read` `get_watch_table_content`/`get_force_table_content` and `plc_write` `update_watch_table_content`/`update_force_table_content` (`Import(..., ImportOptions.Override)` behind `expectedContentHash`); see [PLC_ONLINE_OPENNESS_SUMMARY.md](PLC_ONLINE_OPENNESS_SUMMARY.md) (not live-tested); CSV export (not import) through `plc_write` `export_watch_tables_csv`/`export_force_tables_csv` |
-| PLC alarm, ProDiag, hardware CAx, project-text, and graphics exchange | Not supported |
+| PLC alarm and ProDiag exchange | Supported (not live-tested): `plc_write` `export_/import_alarm_texts`, `export_/import_alarm_classes`, `export_/import_text_lists`, `export_/import_supervisions`, `import_supervision_settings`, `export_prodiag_info`, `export_/import_system_diagnostics_settings`; see [PLC_ALARMS_TEXTLISTS_SUMMARY.md](PLC_ALARMS_TEXTLISTS_SUMMARY.md#files) and [ProDiag](PLC_ALARMS_TEXTLISTS_SUMMARY.md#prodiag) |
+| Hardware CAx (AutomationML) exchange | Supported (not live-tested): `network_write` `export_cax`/`import_cax`; see [HARDWARE_MODULES_SUMMARY.md](HARDWARE_MODULES_SUMMARY.md#cax-data-automationml) |
+| Project-text exchange | Supported (not live-tested): `plc_write` `export_project_texts`/`import_project_texts` (`.xlsx`); see [PLC_OPERATIONS_SUMMARY.md](PLC_OPERATIONS_SUMMARY.md#project-languages-and-project-texts-plc_readplc_write) |
+| Graphics exchange | Not supported: V21 documents `GraphicsProvider` but not which object offers it; see [HMI_CLASSIC_UNIFIED_EXTENSIONS_SUMMARY.md](HMI_CLASSIC_UNIFIED_EXTENSIONS_SUMMARY.md#left-out-issue-28) |
 | HMI import/export | Not supported; see [HMI_OPERATIONS_SUMMARY.md](HMI_OPERATIONS_SUMMARY.md) |
 | Generic arbitrary-object XML import/export | Not supported |
 

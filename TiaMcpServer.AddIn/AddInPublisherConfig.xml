@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Publisher configuration of the "Claude in TIA" Add-In (Siemens.Engineering.AddIn.Publisher.exe -f this file).
+  NOT VERIFIED against Siemens.Engineering.AddIn.Publisher.xsd (not available where this was written): element names follow
+  the V21 help page "File di configurazione" (PackageConfiguration, Product, FeatureAssembly, RequiredPermissions,
+  TIAPermissions, SecurityPermissions); the namespace version (V21) and the spelling of the FileIOPermission element are
+  assumptions. scripts/install-claude-in-tia.ps1 validates this file against the installed XSD before publishing and
+  prints the schema's errors.
+  Permissions: TIA.ReadOnly (the Add-In only reads names of the selected objects) and file access (it writes request
+  files to %APPDATA%\TiaMcpServer\inbox and reads/marks replies in ...\outbox; the code touches no other path).
+-->
+<PackageConfiguration xmlns="http://www.siemens.com/automation/Openness/AddIn/Publisher/V21">
+  <Author>TIA-Portal-MCP</Author>
+  <Description>Claude in TIA: hands the selected objects over to Claude through the TIA MCP server (inbox/outbox files, no project data).</Description>
+  <AddInVersion>0.1.0</AddInVersion>
+  <Product>
+    <Name>Claude in TIA</Name>
+    <Id>TiaMcpServer.ClaudeInTia</Id>
+    <Version>0.1.0</Version>
+  </Product>
+  <FeatureAssembly>
+    <AssemblyInfo>
+      <Assembly>TiaMcpServer.AddIn.dll</Assembly>
+    </AssemblyInfo>
+  </FeatureAssembly>
+  <RequiredPermissions>
+    <TIAPermissions>
+      <TIA.ReadOnly />
+    </TIAPermissions>
+    <SecurityPermissions>
+      <System.Security.Permissions.FileIOPermission-UNRESTRICTED />
+    </SecurityPermissions>
+  </RequiredPermissions>
+</PackageConfiguration>

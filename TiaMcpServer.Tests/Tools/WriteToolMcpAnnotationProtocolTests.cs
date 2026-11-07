@@ -17,7 +17,7 @@ public class WriteToolMcpAnnotationProtocolTests
         "plc_online_read",
         "plc_read",
         "plcsim_read",
-        "read_cross_references", "vci_read",
+        "read_cross_references", "siemens_docs", "tia_inbox", "vci_read",
     };
 
     private static readonly string[] FullToolNames =
@@ -50,6 +50,8 @@ public class WriteToolMcpAnnotationProtocolTests
         "retrieve_project",
         "save_project",
         "save_project_as",
+        "siemens_docs",
+        "tia_inbox",
         "vci_read", "vci_write",
     };
 
@@ -73,6 +75,7 @@ public class WriteToolMcpAnnotationProtocolTests
         ("plc_online_write", false, true, null, true),
         ("plcsim_write", false, true, null, false),
         ("plcsim_test", false, true, null, false),
+        ("tia_inbox", false, false, false, false),
     };
 
     [Fact]
@@ -83,7 +86,7 @@ public class WriteToolMcpAnnotationProtocolTests
         var byName = tools.ToDictionary(tool => tool.Name, StringComparer.Ordinal);
 
         Assert.Equal(FullToolNames, tools.Select(tool => tool.Name));
-        Assert.Equal(30, tools.Length);
+        Assert.Equal(32, tools.Length);
         Assert.All(
             tools,
             tool => Assert.Equal(
@@ -123,7 +126,7 @@ public class WriteToolMcpAnnotationProtocolTests
         var toolNames = tools.Select(tool => tool.Name).ToArray();
 
         Assert.Equal(ReadOnlyToolNames, toolNames);
-        Assert.Equal(11, tools.Length);
+        Assert.Equal(13, tools.Length);
 
         foreach (var writeToolName in FullToolNames.Except(ReadOnlyToolNames, StringComparer.Ordinal))
         {

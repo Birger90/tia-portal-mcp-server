@@ -93,11 +93,11 @@ internal static class PlcTypeTargetResolver
             return new TypeOwner(plcSoftware.TypeGroup, plcSoftware.ExternalSourceGroup);
         }
 
-        PlcUnit unit = FindSoftwareUnit(plcSoftware, address.UnitName!);
+        PlcUnitBase unit = FindSoftwareUnit(plcSoftware, address.UnitName!);
         return new TypeOwner(unit.TypeGroup, unit.ExternalSourceGroup);
     }
 
-    internal static PlcUnit FindSoftwareUnit(PlcSoftware plcSoftware, string unitName)
+    internal static PlcUnitBase FindSoftwareUnit(PlcSoftware plcSoftware, string unitName)
     {
         PlcUnitProvider? unitProvider = plcSoftware.GetService<PlcUnitProvider>();
         if (unitProvider is null)
@@ -105,7 +105,8 @@ internal static class PlcTypeTargetResolver
             throw new WorkerOperationException(WorkerFailureCategories.TargetNotFound, $"PLC software '{plcSoftware.Name}' does not expose software units.");
         }
 
-        foreach (PlcUnit unit in unitProvider.UnitGroup.Units)
+        // Audit T4: standard and safety units (PlcUnits).
+        foreach (var unit in PlcUnits.All(unitProvider.UnitGroup))
         {
             if (string.Equals(unit.Name, unitName, StringComparison.OrdinalIgnoreCase))
             {
@@ -164,7 +165,7 @@ internal static class PlcTypeTargetResolver
             yield break;
         }
 
-        foreach (PlcUnit unit in unitProvider.UnitGroup.Units)
+        foreach (var unit in PlcUnits.All(unitProvider.UnitGroup))
         {
             yield return new TypeOwner(unit.TypeGroup, unit.ExternalSourceGroup);
         }

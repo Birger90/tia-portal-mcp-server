@@ -140,6 +140,21 @@ public static class WorkerFailureCategories
     /// </summary>
     public const string ApiMemberMissing = "api_member_missing";
 
+    /// <summary>
+    /// A Siemens documentation host (<c>siemens_docs</c>) could not be reached: connection, DNS or TLS failure,
+    /// or the per-request timeout.
+    /// </summary>
+    public const string DocsUnreachable = "docs_unreachable";
+
+    /// <summary>A Siemens documentation host answered with an HTTP error status (or a redirect); the message carries the status.</summary>
+    public const string DocsRejected = "docs_rejected";
+
+    /// <summary>
+    /// A Siemens documentation host answered, but the response exceeded the size cap or did not have the JSON shape
+    /// the reader expects (the site changed); the message names what was wrong, never the raw response.
+    /// </summary>
+    public const string DocsResponseInvalid = "docs_response_invalid";
+
     private static readonly HashSet<string> Known = new(StringComparer.Ordinal)
     {
         ValidationError,
@@ -176,7 +191,10 @@ public static class WorkerFailureCategories
         WebApiAuthenticationFailed,
         WebApiPermissionDenied,
         WebApiRejected,
-        ApiMemberMissing
+        ApiMemberMissing,
+        DocsUnreachable,
+        DocsRejected,
+        DocsResponseInvalid
     };
 
     private static readonly HashSet<string> PreconditionRefusalSet = new(StringComparer.Ordinal)

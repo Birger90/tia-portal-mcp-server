@@ -115,7 +115,7 @@ public static class PlcDownloadPayloadContract
         Require(result.ConfigurationsSeen);
         if (result.ConfigurationsSeen.Count > PlcDownloadPolicy.MaxConfigurations + 1) throw new JsonException(ProtocolFailureMessage);
         var decisions = new PlcDownloadDecisionSet(expected.Decisions, expected.Passwords, expected.StartAfterDownload, expected.Path.PcInterface.Name,
-            expected.TrustedCertificates);
+            expected.TrustedCertificates, expected.AllowInsecurePasswordTransfer == true);
         PlcDownloadConfigurationInfo? firstAborted = null;
         var firstAbortedIndex = -1;
         for (var index = 0; index < result.ConfigurationsSeen.Count; index++)
@@ -125,6 +125,11 @@ public static class PlcDownloadPayloadContract
                 || !PlcDownloadPolicy.Decisions.IsKnown(seen.Decision))
                 throw new JsonException(ProtocolFailureMessage);
             ValidateShape(seen.Phase, seen.CanonicalType, seen.DecisionKey, seen.Kind, seen.AvailableSelections, seen.Message);
+            // Audit T1: IsSecureCommunication is read only for a password configuration the caller has a password for.
+            if (seen.SecureCommunication is not null && (seen.Kind != PlcDownloadPolicy.Kinds.Password
+                    || decisions.Resolve(seen.Phase, seen.CanonicalType).Decision != PlcDownloadPolicy.Decisions.PasswordSet)
+                || seen.Decision == PlcDownloadPolicy.Decisions.PasswordSet && seen.SecureCommunication != true && !decisions.AllowInsecurePasswordTransfer)
+                throw new JsonException(ProtocolFailureMessage);
             var tlsEntry = IsTls(seen.Phase, seen.CanonicalType);
             var trustedAnswer = tlsEntry && seen.Decision == PlcDownloadPolicy.Decisions.Selected && seen.Selection == PlcTlsTrustPolicy.Trusted;
             if (!tlsEntry && seen.Tls is not null
@@ -148,6 +153,20 @@ public static class PlcDownloadPayloadContract
                 if (firstAborted is not null || seen.Decision != PlcDownloadPolicy.Decisions.Selected || seen.Kind != PlcDownloadPolicy.Kinds.Selection
                     || seen.Selection != PlcTlsTrustPolicy.Trusted || seen.Source != PlcDownloadPolicy.Sources.Caller || seen.PasswordVariable is not null)
                     throw new JsonException(ProtocolFailureMessage);
+            }
+            else if (!tlsEntry && seen.Decision == PlcDownloadPolicy.Decisions.Selected && seen.Source == PlcDownloadPolicy.Sources.Policy)
+            {
+                // Audit T2: an unanswered selection configuration answered NoAction by the server policy instead of a throw; it is
+                // (or follows) the abort.
+                if (seen.Kind != PlcDownloadPolicy.Kinds.Selection || seen.Selection != PlcPasswordChannel.NoActionSelection
+                    || !seen.AvailableSelections.Contains(PlcPasswordChannel.NoActionSelection, StringComparer.Ordinal)
+                    || seen.PasswordVariable is not null || result.Abort is null)
+                    throw new JsonException(ProtocolFailureMessage);
+                if (firstAborted is null)
+                {
+                    firstAborted = seen;
+                    firstAbortedIndex = index;
+                }
             }
             else if (seen.Decision != PlcDownloadPolicy.Decisions.Aborted)
             {
@@ -197,11 +216,13 @@ public static class PlcDownloadPayloadContract
             PlcDownloadPolicy.AbortReasons.DecisionRequired => prescribedForAbort.AbortReason == PlcDownloadPolicy.AbortReasons.DecisionRequired,
             PlcDownloadPolicy.AbortReasons.SelectionUnavailable => prescribedForAbort.Decision == PlcDownloadPolicy.Decisions.Selected,
             PlcDownloadPolicy.AbortReasons.PasswordUnavailable => prescribedForAbort.Decision == PlcDownloadPolicy.Decisions.PasswordSet,
+            PlcDownloadPolicy.AbortReasons.InsecureCommunication => prescribedForAbort.Decision == PlcDownloadPolicy.Decisions.PasswordSet
+                && !decisions.AllowInsecurePasswordTransfer && firstAborted.SecureCommunication != true,
             _ => prescribedForAbort.Handled, // decision_not_applicable, decision_rejected: an answer was attempted.
         };
         var detailAllowed = abort.Reason is PlcDownloadPolicy.AbortReasons.DecisionNotApplicable
             or PlcDownloadPolicy.AbortReasons.SelectionUnavailable or PlcDownloadPolicy.AbortReasons.PasswordUnavailable
-            or PlcDownloadPolicy.AbortReasons.CertificateNotTrusted;
+            or PlcDownloadPolicy.AbortReasons.CertificateNotTrusted or PlcDownloadPolicy.AbortReasons.InsecureCommunication;
         if (!fits || abort.Detail is not null && !detailAllowed || firstAbortedIndex > PlcDownloadPolicy.MaxConfigurations)
             throw new JsonException(ProtocolFailureMessage);
     }

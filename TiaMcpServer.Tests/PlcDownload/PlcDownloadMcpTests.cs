@@ -306,8 +306,11 @@ public sealed class PlcDownloadMcpTests
             (abort.GetProperty("reason").GetString(), abort.GetProperty("decisionKey").GetString(), abort.GetProperty("kind").GetString()));
         Assert.Equal(new[] { "StopPlcAndReinitialize", "NoAction" }, abort.GetProperty("availableSelections").EnumerateArray().Select(name => name.GetString()));
         Assert.Equal(JsonValueKind.Null, value.GetProperty("state").ValueKind);
-        Assert.Equal(new[] { "selected", "aborted" },
-            value.GetProperty("configurationsSeen").EnumerateArray().Select(seen => seen.GetProperty("decision").GetString()));
+        // Audit T2: DataBlockReinitialization documents NoAction, so it is answered NoAction (source policy) without a throw and is
+        // the recorded abort; the later check configuration (no NoAction) still aborts by throwing.
+        var seen = value.GetProperty("configurationsSeen").EnumerateArray().ToArray();
+        Assert.Equal(new[] { "selected", "selected", "aborted" }, seen.Select(entry => entry.GetProperty("decision").GetString()));
+        Assert.Equal(("NoAction", "policy"), (seen[1].GetProperty("selection").GetString(), seen[1].GetProperty("source").GetString()));
         Assert.Contains(document.GetProperty("warnings").EnumerateArray(), warning => warning.GetString()!.Contains("Inspect it before retrying"));
         Assert.Single(session.AuditLines);
     }

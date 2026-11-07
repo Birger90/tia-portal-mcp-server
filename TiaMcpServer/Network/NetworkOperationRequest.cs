@@ -30,7 +30,7 @@ public sealed class NetworkOperationRequest : IOperationBatchItem
     [Description("Client-supplied unique identifier for this network operation; returned results are keyed by it.")]
     public string OperationId { get; set; } = string.Empty;
 
-    [Description("Network operation to run. Reads (network_read): read_hardware_config, search_equipment_catalog, list_network_objects, inspect_network_object, list_plug_locations, find_module_types, find_container_types, list_io_addresses, get_custom_identity, list_port_connections, list_transfer_areas. Writes (network_write): add_network_device, configure_network_device, create_subnet, update_subnet, delete_subnet, create_io_system, plug_device_item, move_device_item, copy_device_item, delete_device_item, change_device_item_type, set_hardware_attributes, set_io_address, set_custom_identity, remove_custom_identity, connect_ports, disconnect_ports, create_transfer_area, update_transfer_area, delete_transfer_area, delete_io_system, disconnect_from_io_system, export_cax, import_cax, export_io_map.")]
+    [Description("Network operation to run: a network_read read or a network_write write, as each tool description lists them.")]
     public string Operation { get; set; } = string.Empty;
 
     [Description("Hardware catalog search query. Required by search_equipment_catalog.")]
@@ -42,7 +42,7 @@ public sealed class NetworkOperationRequest : IOperationBatchItem
     [Description("Exact equipment catalog type identifier (OrderNumber:, GSD: or System:). Required by add_network_device, plug_device_item, change_device_item_type and find_container_types; find_module_types takes a partial identifier (OrderNumber: at least one part, GSD: at least two, System: at least one).")]
     public string? TypeIdentifier { get; set; }
 
-    [Description("Name for the new network device or device-scoped filter for list_network_objects. Required by add_network_device; for list_network_objects it is allowed only when every requested kind is deviceItem, networkInterface, node, or communicationConnection. For read_hardware_config: optional ordinal-ignore-case device filter — exactly one match reads only that device; zero or multiple matches report a non-fatal message and no devices. As a filter it names the station/root device as reported in read_hardware_config devices[].name, not a PLC/CPU device-item name; use plcName only for tag matching.")]
+    [Description("Name for the new network device (required by add_network_device) or a device filter: list_network_objects allows it only when every requested kind is deviceItem, networkInterface, node, or communicationConnection; read_hardware_config takes an optional ordinal-ignore-case filter on the station/root device name (devices[].name, not a PLC/CPU device-item name; plcName is only for tag matching): exactly one match reads only that device, zero or multiple matches report a non-fatal message and no devices.")]
     public string? DeviceName { get; set; }
 
     [Description("Optional device item name. add_network_device: defaults to deviceName when omitted. plug_device_item: the new item's name; omitted lets TIA Portal choose it. Blank when supplied is rejected.")]
@@ -57,7 +57,7 @@ public sealed class NetworkOperationRequest : IOperationBatchItem
     [Description("Optional read_hardware_config flag: when true, each channel carries tagMatches resolved against the selected PLC's tag tables. Requires includeIoDetails=true; defaults to false.")]
     public bool? IncludeTagMatches { get; set; }
 
-    [Description("Exact existing object to configure, inspect or change. Required by configure_network_device, create_io_system (kind 'node': the CPU's PROFINET node with deviceName, nodeId and interfacePath as read_hardware_config reports it), inspect_network_object and every hardware-module operation. Hardware-module operations take kind 'deviceItem' (a selector from read_hardware_config or list_network_objects) or, where documented, kind 'device' with only deviceName: list_plug_locations, plug_device_item (the container), set_hardware_attributes, get/set/remove_custom_identity and list_port_connections accept both; connect_ports and disconnect_ports (the port device item), list_transfer_areas, create/update/delete_transfer_area and disconnect_from_io_system (the device item providing the NetworkInterface), list_io_addresses, move_device_item, copy_device_item, delete_device_item, change_device_item_type and set_io_address need a deviceItem. delete_io_system takes kind 'ioSystem' (subnetId, number, optional ioSystemIndex and ioSystemName as read_hardware_config reports the IO system).")]
+    [Description("Exact existing object to configure, inspect or change. Required by configure_network_device, create_io_system (kind 'node': the CPU's PROFINET node with deviceName, nodeId and interfacePath as read_hardware_config reports it), inspect_network_object and every hardware-module operation. Hardware-module operations take kind 'deviceItem' (a selector from read_hardware_config or list_network_objects); list_plug_locations, plug_device_item (the container), set_hardware_attributes, get/set/remove_custom_identity and list_port_connections also take kind 'device' with only deviceName, the others need a deviceItem (connect_ports, disconnect_ports: the port; list_transfer_areas, create/update/delete_transfer_area, disconnect_from_io_system: the item providing the NetworkInterface). delete_io_system takes kind 'ioSystem' (subnetId, number, optional ioSystemIndex and ioSystemName as read_hardware_config reports the IO system).")]
     public NetworkObjectTarget? Target { get; set; }
 
     [Description("User-defined custom identity key of get_custom_identity, set_custom_identity and remove_custom_identity (CustomIdentityProvider of the target device or device item). Required by those; nonblank.")]
@@ -108,6 +108,27 @@ public sealed class NetworkOperationRequest : IOperationBatchItem
     [Description("The partner of connect_ports and disconnect_ports (kind 'deviceItem', the other port device item as read_hardware_config or list_port_connections reports it; required) and of create_transfer_area in the multicastable collection (kind 'deviceItem', the device item providing the partner NetworkInterface; required there).")]
     public NetworkObjectTarget? Partner { get; set; }
 
+    [Description("Package G: the node of the target interface for create_subnet_and_connect_node, disconnect_node_from_subnets and create_communication_connection (Node.Name as get_interface_nodes lists it); optional when the interface has one node.")]
+    public string? NodeName { get; set; }
+
+    [Description("Package G create_subnet_and_connect_node (required): the name of the subnet Node.CreateAndConnectToSubnet creates.")]
+    public string? NewSubnetName { get; set; }
+
+    [Description("Package G create_communication_connection: the node of the partner interface; optional when it has one node.")]
+    public string? PartnerNodeName { get; set; }
+
+    [Description("Package G assign_pc_interface (required): None, PcStation or SoftwarePlc (PcInterfaceAssignmentMode); with partner (the CPU device item) AssignInterface(mode, DeviceItem).")]
+    public string? AssignmentMode { get; set; }
+
+    [Description("Package G create_communication_connection (required): S7Connection, HmiConnection, TcpConnection, UdpConnection, IsoOnTcpConnection, IsoConnection, FdlConnection or PtpConnection (ConnectionComposition.Create<T>).")]
+    public string? ConnectionType { get; set; }
+
+    [Description("Package G delete_communication_connection (required): the 0-based index list_communication_connections reports.")]
+    public int? ConnectionIndex { get; set; }
+
+    [Description("Package G delete_communication_connection: the expected connection name at connectionIndex; a different one is refused (state_changed).")]
+    public string? ConnectionName { get; set; }
+
     [Description("The transfer area of create_transfer_area, update_transfer_area and delete_transfer_area: { collection, index?, name?, type?, positionNumber?, dataLength?, templateIndex? }. Required by those three.")]
     public NetworkTransferAreaRequest? TransferArea { get; set; }
 
@@ -135,7 +156,7 @@ public sealed class NetworkOperationRequest : IOperationBatchItem
     [Description("Optional export_io_map, export_cax and import_cax flag: true replaces an existing file (export_cax: the export is staged next to the target and moved over it; export_cax and import_cax: an existing logFilePath is replaced); omitted or false refuses to overwrite.")]
     public bool? Overwrite { get; set; }
 
-    [Description("Optional absolute log file path of export_cax and import_cax: selects the documented CaxProvider overload with a log file (it returns only true/false; the details are in the log). Omitted uses the overload that returns a TransferResult with state, counts and messages. An existing log file is refused unless overwrite:true; device paths are refused and a link or network location on the way is reported.")]
+    [Description("Optional absolute log file path of export_cax and import_cax: selects the documented CaxProvider overload with a log file (it returns only true/false; the details are in the log); omitted, the overload returning a TransferResult with state, counts and messages. An existing log file needs overwrite:true; device paths are refused, a link or network location on the way is reported.")]
     public string? LogFilePath { get; set; }
 
     [Description("import_cax: how the import merges with existing devices, a CaxImportOptions member: MoveToParkingLot, OverwriteTiaDevice or RetainTiaDevice. Required by import_cax.")]
@@ -159,7 +180,7 @@ public sealed class NetworkObjectTarget
     [Description("Preferred node owner path from the device root to the item providing its NetworkInterface service. Nonempty; each segment requires nonblank name and nonnegative positionNumber, with optional nonblank typeIdentifier. Cannot be combined with itemPath.")]
     public IReadOnlyList<NetworkInterfacePathSegment>? InterfacePath { get; set; }
 
-    [Description("Network object kind. One of: deviceItem, networkInterface, node, subnet, ioSystem, communicationConnection. For configure_network_device, only 'node' or absent is accepted. For update_subnet and delete_subnet, kind is required and must be exactly 'subnet'.")]
+    [Description("Network object kind: deviceItem, networkInterface, node, subnet, ioSystem or communicationConnection. configure_network_device takes only 'node' or none; update_subnet and delete_subnet require exactly 'subnet'.")]
     public string? Kind { get; set; }
 
     [Description("Exact device name. Required for deviceItem, networkInterface, node, and communicationConnection kinds.")]

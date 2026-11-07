@@ -49,7 +49,10 @@ internal static class PlcLoadableService
             (result.Overload, elementType) = (PlcLoadableNames.OverloadUnits, PlcLoadableNames.UnitType);
             foreach (var name in unitNames)
             {
-                var unit = PlcTypeTargetResolver.FindSoftwareUnit(software, name);
+                // The documented overload takes PlcUnit; a safety unit (audit T4: now found by name too) is not one.
+                var unit = PlcTypeTargetResolver.FindSoftwareUnit(software, name) as Siemens.Engineering.SW.Units.PlcUnit
+                    ?? throw new WorkerOperationException(WorkerFailureCategories.UnsupportedCapability,
+                        $"'{name}' is a safety unit; the documented loadable overload takes software units (PlcUnit) only. Nothing was generated.");
                 objects.Add(unit);
                 result.Objects.Add(unit.Name);
             }

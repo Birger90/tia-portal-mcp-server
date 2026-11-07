@@ -131,6 +131,21 @@ public sealed class PlcSettingsRequestInfo
 
     /// <summary>Safety Validation Assistant: <c>TraceConfiguration.IsTraced</c> of a safety function.</summary>
     public bool? Traced { get; set; }
+
+    /// <summary>Package G: the engineering object an operation addresses (<see cref="PlcObjectPaths"/>).</summary>
+    public string? ObjectPath { get; set; }
+
+    /// <summary>Package G mark_objects / unmark_objects: the objects (1 to <see cref="PlcObjectNames.MaxObjects"/>).</summary>
+    public List<string>? ObjectPaths { get; set; }
+
+    /// <summary>Package G save_cam_data / load_cam_data: MCD, Scout, PointList or Binary.</summary>
+    public string? CamFormat { get; set; }
+
+    /// <summary>Package G cam data: Comma or Tab.</summary>
+    public string? CamSeparator { get; set; }
+
+    /// <summary>Package G save_cam_data PointList: the number of sample points.</summary>
+    public int? SamplePoints { get; set; }
 }
 
 /// <summary>One requested setting: the documented property (or attribute) name and the value as invariant text.</summary>

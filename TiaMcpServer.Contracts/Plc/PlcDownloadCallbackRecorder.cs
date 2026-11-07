@@ -31,6 +31,7 @@ public sealed class PlcDownloadCallbackRecorder
     private readonly Func<Exception, bool> _isFatal;
     private readonly Func<object, string?> _legitimationCanonicalType;
     private readonly Func<object, IReadOnlyCollection<string>, PlcTlsVerificationInfo> _readTls;
+    private readonly Func<object, bool?> _readSecureCommunication;
 
     /// <param name="decisions">The answers this download may give.</param>
     /// <param name="result">The evidence the decisions are recorded into.</param>
@@ -44,10 +45,15 @@ public sealed class PlcDownloadCallbackRecorder
     /// <c>Siemens.Engineering.Online.Configurations</c> (<see cref="PlcDownloadPolicy.CanonicalConfigurationType(string, Type)"/>).
     /// </param>
     /// <param name="readTls">Reads the TLS evidence of a live configuration; defaults to <see cref="PlcTlsTrustPolicy.Read"/>.</param>
+    /// <param name="readSecureCommunication">
+    /// Reads <c>IsSecureCommunication</c> of a password configuration before <c>SetPassword</c> (audit T1); defaults to
+    /// <see cref="PlcPasswordChannel.TryRead"/>. Null means unreadable.
+    /// </param>
     public PlcDownloadCallbackRecorder(PlcDownloadDecisionSet decisions, PlcDownloadResultInfo result,
         IPlcDownloadConfigurationAccess access, Func<Exception, bool>? isFatal = null,
         Func<object, string?>? legitimationCanonicalType = null,
-        Func<object, IReadOnlyCollection<string>, PlcTlsVerificationInfo>? readTls = null)
+        Func<object, IReadOnlyCollection<string>, PlcTlsVerificationInfo>? readTls = null,
+        Func<object, bool?>? readSecureCommunication = null)
     {
         _decisions = decisions ?? throw new ArgumentNullException(nameof(decisions));
         _result = result ?? throw new ArgumentNullException(nameof(result));
@@ -56,6 +62,7 @@ public sealed class PlcDownloadCallbackRecorder
         _legitimationCanonicalType = legitimationCanonicalType
             ?? (configuration => PlcDownloadPolicy.CanonicalConfigurationType(PlcDownloadPolicy.Phases.OnlineLegitimation, configuration.GetType()));
         _readTls = readTls ?? ((configuration, trusted) => PlcTlsTrustPolicy.Read(configuration, trusted, _isFatal));
+        _readSecureCommunication = readSecureCommunication ?? (configuration => PlcPasswordChannel.TryRead(configuration, _isFatal));
     }
 
     /// <summary>The exception that rejected the first rejected answer (<c>decision_rejected</c>), if any.</summary>
@@ -86,10 +93,12 @@ public sealed class PlcDownloadCallbackRecorder
             Exception? rejected = null;
             string? detail = null;
             string? refusal = null;
+            bool? secure = null;
             var tlsQuestion = legitimation && PlcTlsTrustPolicy.IsTlsVerification(canonical);
             PlcDownloadCallbackDecision decision;
-            if (_result.Abort is not null)
-                decision = tlsQuestion ? RefuseTlsAfterAbort(configuration, shape, out tls, out rejected) : PlcDownloadCallbackDecision.Abort(_result.Abort.Reason);
+            var afterAbort = _result.Abort is not null;
+            if (afterAbort)
+                decision = tlsQuestion ? RefuseTlsAfterAbort(configuration, shape, out tls, out rejected) : PlcDownloadCallbackDecision.Abort(_result.Abort!.Reason);
             else if (_result.ConfigurationsSeen.Count >= PlcDownloadPolicy.MaxConfigurations)
                 decision = PlcDownloadCallbackDecision.Abort(PlcDownloadPolicy.AbortReasons.ConfigurationLimitExceeded);
             else if (tlsQuestion)
@@ -105,7 +114,7 @@ public sealed class PlcDownloadCallbackRecorder
                         {
                             PlcDownloadPolicy.Decisions.Selected => _access.ApplySelection(configuration, decision.Selection!),
                             PlcDownloadPolicy.Decisions.Checked => _access.ApplyCheck(configuration),
-                            PlcDownloadPolicy.Decisions.PasswordSet => _access.ApplyPassword(configuration, decision.PasswordVariable!),
+                            PlcDownloadPolicy.Decisions.PasswordSet => ApplyPassword(configuration, decision.PasswordVariable!, out secure),
                             _ => PlcDownloadApplyOutcome.NotApplicable("the answer kind is unknown"),
                         };
                         if (!applied.Applied)
@@ -119,6 +128,27 @@ public sealed class PlcDownloadCallbackRecorder
                         rejected = exception;
                         decision = PlcDownloadCallbackDecision.Abort(PlcDownloadPolicy.AbortReasons.DecisionRejected);
                     }
+                }
+            }
+
+            // Audit T2: an unanswered selection configuration whose live enum documents NoAction is answered NoAction (source
+            // policy) and recorded as the abort without a throw; a rejected answer or the configuration limit still throws.
+            if (!decision.Handled && !tlsQuestion && rejected is null && shape.Kind == PlcDownloadPolicy.Kinds.Selection
+                && _result.ConfigurationsSeen.Count < PlcDownloadPolicy.MaxConfigurations
+                && (afterAbort || decision.AbortReason is PlcDownloadPolicy.AbortReasons.DecisionRequired
+                    or PlcDownloadPolicy.AbortReasons.SelectionUnavailable or PlcDownloadPolicy.AbortReasons.DecisionNotApplicable)
+                && shape.AvailableSelections.Contains(PlcPasswordChannel.NoActionSelection, StringComparer.Ordinal))
+            {
+                var fallback = TryNoAction(configuration, out var fatal);
+                if (fatal is not null)
+                {
+                    rejected = fatal;
+                    decision = PlcDownloadCallbackDecision.Abort(PlcDownloadPolicy.AbortReasons.DecisionRejected);
+                }
+                else if (fallback)
+                {
+                    refusal = decision.AbortReason!;
+                    decision = PlcDownloadCallbackDecision.Select(PlcPasswordChannel.NoActionSelection, PlcDownloadPolicy.Sources.Policy);
                 }
             }
 
@@ -137,6 +167,7 @@ public sealed class PlcDownloadCallbackRecorder
                     Selection = decision.Selection,
                     Source = decision.Source,
                     PasswordVariable = decision.PasswordVariable,
+                    SecureCommunication = secure,
                     Tls = tls,
                 });
             if (decision.Handled && refusal is null) return;
@@ -154,12 +185,41 @@ public sealed class PlcDownloadCallbackRecorder
                 Detail = detail,
                 Tls = tls,
             };
-            // The TLS question was refused with NonTrusted: return normally and let TIA Portal fail the connection (K27).
+            // The TLS question was refused with NonTrusted, or a selection answered NoAction (T2): return normally and let
+            // TIA Portal fail the step (K27).
             if (decision.Handled) return;
             if (rejected is not null && _isFatal(rejected))
                 ExceptionDispatchInfo.Capture(rejected).Throw();
             throw new PlcDownloadAbortedException(phase, type, rejected);
         }
+    }
+
+    /// <summary>Sets NoAction; false when not applied or a recoverable exception was thrown; a fatal exception is returned.</summary>
+    private bool TryNoAction(object configuration, out Exception? fatal)
+    {
+        fatal = null;
+        try
+        {
+            return _access.ApplySelection(configuration, PlcPasswordChannel.NoActionSelection).Applied;
+        }
+        catch (Exception exception)
+        {
+            if (_isFatal(exception)) fatal = exception;
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Audit T1: a password is handed to <c>SetPassword</c> only when the configuration's <c>IsSecureCommunication</c> is
+    /// true, or the caller passed <c>allowInsecurePasswordTransfer: true</c>; otherwise nothing is sent and the answer is the
+    /// abort <c>insecure_communication</c>. The flag is read first, so an unset variable is never resolved for such a channel.
+    /// </summary>
+    private PlcDownloadApplyOutcome ApplyPassword(object configuration, string variable, out bool? secure)
+    {
+        secure = _readSecureCommunication(configuration);
+        if (!PlcPasswordChannel.MaySend(secure, _decisions.AllowInsecurePasswordTransfer))
+            return PlcDownloadApplyOutcome.InsecureCommunication(PlcPasswordChannel.RefusalDetail(secure));
+        return _access.ApplyPassword(configuration, variable);
     }
 
     /// <summary>

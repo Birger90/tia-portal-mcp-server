@@ -46,6 +46,8 @@ public sealed class HmiVerificationPolicy(IReadOnlyDictionary<string, HmiWriteEf
             "ClassicObjects" or "ClassicObject" or "ClassicFolder" => $"{prefix}{kind.ToLowerInvariant()}\n{upper}",
             // Unified audit classes, runtime settings and plant views (issue #29).
             "AuditClass" or "RuntimeSettings" or "PlantView" or "PlantViewNode" => $"{prefix}{kind.ToLowerInvariant()}\n{upper}",
+            // Package G: log durations and OPC UA alarm types.
+            "Log" or "OpcUaAlarmType" => $"{prefix}{kind.ToLowerInvariant()}\n{upper}",
             _ => throw new NotSupportedException(),
         };
     }

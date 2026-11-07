@@ -36,6 +36,25 @@ public static partial class PlcOperationCatalog
         specs[PlcUmacMethods.UpdateUmcUser] = Write(new[] { "userName" }, new[] { "userKind", "active", "newName" });
         specs[PlcUmacMethods.DeleteUmcUser] = Write(new[] { "userName" }, new[] { "userKind" });
         specs[PlcUmacMethods.SetUmacPasswordPolicy] = Write(Array.Empty<string>(), new[] { "settings" });
+        // Package G: project protection and the UMC additions (UMC server credentials: userName + passwordVariable, both or none).
+        specs[PlcUmacMethods.ProtectProject] = Write(new[] { "userName", "passwordVariable" }, Array.Empty<string>());
+        specs[PlcUmacMethods.CreateOfflineUmcUser] = Write(new[] { "userName" }, Array.Empty<string>());
+        specs[PlcUmacMethods.CreateOfflineUmcUserGroup] = Write(Array.Empty<string>(), new[] { "name" });
+        specs[PlcUmacMethods.ImportUmcUser] = Write(new[] { "name" }, new[] { "userKind", "userName", "passwordVariable" });
+        specs[PlcUmacMethods.GetUmcServerUser] = Read(new[] { "name" }, new[] { "userKind", "userName", "passwordVariable" });
+        specs[PlcUmacMethods.CheckUmcConsistency] = Read(Array.Empty<string>(), new[] { "userName", "passwordVariable" });
+        // Package G: engineering objects by path (markings of a local session, identifiers, creation infos, linked tags, cam data).
+        specs[PlcObjectMethods.GetMarkings] = Read(Array.Empty<string>(), Array.Empty<string>());
+        specs[PlcObjectMethods.GetMarkState] = Read(new[] { "objectPath" }, Array.Empty<string>());
+        // objectPaths is a list: required by the shape rule below (the required-field check reads string fields only).
+        specs[PlcObjectMethods.MarkObjects] = Write(Array.Empty<string>(), new[] { "objectPaths" });
+        specs[PlcObjectMethods.UnmarkObjects] = Write(Array.Empty<string>(), new[] { "objectPaths" });
+        specs[PlcObjectMethods.GetObjectIdentifier] = Read(new[] { "objectPath" }, Array.Empty<string>());
+        specs[PlcObjectMethods.FindObjectByIdentifier] = Read(new[] { "name" }, Array.Empty<string>());
+        specs[PlcObjectMethods.GetCreationInfos] = Read(new[] { "objectPath" }, new[] { "name" });
+        specs[PlcObjectMethods.GetLinkedTags] = Read(new[] { "objectPath" }, Array.Empty<string>());
+        specs[PlcObjectMethods.SaveCamData] = Write(new[] { "objectPath", "filePath" }, new[] { "camFormat", "camSeparator", "samplePoints", "overwrite" });
+        specs[PlcObjectMethods.LoadCamData] = Write(new[] { "objectPath", "filePath" }, new[] { "camFormat", "camSeparator" });
         // Issue #14: certificates and dynamic certificate settings of the CPU.
         specs[PlcCertificateMethods.GetCpuCertificates] = Read(Array.Empty<string>(), new[] { "plcName" });
         specs[PlcCertificateMethods.SetCertificateManager] = Write(Array.Empty<string>(), new[] { "plcName", "settings" });
@@ -92,6 +111,9 @@ public static partial class PlcOperationCatalog
             ("signalDevice", op => op.SignalDevice),
             ("signalUsage", op => op.SignalUsage),
             ("signalName", op => op.SignalName),
+            ("objectPath", op => op.ObjectPath),
+            ("camFormat", op => op.CamFormat),
+            ("camSeparator", op => op.CamSeparator),
         };
 
     private static IEnumerable<(string Name, Func<PlcOperationRequest, bool> IsSet)> MoreSettingsOtherFields()
@@ -102,6 +124,8 @@ public static partial class PlcOperationCatalog
             ("runtimeSessionTimeout", op => op.RuntimeSessionTimeout is not null),
             ("subjectAlternativeNames", op => op.SubjectAlternativeNames is not null),
             ("traced", op => op.Traced is not null),
+            ("objectPaths", op => op.ObjectPaths is not null),
+            ("samplePoints", op => op.SamplePoints is not null),
         };
 
     private static void ValidateMoreSettings(PlcSettingsDefinition definition, PlcOperationRequest op, Action<string> error)
@@ -118,8 +142,43 @@ public static partial class PlcOperationCatalog
             if (permissions.Where(p => p is not null).Distinct(StringComparer.Ordinal).Count() != permissions.Count(p => p is not null)) error("permissions must not repeat a member.");
         }
 
+        if (op.ObjectPath is not null && PlcObjectPaths.Parse(op.ObjectPath).Error is { } pathError) error(pathError);
+        if (op.ObjectPaths is { } objectPaths)
+        {
+            if (objectPaths.Count is < 1 or > PlcObjectNames.MaxObjects) error($"objectPaths must hold 1 to {PlcObjectNames.MaxObjects} object paths.");
+            foreach (var path in objectPaths)
+                if (PlcObjectPaths.Parse(path).Error is { } entryError) error("objectPaths: " + entryError);
+            if (objectPaths.Distinct(StringComparer.Ordinal).Count() != objectPaths.Count) error("objectPaths must not repeat an object.");
+        }
+
+        if (op.CamFormat is not null && !PlcObjectNames.CamFormats.Contains(op.CamFormat, StringComparer.Ordinal))
+            error($"camFormat must be one of {string.Join(", ", PlcObjectNames.CamFormats)}.");
+        if (op.CamSeparator is not null && !PlcObjectNames.CamSeparators.Contains(op.CamSeparator, StringComparer.Ordinal))
+            error($"camSeparator must be one of {string.Join(", ", PlcObjectNames.CamSeparators)}.");
+        if (op.SamplePoints is { } samples && (samples < 1 || samples > PlcObjectNames.MaxSamplePoints)) error($"samplePoints must be 1 to {PlcObjectNames.MaxSamplePoints}.");
         switch (op.Operation)
         {
+            case PlcObjectMethods.MarkObjects or PlcObjectMethods.UnmarkObjects when op.ObjectPaths is null:
+                error($"{op.Operation} is missing required field(s): objectPaths.");
+                break;
+            case PlcObjectMethods.SaveCamData when op.CamFormat == "PointList" && op.SamplePoints is null:
+                error("save_cam_data with camFormat PointList needs samplePoints.");
+                break;
+            case PlcObjectMethods.SaveCamData when op.CamFormat != "PointList" && op.SamplePoints is not null:
+                error("save_cam_data takes samplePoints only with camFormat PointList.");
+                break;
+            case PlcObjectMethods.LoadCamData when op.CamFormat == "PointList":
+                error("load_cam_data reads MCD, Scout (both LoadCamData with a separator) or Binary; a point list is an export format only.");
+                break;
+            case PlcObjectMethods.SaveCamData or PlcObjectMethods.LoadCamData when op.FilePath is not null && Contracts.Plc.PlcFileTargets.PathShapeError("filePath", op.FilePath) is { } fileError:
+                error(fileError);
+                break;
+            case PlcObjectMethods.SaveCamData or PlcObjectMethods.LoadCamData when op.ObjectPath is not null && !op.ObjectPath.StartsWith("technologyObject:", StringComparison.Ordinal):
+                error($"{op.Operation} needs objectPath technologyObject:PLC/NAME (the cam technology object).");
+                break;
+            case PlcObjectMethods.GetLinkedTags when op.ObjectPath is not null && !op.ObjectPath.StartsWith("channel:", StringComparison.Ordinal):
+                error("get_linked_tags needs objectPath channel:DEVICE/ITEM/TYPE/IOTYPE/NUMBER (PlcTagProvider is a service of a channel).");
+                break;
             case PlcCpuUserMethods.CreateWebserverUser when op.Permissions is null:
                 error("create_webserver_user needs permissions (WebserverUserPermissions member names; None for no rights).");
                 break;
@@ -167,6 +226,12 @@ public static partial class PlcOperationCatalog
                 break;
             case PlcUmacMethods.UpdateUmcUser or PlcUmacMethods.DeleteUmcUser when op.UserKind is not null && !PlcUmacNames.UmcKinds.Contains(op.UserKind, StringComparer.Ordinal):
                 error($"userKind must be one of {string.Join(", ", PlcUmacNames.UmcKinds)}.");
+                break;
+            case PlcUmacMethods.ImportUmcUser or PlcUmacMethods.GetUmcServerUser when op.UserKind is not null && !PlcUmacNames.UmcKinds.Contains(op.UserKind, StringComparer.Ordinal):
+                error($"userKind must be one of {string.Join(", ", PlcUmacNames.UmcKinds)}.");
+                break;
+            case PlcUmacMethods.ImportUmcUser or PlcUmacMethods.GetUmcServerUser or PlcUmacMethods.CheckUmcConsistency when (op.UserName is null) != (op.PasswordVariable is null):
+                error($"{op.Operation} takes the UMC server credentials as userName and passwordVariable together, or neither (TIA Portal then authenticates on its own).");
                 break;
             case PlcUmacMethods.UpdateUmcUser when op.Active is null && op.NewName is null:
                 error("update_umc_user needs active and/or newName.");

@@ -32,7 +32,7 @@ granulare Bausteinänderungen) und fügt eine Domäne einem bestehenden Tool hin
 (Hardwaremodule wurden zu Operationen von `network_read`/`network_write`). Textlisten, Meldetexte,
 Überwachungen und ProDiag-Objekte gehören zu einer PLC (`plcName`, ein Bausteinpfad oder eine Variable) und nutzen die
 bestehende PLC-Bindung, den Planer, die Guards, die Verifikation und das Audit. Die Tool-Oberfläche bleibt daher
-**11/30/30**. Die gemeinsamen Meldeklassen sind der einzige projektweite Teil: Sie werden über
+**13/32/32**. Die gemeinsamen Meldeklassen sind der einzige projektweite Teil: Sie werden über
 `Project.GetService<AlarmClassDataProvider>()` erreicht, nehmen keinen `plcName`, zeigen im Effektziel einen leeren `plcName`
 und werden nur für Standalone-Projekte angeboten (eigene `standaloneOnly`-Capability-Zeilen).
 Ein eigenes Paar (nach dem Vorbild der Bibliotheken) war nicht nötig: Bibliotheken reichen über Projekte und globale

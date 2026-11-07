@@ -49,6 +49,7 @@ internal sealed class AccessModePanel : UserControl
         layout.Controls.Add(buttons);
         layout.Controls.Add(new Label { AutoSize = true, MaximumSize = new Size(880, 0), Text = ServerSettingsEditor.PrecedenceNotice, Padding = new Padding(0, 8, 0, 0) });
         layout.Controls.Add(_status);
+        layout.Controls.Add(new ClaudeBridgePanel(path) { Margin = new Padding(0, 16, 0, 0) });
         Controls.Add(layout);
 
         _save.Click += (_, _) => SaveClicked(SelectedMode());

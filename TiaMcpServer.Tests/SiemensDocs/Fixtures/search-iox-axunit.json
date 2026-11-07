@@ -1,0 +1,369 @@
+{
+ "facets": [],
+ "results": [
+  {
+   "metadataVariableAxis": "SoftwareVersion",
+   "entries": [
+    {
+     "type": "TOPIC",
+     "missingTerms": [],
+     "topic": {
+      "mapId": "rk1OGaV1UXZoPAuARqD8mw",
+      "contentId": "Uue5socNjXh7xaqP4FWG9Q",
+      "tocId": "UQFFdyIIAldcxBZFjhP67A",
+      "title": "AxUnit axunit-vscode",
+      "htmlTitle": "<span class=\"kwicmatch\">AxUnit axunit</span><span class=\"kwicstring\">-vscode</span>",
+      "mapTitle": "AxUnit-ST Extension",
+      "breadcrumb": [
+       "AxUnit axunit-vscode"
+      ],
+      "htmlExcerpt": "",
+      "metadata": [
+       {
+        "key": "ft:title",
+        "label": "ft:title",
+        "values": [
+         "AxUnit axunit-vscode"
+        ]
+       },
+       {
+        "key": "Language",
+        "label": "Language",
+        "values": [
+         "English (original)"
+        ]
+       },
+       {
+        "key": "Product",
+        "label": "Product",
+        "values": [
+         "AxUnit-ST"
+        ]
+       },
+       {
+        "key": "SoftwareVersion",
+        "label": "Software version",
+        "values": [
+         "1.16.1"
+        ]
+       },
+       {
+        "key": "ft:locale",
+        "label": "ft:locale",
+        "values": [
+         "en-US"
+        ]
+       },
+       {
+        "key": "ft:clusterId",
+        "label": "ft:clusterId",
+        "values": [
+         "670a0697273df61d13cd7dab3d0ab40b4ee8abbd40e0b6746cb6076db59b6594-axunit-axunit-vscode"
+        ]
+       },
+       {
+        "key": "ft:lastPublication",
+        "label": "ft:lastPublication",
+        "values": [
+         "2025-12-17T05:46:03.324000"
+        ]
+       },
+       {
+        "key": "ft:prettyUrl",
+        "label": "ft:prettyUrl",
+        "values": [
+         "en-us/ax-vscode/siemens.axunit-vscode/1.16.1/axunit-axunit-vscode"
+        ]
+       }
+      ],
+      "resources": [],
+      "source": {
+       "id": "ax_md_source",
+       "name": "AX Markdown Source",
+       "type": "Markdown",
+       "description": "",
+       "category": "cli"
+      },
+      "lastEditionDate": "2025-12-17",
+      "openMode": "FLUIDTOPICS",
+      "topicUrl": "https://docs.industrial-operations-x.siemens.cloud/api/khub/maps/rk1OGaV1UXZoPAuARqD8mw/topics/Uue5socNjXh7xaqP4FWG9Q",
+      "contentUrl": "https://docs.industrial-operations-x.siemens.cloud/api/khub/maps/rk1OGaV1UXZoPAuARqD8mw/topics/Uue5socNjXh7xaqP4FWG9Q/content",
+      "readerUrl": "https://docs.industrial-operations-x.siemens.cloud/r/en-us/ax-vscode/siemens.axunit-vscode/1.16.1/axunit-axunit-vscode"
+     }
+    },
+    {
+     "type": "TOPIC",
+     "missingTerms": [],
+     "topic": {
+      "mapId": "egLGVsUPfREKMy4hujOlOg",
+      "contentId": "Uue5socNjXh7xaqP4FWG9Q",
+      "tocId": "UQFFdyIIAldcxBZFjhP67A",
+      "title": "AxUnit axunit-vscode",
+      "htmlTitle": "<span class=\"kwicmatch\">AxUnit axunit</span><span class=\"kwicstring\">-vscode</span>",
+      "mapTitle": "AxUnit-ST Extension",
+      "breadcrumb": [
+       "AxUnit axunit-vscode"
+      ],
+      "htmlExcerpt": "",
+      "metadata": [
+       {
+        "key": "ft:title",
+        "label": "ft:title",
+        "values": [
+         "AxUnit axunit-vscode"
+        ]
+       },
+       {
+        "key": "Language",
+        "label": "Language",
+        "values": [
+         "English (original)"
+        ]
+       },
+       {
+        "key": "Product",
+        "label": "Product",
+        "values": [
+         "AxUnit-ST"
+        ]
+       },
+       {
+        "key": "SoftwareVersion",
+        "label": "Software version",
+        "values": [
+         "1.15.10"
+        ]
+       },
+       {
+        "key": "ft:locale",
+        "label": "ft:locale",
+        "values": [
+         "en-US"
+        ]
+       },
+       {
+        "key": "ft:clusterId",
+        "label": "ft:clusterId",
+        "values": [
+         "670a0697273df61d13cd7dab3d0ab40b4ee8abbd40e0b6746cb6076db59b6594-axunit-axunit-vscode"
+        ]
+       },
+       {
+        "key": "ft:lastPublication",
+        "label": "ft:lastPublication",
+        "values": [
+         "2025-12-08T14:31:20.533000"
+        ]
+       },
+       {
+        "key": "ft:prettyUrl",
+        "label": "ft:prettyUrl",
+        "values": [
+         "en-us/ax-vscode/siemens.axunit-vscode/1.15.10/axunit-axunit-vscode"
+        ]
+       }
+      ],
+      "resources": [],
+      "source": {
+       "id": "ax_md_source",
+       "name": "AX Markdown Source",
+       "type": "Markdown",
+       "description": "",
+       "category": "cli"
+      },
+      "lastEditionDate": "2025-12-08",
+      "openMode": "FLUIDTOPICS",
+      "topicUrl": "https://docs.industrial-operations-x.siemens.cloud/api/khub/maps/egLGVsUPfREKMy4hujOlOg/topics/Uue5socNjXh7xaqP4FWG9Q",
+      "contentUrl": "https://docs.industrial-operations-x.siemens.cloud/api/khub/maps/egLGVsUPfREKMy4hujOlOg/topics/Uue5socNjXh7xaqP4FWG9Q/content",
+      "readerUrl": "https://docs.industrial-operations-x.siemens.cloud/r/en-us/ax-vscode/siemens.axunit-vscode/1.15.10/axunit-axunit-vscode"
+     }
+    },
+    {
+     "type": "TOPIC",
+     "missingTerms": [],
+     "topic": {
+      "mapId": "dsH__HPZtH5T86WxwRdexg",
+      "contentId": "Uue5socNjXh7xaqP4FWG9Q",
+      "tocId": "UQFFdyIIAldcxBZFjhP67A",
+      "title": "AxUnit axunit-vscode",
+      "htmlTitle": "<span class=\"kwicmatch\">AxUnit axunit</span><span class=\"kwicstring\">-vscode</span>",
+      "mapTitle": "AxUnit-ST Extension",
+      "breadcrumb": [
+       "AxUnit axunit-vscode"
+      ],
+      "htmlExcerpt": "",
+      "metadata": [
+       {
+        "key": "ft:title",
+        "label": "ft:title",
+        "values": [
+         "AxUnit axunit-vscode"
+        ]
+       },
+       {
+        "key": "Language",
+        "label": "Language",
+        "values": [
+         "English (original)"
+        ]
+       },
+       {
+        "key": "Product",
+        "label": "Product",
+        "values": [
+         "AxUnit-ST"
+        ]
+       },
+       {
+        "key": "SoftwareVersion",
+        "label": "Software version",
+        "values": [
+         "1.13.6"
+        ]
+       },
+       {
+        "key": "ft:locale",
+        "label": "ft:locale",
+        "values": [
+         "en-US"
+        ]
+       },
+       {
+        "key": "ft:clusterId",
+        "label": "ft:clusterId",
+        "values": [
+         "670a0697273df61d13cd7dab3d0ab40b4ee8abbd40e0b6746cb6076db59b6594-axunit-axunit-vscode"
+        ]
+       },
+       {
+        "key": "ft:lastPublication",
+        "label": "ft:lastPublication",
+        "values": [
+         "2025-08-22T13:21:43.749000"
+        ]
+       },
+       {
+        "key": "ft:prettyUrl",
+        "label": "ft:prettyUrl",
+        "values": [
+         "en-us/ax-vscode/siemens.axunit-vscode/1.13.6/axunit-axunit-vscode"
+        ]
+       }
+      ],
+      "resources": [],
+      "source": {
+       "id": "ax_md_source",
+       "name": "AX Markdown Source",
+       "type": "Markdown",
+       "description": "",
+       "category": "cli"
+      },
+      "lastEditionDate": "2025-08-22",
+      "openMode": "FLUIDTOPICS",
+      "topicUrl": "https://docs.industrial-operations-x.siemens.cloud/api/khub/maps/dsH__HPZtH5T86WxwRdexg/topics/Uue5socNjXh7xaqP4FWG9Q",
+      "contentUrl": "https://docs.industrial-operations-x.siemens.cloud/api/khub/maps/dsH__HPZtH5T86WxwRdexg/topics/Uue5socNjXh7xaqP4FWG9Q/content",
+      "readerUrl": "https://docs.industrial-operations-x.siemens.cloud/r/en-us/ax-vscode/siemens.axunit-vscode/1.13.6/axunit-axunit-vscode"
+     }
+    }
+   ]
+  },
+  {
+   "entries": [
+    {
+     "type": "TOPIC",
+     "missingTerms": [],
+     "topic": {
+      "mapId": "Grl~lv2wXZtzc3Lggx9rYA",
+      "contentId": "31H7IYej0FKNihONMZKAFA",
+      "tocId": "bBgBVJStH8FclLrRwUezDQ",
+      "title": "AXUnit Debugger",
+      "htmlTitle": "<span class=\"kwicmatch\">AXUnit</span><span class=\"kwicstring\"> Debugger</span>",
+      "mapTitle": "AXUnit Debugger Extension",
+      "breadcrumb": [
+       "AXUnit Debugger"
+      ],
+      "htmlExcerpt": "<span class=\"kwicstring\">A debugger for AX Code. The identifier is </span><span class=\"kwicmatch\">axunit</span><span class=\"kwicstring\">-debugger-extension.</span>",
+      "metadata": [
+       {
+        "key": "ft:title",
+        "label": "ft:title",
+        "values": [
+         "AXUnit Debugger"
+        ]
+       },
+       {
+        "key": "Language",
+        "label": "Language",
+        "values": [
+         "English (original)"
+        ]
+       },
+       {
+        "key": "Product",
+        "label": "Product",
+        "values": [
+         "AXUnit Debugger Extension"
+        ]
+       },
+       {
+        "key": "SoftwareVersion",
+        "label": "Software version",
+        "values": [
+         "2.0.6"
+        ]
+       },
+       {
+        "key": "ft:locale",
+        "label": "ft:locale",
+        "values": [
+         "en-US"
+        ]
+       },
+       {
+        "key": "ft:clusterId",
+        "label": "ft:clusterId",
+        "values": [
+         "670a0697273df61d13cd7dab3d0ab40b4ee8abbd40e0b6746cb6076db59b6594-axunit-debugger"
+        ]
+       },
+       {
+        "key": "ft:lastPublication",
+        "label": "ft:lastPublication",
+        "values": [
+         "2026-10-12T11:07:04.530747"
+        ]
+       },
+       {
+        "key": "ft:prettyUrl",
+        "label": "ft:prettyUrl",
+        "values": [
+         "en-us/ax-code/siemens.axunit-debugger/2.0.6/axunit-debugger"
+        ]
+       }
+      ],
+      "resources": [],
+      "source": {
+       "id": "ax_md_source",
+       "name": "AX Markdown Source",
+       "type": "Markdown",
+       "description": "",
+       "category": "cli"
+      },
+      "lastEditionDate": "2026-10-12",
+      "openMode": "FLUIDTOPICS",
+      "topicUrl": "https://docs.industrial-operations-x.siemens.cloud/api/khub/maps/Grl~lv2wXZtzc3Lggx9rYA/topics/31H7IYej0FKNihONMZKAFA",
+      "contentUrl": "https://docs.industrial-operations-x.siemens.cloud/api/khub/maps/Grl~lv2wXZtzc3Lggx9rYA/topics/31H7IYej0FKNihONMZKAFA/content",
+      "readerUrl": "https://docs.industrial-operations-x.siemens.cloud/r/en-us/ax-code/siemens.axunit-debugger/2.0.6/axunit-debugger"
+     }
+    }
+   ]
+  }
+ ],
+ "announcements": [],
+ "paging": {
+  "currentPage": 1,
+  "isLastPage": false,
+  "totalResultsCount": 7503,
+  "totalClustersCount": 744
+ }
+}

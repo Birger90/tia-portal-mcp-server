@@ -554,7 +554,7 @@ public class TiaPortalSession : IDisposable
                         () =>
                         {
                             SetActiveContext(null);
-                            var openedProject = _tiaPortal!.Projects.Open(new FileInfo(requestedPath));
+                            var openedProject = OpenProjectFile(requestedPath);
                             AdoptProject(openedProject, openedByWorker: true, requestedPath);
                         });
                     return;
@@ -573,8 +573,25 @@ public class TiaPortalSession : IDisposable
 
         }
 
-        var project = _tiaPortal!.Projects.Open(new FileInfo(requestedPath));
+        var project = OpenProjectFile(requestedPath);
         AdoptProject(project, openedByWorker: true, requestedPath);
+    }
+
+    /// <summary>
+    /// <c>ProjectComposition.Open(FileInfo)</c>; its documented <c>MissingProductsException</c> (audit T6/K89) becomes a failure
+    /// that names the cause instead of a generic one. Every other exception propagates unchanged.
+    /// </summary>
+    private Project OpenProjectFile(string requestedPath)
+    {
+        try
+        {
+            return _tiaPortal!.Projects.Open(new FileInfo(requestedPath));
+        }
+        catch (Exception ex) when (EngineeringFailureHints.Is(ex, EngineeringFailureHints.MissingProductsException))
+        {
+            throw new WorkerOperationException(WorkerFailureCategories.WorkerOperationFailed,
+                EngineeringFailureHints.MissingProducts(requestedPath, ex.Message), engineeringError: WorkerExecution.Describe(ex));
+        }
     }
 
     /// <summary>Absolute path of the attached project, or null when nothing is attached.</summary>

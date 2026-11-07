@@ -1,0 +1,58 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    "Claude in TIA": TIA Portal V21 Add-In (context menu "Claude" in the project tree, devices & networks and the project
+    and global library). It writes hand-over requests into %APPDATA%\TiaMcpServer\inbox and shows the replies from
+    ...\outbox; Claude reads and answers them through the MCP tool tia_inbox. Not live-tested.
+
+    Compile references: with UseTiaPortalReferenceStubs=true (CI, Linux) the compile-only stub
+    reference-stubs/Siemens.Engineering.AddIn.Base plus ref/Siemens.Engineering.Base.dll; otherwise the installed V21
+    assemblies in TiaAddInReferenceDir (default: TiaPortalV21Dir). A DLL built against the stubs is a compile check only:
+    install the one scripts/install-claude-in-tia.ps1 builds against the installed TIA Portal.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <OutputType>Library</OutputType>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>TiaMcpServer.AddIn</AssemblyName>
+    <RootNamespace>TiaMcpServer.AddIn</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <Version>0.1.0</Version>
+    <TiaAddInReferenceDir Condition="'$(TiaAddInReferenceDir)' == ''">$(TiaPortalV21Dir)</TiaAddInReferenceDir>
+    <UseTiaPortalReferenceStubs Condition="'$(UseTiaPortalReferenceStubs)' == '' and Exists('$(TiaAddInReferenceDir)\Siemens.Engineering.Base.dll')">false</UseTiaPortalReferenceStubs>
+    <UseTiaPortalReferenceStubs Condition="'$(UseTiaPortalReferenceStubs)' == ''">true</UseTiaPortalReferenceStubs>
+    <!-- The V21 IntelliSense file names the assembly Siemens.Engineering.AddIn.Base; the V21 help names Siemens.Engineering.AddIn.dll (unverified which file exists). -->
+    <TiaAddInAssemblyName Condition="'$(TiaAddInAssemblyName)' == '' and Exists('$(TiaAddInReferenceDir)\Siemens.Engineering.AddIn.Base.dll')">Siemens.Engineering.AddIn.Base</TiaAddInAssemblyName>
+    <TiaAddInAssemblyName Condition="'$(TiaAddInAssemblyName)' == ''">Siemens.Engineering.AddIn</TiaAddInAssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The Siemens-free inbox contract, shared source with TiaMcpServer.Contracts (no extra assembly in the .addin). -->
+    <Compile Include="..\TiaMcpServer.Contracts\Shared\ClaudeInbox\*.cs" Link="Shared\%(Filename)%(Extension)" />
+    <None Include="AddInPublisherConfig.xml" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UseTiaPortalReferenceStubs)' == 'true'">
+    <ProjectReference Include="..\reference-stubs\Siemens.Engineering.AddIn.Base\Siemens.Engineering.AddIn.Base.csproj" Private="false" />
+    <Reference Include="Siemens.Engineering.Base">
+      <HintPath>..\ref\Siemens.Engineering.Base.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UseTiaPortalReferenceStubs)' != 'true'">
+    <Reference Include="$(TiaAddInAssemblyName)">
+      <HintPath>$(TiaAddInReferenceDir)\$(TiaAddInAssemblyName).dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Siemens.Engineering.Base">
+      <HintPath>$(TiaAddInReferenceDir)\Siemens.Engineering.Base.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+
+  <Target Name="ShowTiaAddInReferences" BeforeTargets="ResolveReferences">
+    <Message Importance="High" Text="Claude in TIA Add-In references: UseTiaPortalReferenceStubs=$(UseTiaPortalReferenceStubs), TiaAddInReferenceDir=$(TiaAddInReferenceDir), add-in assembly $(TiaAddInAssemblyName)" />
+  </Target>
+</Project>

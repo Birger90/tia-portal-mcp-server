@@ -96,6 +96,7 @@ public static partial class PlcSettingsCatalog
         AddCertificates();
         AddSafetyPrintout();
         AddSafetyValidation();
+        AddObjects();
     }
 
     public static IReadOnlyList<PlcSettingsDefinition> All => Definitions;

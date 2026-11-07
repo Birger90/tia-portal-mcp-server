@@ -35,7 +35,7 @@ Download-, Simulations- und Online-Werkzeuge sind noch nicht live getestet.
 
 ## Werkzeuge
 
-Der Server stellt im Modus `read-only` 11 Werkzeuge bereit, in `read-write` (Standard beim Start) 30 und in `full` dieselben 30.
+Der Server stellt im Modus `read-only` 13 Werkzeuge bereit, in `read-write` (Standard beim Start) 32 und in `full` dieselben 32.
 
 `read-write` erlaubt:
 - Änderungen im Projekt und Übersetzen,
@@ -55,7 +55,7 @@ RUN/STOP über TIA Portal gibt es nicht. Echte Steuerungen werden nur auf zwei W
 
 ### PLC lesen und Querverweise
 
-- `plc_read` führt bis zu 50 PLC-Leseoperationen in einem Aufruf aus. Alle Ergebnisse sind strukturiertes JSON mit `contractVersion` `1.0`.
+- `plc_read` führt bis zu 50 PLC-Leseoperationen in einem Aufruf aus. Alle Ergebnisse sind strukturiertes JSON mit `contractVersion` `1.0`. `describe_operations` liefert die Felder und vollständigen Regeln jeder `plc_read`/`plc_write`-Operation, ohne gebundenes Projekt ([Operationsreferenz](https://github.com/Birger90/tia-portal-mcp-server/blob/main/docs/SupportedOperations/PLC_OPERATIONS_SUMMARY.md#operation-reference-describe_operations)).
   - **Allgemein:**
     - `get_block_content`, `get_type_content` und `list_tag_tables`; `get_block_content` mit `format:"sd"` liefert nur die SIMATIC-SD-Dokumente (`.s7dcl`, `.s7res`) mit `sd:sha256`-Hash und `failSafe` für F-Bausteine ([SIMATIC-SD-Referenz](https://github.com/Birger90/tia-portal-mcp-server/blob/main/docs/SupportedOperations/PLC_SIMATIC_SD_SUMMARY.de.md); noch nicht live getestet).
     - `list_networks` zeigt die Netzwerke eines Bausteins aus dem SD-Export: Nummer, Sprache (Pragma `S7_Language` oder erkannt wie im Siemens-Skill), alle Pragma-Schlüssel, Titel und Kommentar je Sprache aus der `.s7res`, den Code und den `contentHash` für die Netzwerk-Operationen (noch nicht live getestet).
@@ -189,6 +189,15 @@ Die Steuerungen, ihre Adressen, Zertifikatsregeln und die Umgebungsvariablen mit
 
 Die Werkzeuge nennen nur ein konfiguriertes `target`. Zugangsdaten erscheinen nie in Argumenten, Ergebnissen oder im Protokoll. Siehe die [PLC-Online-Referenz](https://github.com/Birger90/tia-portal-mcp-server/blob/main/docs/SupportedOperations/PLC_ONLINE_WEBAPI_SUMMARY.de.md) mit den Voraussetzungen in TIA Portal und den Schritten der Live-Abnahme.
 
+### Siemens-Dokumentation (auf dem Windows-PC noch nicht live getestet)
+
+- `siemens_docs` liest in jedem Modus und ohne TIA Portal die offizielle Siemens-Dokumentation auf `docs.tia.siemens.cloud` (TIA Portal, STEP 7, WinCC, Openness, Hardware) und `docs.industrial-operations-x.siemens.cloud` (SIMATIC AX, Industrial Edge):
+  - `search` (Volltext, Filter für Produkt, Version und Sprache; jeder Treffer nennt die anderen Versionen desselben Themas),
+  - `read_page` (ein Thema als Markdown, in Seiten bis 40.000 Zeichen),
+  - `get_toc` (Gliederung einer Publikation oder eines Kapitels) und `list_publications`.
+- Nur die freigegebenen Hosts werden kontaktiert (`--docs-hosts`); Referenzen werden in Ids aufgelöst und nie selbst abgerufen; keine Weiterleitungen, Mindestabstand je Host, Zeitlimits und Größengrenzen.
+- Es ist eine eigene C#-Portierung von [Czarnak/siemens-docs-mcp](https://github.com/Czarnak/siemens-docs-mcp) (MIT); das Python-Paket wird nicht installiert. Siehe die [Referenz zur Siemens-Dokumentation](https://github.com/Birger90/tia-portal-mcp-server/blob/main/docs/SupportedOperations/SIEMENS_DOCS_SUMMARY.de.md) mit der Live-Prüfung der Endpunkte.
+
 ### PLC schreiben
 
 `plc_write(operations, dryRun=false)` führt bis zu 50 Schreibzugriffe auf die PLC-Software in der Reihenfolge des Aufrufers aus. Ziel ist genau ein geprüftes, bereits geöffnetes Projekt.
@@ -257,7 +266,8 @@ Die Werkzeuge nennen nur ein konfiguriertes `target`. Zugangsdaten erscheinen ni
 - **Safety-Ausdruck** (Issue #21; nicht live getestet; [Referenz](https://github.com/Birger90/tia-portal-mcp-server/blob/main/docs/SupportedOperations/PLC_SETTINGS_SUMMARY.de.md#safety-ausdruck-issue-21)): `plc_write` `generate_safety_printout` schreibt den Safety-Ausdruck der F-CPU (`SafetyPrintout.Print`, PDF- oder XPS-Druckertreiber, Layout, `All`/`Compact`) in eine Datei. Er ist eine Unterlage für die Safety-Abnahme durch eine befähigte Person; der MCP ersetzt diese Abnahme nie.
 - **Safety Validation Assistant** (Issue #25; nicht live getestet; [Referenz](https://github.com/Birger90/tia-portal-mcp-server/blob/main/docs/SupportedOperations/PLC_SETTINGS_SUMMARY.de.md#safety-validation-assistant-aktivierungstests-und-testbericht-issue-25)): `get_safety_validation`, `check_activation_test` und 14 `plc_write`-Operationen bereiten Aktivierungstests, Sicherheitsfunktionen und Bedingungen vor, exportieren Tests und erzeugen den Testbericht. Der MCP trägt nie ein Testergebnis ein (kein `TestState`, keine Importe oder Kopien, die Ergebnisse mitbringen könnten); jede Änderung löst den Bestätigungs-Guard `plc_safety_acceptance_required` aus.
 - **OPC-UA-Server-Schnittstellen** (nicht live getestet; [Referenz](https://github.com/Birger90/tia-portal-mcp-server/blob/main/docs/SupportedOperations/PLC_OPERATIONS_SUMMARY.md#opc-ua-server-interfaces-and-access-rules-plc_read-plc_write)): `plc_read` `get_opcua_configuration` liest Server-Schnittstellen (Companion Specifications, eigene Schnittstellen), SIMATIC-Schnittstellen, Referenz-Namensräume, Zugriffsbeschränkungen der Namensräume und Rollenzuordnungen jeder PLC; `plc_write` legt sie an, löscht, exportiert, importiert und aktiviert sie und pflegt Beschränkungen, Rollen und Namensraum-Berechtigungen (`OpcUaProvider`, zur Laufzeit unter den Diensten der PLC-Software gefunden).
-- **Laden in einen Ordner, Master-Secret online, R/H-Download** (nicht live getestet; [Referenz](https://github.com/Birger90/tia-portal-mcp-server/blob/main/docs/SupportedOperations/PLC_OPERATIONS_SUMMARY.md#download-to-a-folder-and-the-online-master-secret-plc_write)): `plc_write` `download_to_folder` schreibt die Ladedaten einer PLC (oder eines R/H-Systems) ohne Gerät in einen Windows-Ordner (`DownloadProvider.Download(DirectoryInfo, ...)`, Dateien neu gehasht); `set_plc_master_secret_online`/`reset_plc_master_secret_online` setzen oder löschen das Master-Secret der Online-PLC (`OnlineProvider.SetPlcMasterSecret`/`ResetPlcMasterSecret`; Secret nur aus einer Passwortquelle; Acknowledge-Guard, read-write fragt bei jedem Aufruf; nicht zurücklesbar, daher notVerified); `plc_download` `rhTarget` lädt in die Primär- oder Backup-CPU eines R/H-Systems, unter den bestehenden Download-Guards und der Bestätigung. Benutzerverwaltungsdaten beim Laden sind die Entscheidung `UserManagementDownload`.
+- **Laden in einen Ordner, Master-Secret online, R/H-Download** (nicht live getestet; [Referenz](https://github.com/Birger90/tia-portal-mcp-server/blob/main/docs/SupportedOperations/PLC_OPERATIONS_SUMMARY.md#download-to-a-folder-and-the-online-master-secret-plc_write)): `plc_write` `download_to_folder` schreibt die Ladedaten einer PLC (oder eines R/H-Systems) ohne Gerät in einen Windows-Ordner (`DownloadProvider.Download(DirectoryInfo, ...)`, Dateien neu gehasht); `set_plc_master_secret_online`/`reset_plc_master_secret_online` setzen oder löschen das Master-Secret der Online-PLC (`OnlineProvider.SetPlcMasterSecret`/`ResetPlcMasterSecret`; Secret nur aus einer Passwortquelle; Acknowledge-Guard, read-write fragt bei jedem Aufruf; nicht zurücklesbar, daher notVerified); `plc_download` `rhTarget` lädt in die Primär- oder Backup-CPU eines R/H-Systems, unter den bestehenden Download-Guards und der Bestätigung. Benutzerverwaltungsdaten beim Laden sind die Entscheidung `UserManagementDownload`. Paket G ergänzt `load_snapshot_as_actual_values` / `load_start_values_as_actual_values` (Istwerte eines DB in der Online-PLC, Acknowledge-Guard, Rückfrage in read-write).
+- **Vervollständigung der V21-API (Paket G)** (nicht live getestet; [Referenz](https://github.com/Birger90/tia-portal-mcp-server/blob/main/docs/SupportedOperations/V21_API_COMPLETION_SUMMARY.de.md)): die dokumentierten V21-Openness-Methoden, die ein Namensvergleich mit der API-Beschreibung als ungenutzt fand, in den bestehenden Tools: Multiuser-Markierungen (`get_markings`, `get_mark_state`, `mark_objects`, `unmark_objects`), `protect_project`, UMC-Benutzer und -Gruppen (`create_offline_umc_user(_group)`, `import_umc_user`, `get_umc_server_user`, `check_umc_consistency`), Engineering-Objekte über Pfade (`get_object_identifier`, `find_object_by_identifier`, `get_creation_infos`, `get_linked_tags`), Kurvenscheiben (`save_cam_data`, `load_cam_data`), Istwerte eines Online-DB (`load_snapshot_as_actual_values`, `load_start_values_as_actual_values`), Hardware-Funktionen in `network_read`/`network_write` (Subnetze eines Knotens, IO-Controller, IM-Verbindung, PC-Schnittstellenzuordnung, Baugruppenbeschreibung, Fernwirk-Datenpunkte, Kommunikationsverbindungen) und `hmi_write` `resize_screen`, `set_log_duration`, `set_opcua_alarm_type_node`; die Liste der Auslassungen nennt jede nicht gebaute Methode mit Grund.
 - **Offline-Änderungserkennung** (nicht live getestet; [Referenz](https://github.com/Birger90/tia-portal-mcp-server/blob/main/docs/SupportedOperations/PLC_OPERATIONS_SUMMARY.md#offline-change-detection-plc_read)): `plc_read` `get_plc_checksums` liest die Prüfsummen von Software und Textlisten jeder PLC (`PlcChecksumProvider`; leer heißt nicht übersetzt oder seit dem letzten Übersetzen geändert), `get_fingerprints` die Fingerprints eines Bausteins oder PLC-Datentyps (`FingerprintProvider.GetFingerprints()`). Die Provider werden zur Laufzeit unter den Diensten des Objekts gefunden; Werte werden als Text mit ihrem Laufzeittyp gemeldet.
 - **Übersetzungseinstellungen des Projekts** (nicht live getestet; [Referenz](https://github.com/Birger90/tia-portal-mcp-server/blob/main/docs/SupportedOperations/PLC_OPERATIONS_SUMMARY.md#project-block-compilation-settings)): `set_project_compilation_settings` setzt „Simulation während Bausteinübersetzung unterstützen“ (`simulationDuringBlockCompilation`, laut Siemens nötig vor einem Softbus-Download nach PLCSIM Advanced) und die Unterstützung virtueller PLCs (`virtualPlcDuringBlockCompilation`) über dieselben Dienste, die `get_project_status` liest. Projektweit, ohne `plcName`, nur Einzelplatzprojekte; das Siemens-Member wird zur Laufzeit gebunden (`api_member_missing`, wenn weder Eigenschaft noch beschreibbares Attribut existiert) und zurückgelesen.
 - **CPU-Schutz, auch für passwortgeschützte Projekte** (nicht live getestet; [Referenz zum CPU-Schutz](https://github.com/Birger90/tia-portal-mcp-server/blob/main/docs/SupportedOperations/PLC_SECURITY_SUMMARY.de.md)): ändert das Offline-Projekt, wirksam nach `plc_download`. Passwörter kommen nur aus Passwortquellen (Umgebungsvariable, Windows-Anmeldeinformation, Zuordnungsdatei), nie als Werte; der Server erzeugt keine.
@@ -447,6 +457,13 @@ Große Hardware-Lesezugriffe können mit `pageSize` (`1..200`) oder `cursor` bl�
 - Siehe den [Antwortvertrag für Status und Übersetzen](https://github.com/Birger90/tia-portal-mcp-server/blob/main/docs/SupportedOperations/PROJECT_OPERATIONS_SUMMARY.md#standalone-status-and-compilation-contract).
 
 Aufrufer des Projektbaums brauchen `v3.0.0` oder neuer. Die v2-Eingabe `startPath` und die nackte verschachtelte Array-Antwort wurden entfernt, nicht als Aliasse behalten. Die Migrationsanfrage, die vollständige Antworthülle, die Rekonstruktion von Selektoren, das Fortsetzen, die Grenzen und die Wiederherstellung beschreibt die [Projektreferenz](https://github.com/Birger90/tia-portal-mcp-server/blob/main/docs/SupportedOperations/PROJECT_OPERATIONS_SUMMARY.md#browse_project_tree-v3).
+
+### Claude in TIA: Arbeit aus TIA Portal heraus an Claude übergeben (noch nicht live getestet)
+
+- Das TIA-Portal-V21-Add-In „Claude in TIA“ fügt der Projektnavigation, „Geräte & Netze“ und der Projekt- und globalen Bibliothek ein Kontextmenü **Claude** hinzu: An Claude übergeben…, Erklären, Prüfen, Überarbeiten, Dokumentieren und Claude-Antworten anzeigen.
+- Ein Klick schreibt eine Anfrage (Namen und MCP-Adresshinweise der markierten Objekte, keine Projektdaten) nach `%APPDATA%\TiaMcpServer\inbox`. Claude liest sie mit dem Werkzeug `tia_inbox` (jeder Modus), wenn du „schau in TIA“ sagst, arbeitet mit den übrigen Werkzeugen unter dem Zugriffsmodus und antwortet mit `tia_inbox reply_request`; die Antwort erscheint in TIA Portal.
+- Optional: Die Claude-Brücke (`TiaMcpClaudeBridge.exe`, standardmäßig aus, in der Passwortverwaltung einzuschalten) startet je Anfrage einen Claude-Code-Lauf ohne Chat, einen nach dem anderen, nie zweimal, nur mit den TIA-Werkzeugen.
+- Einmalige Einrichtung: `scripts\install-claude-in-tia.ps1` übersetzt das Add-In gegen das installierte TIA Portal, ruft den Siemens-Publisher auf und kopiert die `.addin`; danach in der Task Card Add-Ins aktivieren. Siehe die [Referenz zu Claude in TIA](https://github.com/Birger90/tia-portal-mcp-server/blob/main/docs/SupportedOperations/CLAUDE_IN_TIA.de.md).
 
 ### Simulationsprojekt ohne Passwort (noch nicht live getestet)
 
@@ -655,7 +672,7 @@ TIA Portal V21 liefert seine Openness-API als .NET-Framework-4.8-Assemblies. Die
 
 Das Projekt nutzt deshalb zwei Prozesse für TIA Portal und optional einen dritten für S7-PLCSIM Advanced:
 
-- `TiaMcpServer`: der .NET-10-MCP-Server über stdio und Host des .NET-Global-Tools. Er betreibt auch den S7-1500-Web-API-Client für `plc_online_read`/`plc_online_write` im eigenen Prozess (ohne Worker).
+- `TiaMcpServer`: der .NET-10-MCP-Server über stdio und Host des .NET-Global-Tools. Er betreibt auch den S7-1500-Web-API-Client für `plc_online_read`/`plc_online_write` und den Leser der Siemens-Dokumentation `siemens_docs` im eigenen Prozess (ohne Worker).
 - `TiaMcpServer.OpennessWorker`: ein Worker-Prozess unter .NET Framework 4.8, der `Siemens.Engineering.*` lädt und mit TIA Portal spricht.
 - `TiaMcpServer.PlcSimWorker`: ein x64-Worker unter .NET Framework 4.8, der erst beim ersten PLCSIM-Werkzeugaufruf startet. Er lädt die S7-PLCSIM-Advanced-API aus deren Installation mit `Assembly.LoadFile` und bindet sie per Reflection.
 
@@ -701,14 +718,14 @@ Er meldet außerdem, woher die optionale S7-PLCSIM-Advanced-API geladen würde u
 Eigene .NET-Integrationen, die direkt gegen das C#-MCP-SDK kompilieren, müssen die Migrationshinweise zu ModelContextProtocol 2.2 lesen. Danach Protokollverhandlung, Werkzeugschemata und strukturierte Ergebnisse erneut testen. Diese Anforderung ist unabhängig von der oben beschriebenen v3-Migration von `browse_project_tree`.
 
 **Unterstützte Clients für `tia-mcp install`:** Claude Code, Codex, OpenCode, MiMoCode.
-- Server werden standardmäßig im Modus **read-only** registriert (elf Werkzeuge).
-- `--access-mode read-write` schaltet frei, mit einer Nachfrage pro tatsächlichem Aufruf (dreißig Werkzeuge):
+- Server werden standardmäßig im Modus **read-only** registriert (dreizehn Werkzeuge).
+- `--access-mode read-write` schaltet frei, mit einer Nachfrage pro tatsächlichem Aufruf (zweiunddreißig Werkzeuge):
   - Änderungen, Übersetzen und Simulationssteuerung,
   - Lebenszyklus,
   - den PLC-Download (PLCSIM oder Hardware),
   - Online-Änderungen, Online-Verbindung herstellen und trennen, Station hochladen,
   - den Lebenszyklus globaler Bibliotheken.
-- `--access-mode full` führt diese Aufrufe ohne Server-Nachfrage aus (dieselben dreißig Werkzeuge).
+- `--access-mode full` führt diese Aufrufe ohne Server-Nachfrage aus (dieselben zweiunddreißig Werkzeuge).
 - Wer den Modus lieber im Programm wählt, lässt `--access-mode` in der Client-Konfiguration weg und stellt ihn in `tia-mcp passwords`, Reiter **Zugriffsmodus**, ein ([Zugriffsmodus wählen](#schreibsicherheit)). Ein von `tia-mcp install` eingetragenes `--access-mode` hat Vorrang vor dieser Einstellung.
 
 Die Bindung an ein bestimmtes Projekt, alle Installationsoptionen und die vollständige Beschreibung der Zugriffsmodi stehen in der [Installationsanleitung](https://github.com/Birger90/tia-portal-mcp-server/blob/main/docs/guides/installation.de.md). Wie man aus dem Quellcode baut statt das veröffentlichte Werkzeug zu installieren, steht unter [Aus dem Quellcode bauen](https://github.com/Birger90/tia-portal-mcp-server/blob/main/docs/development/building.md).
@@ -724,6 +741,8 @@ Die Links führen zur deutschen Fassung, wo es eine gibt (`.de.md`), sonst zur e
 - [Fehlersuche](https://github.com/Birger90/tia-portal-mcp-server/blob/main/docs/guides/troubleshooting.de.md): häufige Fehler und geprüftes Verhalten von TIA Portal V21
 - [Unterstützte Operationen](https://github.com/Birger90/tia-portal-mcp-server/blob/main/docs/SupportedOperations/README.de.md): jede Operation nach Bereich, mit Parametern
 - [PLC online über die Web-API](https://github.com/Birger90/tia-portal-mcp-server/blob/main/docs/SupportedOperations/PLC_ONLINE_WEBAPI_SUMMARY.de.md): `plc_online_read`/`plc_online_write`: Zieldatei, Zugangsdaten, Zertifikate, Bestätigung, Herkunft
+- [Claude in TIA](https://github.com/Birger90/tia-portal-mcp-server/blob/main/docs/SupportedOperations/CLAUDE_IN_TIA.de.md): TIA-Portal-Add-In, `tia_inbox`, Claude-Brücke, einmalige Einrichtung, Herkunft
+- [Siemens-Dokumentation](https://github.com/Birger90/tia-portal-mcp-server/blob/main/docs/SupportedOperations/SIEMENS_DOCS_SUMMARY.de.md): `siemens_docs`: Operationen, Referenzen, Host-Freigabeliste und Grenzen, Live-Prüfung der Endpunkte
 - [CPU-Schutz](https://github.com/Birger90/tia-portal-mcp-server/blob/main/docs/SupportedOperations/PLC_SECURITY_SUMMARY.de.md): Zugriffsstufe und vertrauliche Konfigurationsdaten für Simulationsprojekte ohne Passwort, Hardware-Übersetzen, Herkunft jedes Members
 
 **Den Aufbau verstehen**

@@ -130,6 +130,16 @@ public sealed class ToolOutputContractConformanceTests
                 new { operationId = "mode", operation = "read_operating_mode", target = "Secure" },
                 new { operationId = "tags", operation = "read_tags", target = "Line1", names = new[] { "\"DB_Line\".Speed" } },
             } }),
+        new ToolProbe("siemens_docs", "rejected", true, null,
+            new Dictionary<string, object?> { ["operations"] = Array.Empty<object>() }),
+        new ToolProbe("siemens_docs", "succeeded", false, null,
+            new Dictionary<string, object?> { ["operations"] = new object[]
+            {
+                new { operationId = "search", operation = "search", query = "ExportAsDocuments", limit = 3 },
+                new { operationId = "page", operation = "read_page", reference = "tia:gpR5ZkKnLSuzVoGX1ovoKg/DP7NDA58oox~t1~oZJkHQQ" },
+                new { operationId = "toc", operation = "get_toc", reference = "iox:YnqSGjg18sxz1X1czYtfcA", depth = 1 },
+                new { operationId = "list", operation = "list_publications", titleContains = "Openness" },
+            } }),
         new ToolProbe("plc_online_write", "rejected", true, null,
             new Dictionary<string, object?> { ["operations"] = Array.Empty<object>() }),
         new ToolProbe("plc_online_write", "previewed", false, null,
@@ -137,6 +147,10 @@ public sealed class ToolOutputContractConformanceTests
             { new { operationId = "stop", operation = "change_operating_mode", target = "Line1", operatingMode = "stop" } } }),
         new ToolProbe("vci_read", "rejected", true, null,
             new Dictionary<string, object?> { ["operations"] = Array.Empty<object>() }),
+        new ToolProbe("tia_inbox", "rejected", true, null,
+            new Dictionary<string, object?> { ["operations"] = Array.Empty<object>() }),
+        new ToolProbe("tia_inbox", "succeeded", false, null,
+            new Dictionary<string, object?> { ["operations"] = new[] { new { operationId = "list", operation = "list_requests" } } }),
         new ToolProbe("library_read", "rejected", true, null,
             new Dictionary<string, object?> { ["operations"] = Array.Empty<object>() }),
         new ToolProbe("library_read", "succeeded", false, "library-roundtrip",
@@ -511,6 +525,22 @@ public sealed class ToolOutputContractConformanceTests
                 Assert.Empty(harness.PlcWebApiWorld.Calls);
             }
         }
+        if (probe.Tool == "siemens_docs")
+        {
+            var document = result.StructuredContent!.Value;
+            Assert.Equal("siemens_docs", document.GetProperty("tool").GetString());
+            Assert.Equal("1.0", document.GetProperty("contractVersion").GetString());
+            Assert.Equal(System.Text.Json.JsonValueKind.Array, document.GetProperty("warnings").ValueKind);
+            Assert.Equal(probe.ExpectIsError, document.GetProperty("error").ValueKind == System.Text.Json.JsonValueKind.Object);
+            Assert.Empty(Network.NetworkGuardedWriteMcpTests.AuditLines(audit.Path));
+            if (!probe.ExpectIsError)
+            {
+                Assert.True(document.GetProperty("success").GetBoolean(), TextOf(result));
+                Assert.Equal(4, document.GetProperty("batch").GetProperty("counts").GetProperty("succeeded").GetInt32());
+                Assert.StartsWith("# Connecting to the TIA Portal",
+                    document.GetProperty("batch").GetProperty("operations")[1].GetProperty("result").GetProperty("markdown").GetString());
+            }
+        }
         if (probe.Tool == "network_read")
         {
             var document = result.StructuredContent!.Value;
@@ -686,6 +716,7 @@ public sealed class ToolOutputContractConformanceTests
     [InlineData("plcsim_write", "operations")]
     [InlineData("plc_online_read", "operations")]
     [InlineData("plc_online_write", "operations")]
+    [InlineData("siemens_docs", "operations")]
     [InlineData("plcsim_test", "instance")]
     [InlineData("plcsim_test", "steps")]
     [InlineData("open_project", "projectPath")]

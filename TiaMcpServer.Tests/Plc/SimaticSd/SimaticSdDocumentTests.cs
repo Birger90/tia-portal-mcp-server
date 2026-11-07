@@ -504,8 +504,9 @@ public sealed class SimaticSdDocumentTests
     {
         static string Describe(MemberInfo member) => member.GetCustomAttribute<DescriptionAttribute>()!.Description;
         var operation = Describe(typeof(PlcOperationRequest).GetProperty(nameof(PlcOperationRequest.Operation))!);
-        var read = Describe(typeof(PlcReadTools).GetMethod(nameof(PlcReadTools.PlcRead))!);
-        var write = Describe(typeof(PlcWriteTools).GetMethods().Single(m => m.GetCustomAttribute<DescriptionAttribute>() is not null && m.Name == "PlcWrite"));
+        // K91: the per-operation text moved from the tool descriptions to the describe_operations reference.
+        var read = PlcOperationReference.ReadTool;
+        var write = PlcOperationReference.WriteTool;
         Assert.Contains(SimaticSdMethods.ListNetworks, operation);
         Assert.Contains("list_networks (blockPath", read);
         Assert.Contains("format xml|source|sd", read);

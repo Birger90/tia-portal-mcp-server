@@ -13,7 +13,7 @@ which models payload shapes only) and needs the [live acceptance list](#live-acc
 | `plc_write` | `import_external_source`, `generate_blocks_from_source`, `delete_external_source`, `export_source_file`, `rename_block_group`, `rename_type_group`, `rename_tag_table_group`, `rename_watch_table_group`, `create_type_group`, `delete_type_group`, `create_tag_table_group`, `delete_tag_table_group`, `create_software_unit`, `delete_software_unit`, `rename_software_unit`, `export_tag_tables_csv`, `export_watch_tables_csv`, `export_force_tables_csv`, `export_blocks` |
 | `library_write` | `instantiate_master_copy` target kind `externalSources` (a master copy into the PLC's external sources) |
 
-The tool counts stay 11/30/30. Method names are `PlcSourceFolderMethods` in
+The tool counts stay 13/32/32. Method names are `PlcSourceFolderMethods` in
 `TiaMcpServer.Contracts/Plc`; worker parameters travel in `WorkerRequest.PlcSourceFolder`; the worker
 dispatch is one line plus `Program.SourcesFolders.cs`.
 

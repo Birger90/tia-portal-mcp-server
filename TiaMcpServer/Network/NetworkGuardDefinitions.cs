@@ -16,6 +16,7 @@ public static class NetworkGuardDefinitions
     public const string IoSystemAlreadyAssigned = "network_io_system_already_assigned";
     public const string PortLinkExists = "network_port_link_exists";
     public const string PortLinkMissing = "network_port_link_missing";
+    public const string HardwareFeatureChanges = "network_hardware_feature_changes";
     public const string DeletesTransferArea = "network_deletes_transfer_area";
     public const string DeletesIoSystem = "network_deletes_io_system";
     public const string DisconnectsIoConnector = "network_disconnects_io_connector";
@@ -34,6 +35,7 @@ public static class NetworkGuardDefinitions
         new WriteGuardDefinition(IoSystemNodeUnconnected, WriteGuardSeverities.Info, "The IO controller's node is not connected to a subnet in the planning snapshot; TIA Portal decides whether an IO system can be created."),
         new WriteGuardDefinition(IoSystemAlreadyAssigned, WriteGuardSeverities.Info, "The node's interface already belongs to an IO system in the planning snapshot; TIA Portal decides whether another one can be created."),
         new WriteGuardDefinition(PortLinkExists, WriteGuardSeverities.Info, "The ports are already linked in the planning read; the Siemens skill reports that ConnectToPort then throws. The item runs and TIA Portal decides."),
+        new WriteGuardDefinition(HardwareFeatureChanges, WriteGuardSeverities.Info, "Package G hardware feature write (subnet, IM connection, PC interface assignment, module description, telecontrol data points, communication connection); the worker binds the documented member at runtime and reads the result back where a documented read exists. The item runs and TIA Portal decides."),
         new WriteGuardDefinition(PortLinkMissing, WriteGuardSeverities.Info, "The ports are not linked in the planning read (or the link is unreadable); the item runs and TIA Portal decides."),
         new WriteGuardDefinition(DeletesTransferArea, WriteGuardSeverities.Info, "Deleting a transfer area removes its address mapping; partner areas and PLC tags are not changed by the server."),
         new WriteGuardDefinition(DeletesIoSystem, WriteGuardSeverities.Info, "Deleting an IO system disconnects its IO devices; the devices, their nodes and the subnet remain."),

@@ -44,6 +44,23 @@ public static partial class NetworkOperationCatalog
             new NetworkOperationSpec(HardwareModuleMethods.DisconnectFromIoSystem, NetworkOperationCategory.Write, new[] { "target" }, None),
             new NetworkOperationSpec(HardwareModuleMethods.ExportCax, NetworkOperationCategory.Write, new[] { "filePath" }, new[] { "deviceName", "logFilePath", "overwrite" }),
             new NetworkOperationSpec(HardwareModuleMethods.ImportCax, NetworkOperationCategory.Write, new[] { "filePath", "importOption" }, new[] { "logFilePath", "overwrite" }),
+            // Package G hardware features (target: the device item that offers the feature).
+            new NetworkOperationSpec(HardwareFeatureMethods.GetNodes, NetworkOperationCategory.Read, new[] { "target" }, None),
+            new NetworkOperationSpec(HardwareFeatureMethods.CreateAndConnectSubnet, NetworkOperationCategory.Write, new[] { "target", "newSubnetName" }, new[] { "nodeName" }),
+            new NetworkOperationSpec(HardwareFeatureMethods.DisconnectFromSubnet, NetworkOperationCategory.Write, new[] { "target" }, new[] { "nodeName" }),
+            new NetworkOperationSpec(HardwareFeatureMethods.GetIoController, NetworkOperationCategory.Read, new[] { "target" }, None),
+            new NetworkOperationSpec(HardwareFeatureMethods.GetImPartnerPort, NetworkOperationCategory.Read, new[] { "target" }, None),
+            new NetworkOperationSpec(HardwareFeatureMethods.ConnectImPort, NetworkOperationCategory.Write, new[] { "target", "partner" }, None),
+            new NetworkOperationSpec(HardwareFeatureMethods.DisconnectImPort, NetworkOperationCategory.Write, new[] { "target" }, None),
+            new NetworkOperationSpec(HardwareFeatureMethods.GetPcInterfaceAssignment, NetworkOperationCategory.Read, new[] { "target" }, None),
+            new NetworkOperationSpec(HardwareFeatureMethods.AssignPcInterface, NetworkOperationCategory.Write, new[] { "target", "assignmentMode" }, new[] { "partner" }),
+            new NetworkOperationSpec(HardwareFeatureMethods.GetModuleDescriptionUpdate, NetworkOperationCategory.Read, new[] { "target" }, None),
+            new NetworkOperationSpec(HardwareFeatureMethods.UpdateModuleDescription, NetworkOperationCategory.Write, new[] { "target" }, None),
+            new NetworkOperationSpec(HardwareFeatureMethods.ExportTelecontrolDataPoints, NetworkOperationCategory.Write, new[] { "target", "filePath" }, new[] { "overwrite" }),
+            new NetworkOperationSpec(HardwareFeatureMethods.ImportTelecontrolDataPoints, NetworkOperationCategory.Write, new[] { "target", "filePath" }, None),
+            new NetworkOperationSpec(HardwareFeatureMethods.ListCommunicationConnections, NetworkOperationCategory.Read, new[] { "target" }, None),
+            new NetworkOperationSpec(HardwareFeatureMethods.CreateCommunicationConnection, NetworkOperationCategory.Write, new[] { "target", "partner", "connectionType" }, new[] { "nodeName", "partnerNodeName" }),
+            new NetworkOperationSpec(HardwareFeatureMethods.DeleteCommunicationConnection, NetworkOperationCategory.Write, new[] { "target", "connectionIndex" }, new[] { "connectionName" }),
             new NetworkOperationSpec(HardwareModuleMethods.ExportIoMap, NetworkOperationCategory.Write, new[] { "filePath" }, new[] { "deviceName", "plcName", "includeTagMatches", "overwrite", "csvDelimiter", "rawCells" }),
         }.ToDictionary(spec => spec.Name, StringComparer.Ordinal);
     }
@@ -80,6 +97,16 @@ public static partial class NetworkOperationCatalog
             ValidateHardwareTarget(operation, destination, "destination", allowDevice: true, prefix, errors);
         if (operation.Partner is { } partner)
             ValidateHardwareTarget(operation, partner, "partner", allowDevice: false, prefix, errors);
+
+        if (operation.AssignmentMode is { } assignmentMode && !HardwareFeatureNames.AssignmentModes.Contains(assignmentMode, StringComparer.Ordinal))
+            errors.Add($"{prefix} 'assignmentMode' must be one of {string.Join(", ", HardwareFeatureNames.AssignmentModes)}.");
+        if (operation.ConnectionType is { } connectionType && !HardwareFeatureNames.ConnectionTypes.Contains(connectionType, StringComparer.Ordinal))
+            errors.Add($"{prefix} 'connectionType' must be one of {string.Join(", ", HardwareFeatureNames.ConnectionTypes)}.");
+        if (operation.ConnectionIndex is < 0)
+            errors.Add($"{prefix} 'connectionIndex' must not be negative.");
+        if (operation.Operation is HardwareFeatureMethods.ExportTelecontrolDataPoints or HardwareFeatureMethods.ImportTelecontrolDataPoints
+            && TiaMcpServer.Contracts.Plc.PlcFileTargets.PathShapeError("filePath", operation.FilePath) is { } fileError)
+            errors.Add($"{prefix} {fileError}");
 
         if (operation.PositionNumber is < 0)
             errors.Add($"{prefix} 'positionNumber' must not be negative.");

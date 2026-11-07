@@ -39,6 +39,9 @@ public sealed record PlcOnlineConnectionItem : IOperationBatchItem
 
     /// <summary>go_online only: the caller's <c>trustedCertificates</c> as given; null when omitted (go_offline refuses a supplied list).</summary>
     public IReadOnlyList<string>? TrustedCertificates { get; init; }
+
+    /// <summary>Audit T1, go_online only: <c>allowInsecurePasswordTransfer</c> (default false; go_offline refuses true).</summary>
+    public bool AllowInsecurePasswordTransfer { get; init; }
 }
 
 public static class PlcOnlineConnectionActions
@@ -81,6 +84,9 @@ public sealed record PlcStationUploadWriteItem : IOperationBatchItem
 
     /// <summary>The caller's <c>trustedCertificates</c> as given (validated and normalized by <see cref="PlcTlsTrustPolicy.NormalizeList"/>).</summary>
     public IReadOnlyList<string> TrustedCertificates { get; init; } = Array.Empty<string>();
+
+    /// <summary>Audit T1: <c>allowInsecurePasswordTransfer</c> (default false).</summary>
+    public bool AllowInsecurePasswordTransfer { get; init; }
 }
 
 /// <summary>The caller's PC interface selector; both members are required when it is supplied.</summary>
@@ -112,7 +118,12 @@ public sealed record PlcOnlineConnectionEffects(
     int TimeoutSeconds,
     IReadOnlyList<string> PasswordKeys,
     string PortalConfirmations,
-    IReadOnlyList<string> TrustedCertificates);
+    IReadOnlyList<string> TrustedCertificates)
+{
+    /// <summary>Audit T1: true when the caller allowed passwords over a non-secure connection; omitted otherwise.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? AllowInsecurePasswordTransfer { get; init; }
+}
 
 /// <summary>
 /// The resolved path and requested consequences of one plc_station_upload call. <c>TrustedCertificates</c> are the
@@ -125,7 +136,12 @@ public sealed record PlcStationUploadEffects(
     IReadOnlyList<string> PasswordKeys,
     bool AddsDeviceToProject,
     string PortalConfirmations,
-    IReadOnlyList<string> TrustedCertificates);
+    IReadOnlyList<string> TrustedCertificates)
+{
+    /// <summary>Audit T1: true when the caller allowed passwords over a non-secure connection; omitted otherwise.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? AllowInsecurePasswordTransfer { get; init; }
+}
 
 /// <summary>The plc_tia_online document: the shared write envelope plus typed effects and one typed result outcome.</summary>
 public sealed record PlcOnlineConnectionResponse(
@@ -235,7 +251,7 @@ public static class PlcOnlinePathResolver
         };
         return new(new PlcOnlineConnectionEffects(item.Action, plc.PlcName, plc.DeviceName, path, item.TargetInterface is null, plc.State,
             string.Equals(pcInterface.Name, "PLCSIM", StringComparison.Ordinal), item.TimeoutSeconds, passwordKeys, item.PortalConfirmations,
-            Trusted(item.TrustedCertificates)), null);
+            Trusted(item.TrustedCertificates)) { AllowInsecurePasswordTransfer = item.AllowInsecurePasswordTransfer ? true : null }, null);
     }
 
     public static PlcOnlineResolution<PlcStationUploadEffects> ResolveUpload(PlcStationUploadInterfacesInfo interfaces, PlcStationUploadWriteItem item)
@@ -253,7 +269,8 @@ public static class PlcOnlinePathResolver
             TargetInterface = null,
         };
         return new(new PlcStationUploadEffects(item.Address, path, item.Decisions.Select(d => d.Type).ToArray(),
-            item.Passwords.Select(p => p.Type).ToArray(), AddsDeviceToProject: true, item.PortalConfirmations, Trusted(item.TrustedCertificates)), null);
+            item.Passwords.Select(p => p.Type).ToArray(), AddsDeviceToProject: true, item.PortalConfirmations, Trusted(item.TrustedCertificates))
+            { AllowInsecurePasswordTransfer = item.AllowInsecurePasswordTransfer ? true : null }, null);
     }
 
     /// <summary>The normalized fingerprints (validated before planning; an invalid list trusts nothing).</summary>

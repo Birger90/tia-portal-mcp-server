@@ -470,7 +470,7 @@ ausgeführt**. Ein älterer Aufruf nur mit Operationen lieferte früher eine Vor
 Vorschau-Aufrufer auf `dryRun:true` migrieren. `confirm`, `acknowledge`, unbekannte Root-Schlüssel
 und ein nicht boolesches `dryRun` werden vor dem Eintritt in das Tool mit dem kanonischen Dokument des
 Tools (`validation_error`, `isError:true`) und ohne Audit-Eintrag abgelehnt, wie jeder
-Argumentformfehler in allen 30 Tools. Ablehnungen nach dem Eintritt in die Pipeline durch Validierung,
+Argumentformfehler in allen 32 Tools. Ablehnungen nach dem Eintritt in die Pipeline durch Validierung,
 Bindung und Guards haben einen typisierten kanonischen `error` auf oberster Ebene, MCP `isError:true`
 und genau einen Audit-v2-Eintrag.
 

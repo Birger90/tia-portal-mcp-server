@@ -49,6 +49,9 @@ public sealed class ConditionalMemberRegisterTests
         "PlcDownloadAbortInfo.Tls",
         "PlcCallbackConfigurationInfo.Tls",
         "PlcCallbackAbortInfo.Tls",
+        // Audit T1 (K84): present only on a password configuration the call had a password for and whose IsSecureCommunication was read.
+        "PlcDownloadConfigurationInfo.SecureCommunication",
+        "PlcCallbackConfigurationInfo.SecureCommunication",
         // PLCSIM worker: present (true) only after the process observed a cached API type-initializer failure; the host then recycles it.
         "WorkerResponse.WorkerRestartRequired",
         // plc_write: present only on a failed content-import item (update_block_logic).

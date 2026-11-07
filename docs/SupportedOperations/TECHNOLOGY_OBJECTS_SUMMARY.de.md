@@ -23,8 +23,8 @@ TOs sind PLC-Software-Inhalt und werden wie Variablentabellen und Beobachtungsta
 Mechanismus mit, den die Domäne braucht (die abgesicherte Single-Call-Pipeline mit Dry Run, Info-Guards,
 Rücklese-Verifikation und Audit; den PLC-Arbeitszustand, mit dem ein späteres Item ein Objekt verwenden kann, das
 ein früheres Item angelegt hat; den Content-Hash-Roundtrip der Beobachtungs- und Forcetabellen), daher wurden die
-Operationen dort ergänzt statt in einem neuen Tool-Paar. Die Tool-Oberfläche bleibt bei **11 Tools in read-only,
-30 in read-write und 30 in full** (seit `retrieve_project`) (`library_read`/`library_write` wurden ein eigenes Paar, weil ein
+Operationen dort ergänzt statt in einem neuen Tool-Paar. Die Tool-Oberfläche bleibt bei **13 Tools in read-only,
+32 in read-write und 32 in full** (seit `siemens_docs`; 12/31/31 seit `tia_inbox`; 11/30/30 seit `retrieve_project`) (`library_read`/`library_write` wurden ein eigenes Paar, weil ein
 Bibliotheksselektor keine PLC ist). Die Feldmenge von `PlcOperationRequest` wächst; jedes Feld ist je Operation
 durch den Katalog eingeschränkt (`PlcOperationCatalog.TechnologyObjects.cs`), sodass ein nicht verwendetes Feld ein
 `validation_error` ist.
@@ -386,7 +386,7 @@ Signatur gut genug bekannt, um dagegen zu kompilieren. `ref/*.dll` ist unveränd
 | Startdrive-Verbindungsschnittstellen (`AxisHardwareConnectionSDRProvider`, `EncoderHardwareConnectionSDRProvider`, `*SDRInterface.Connect(Telegram[, ConnectOption])`) | Sie liegen in `Siemens.Engineering.Startdrive.dll`, die der Worker nicht referenziert, und nehmen `Telegram`-Objekte von Startdrive-Antriebsobjekten (Antriebe sind eine eigene, noch nicht entworfene Domäne). Adress-, Modul- und DB-Member-Verbindungen decken den dokumentierten Step7-Pfad ab. |
 | Disconnect der Ident-Schnittstelle; Entfernen einer `PlcTag` aus einem Parameter | Nicht dokumentiert. |
 | Verschieben eines TO zwischen Gruppen | Kein dokumentiertes Member; Export, Löschen und Import in die andere Gruppe sind getrennte Items. |
-| Kurvenscheibendaten (`CamDataSupport.LoadCamData`/`SaveCamData`/binär/Punktliste) und Interpreterprogramme (`InterpreterProgramSupport.LoadSource`/`SaveSource`) | Die Methoden sind dokumentiert, aber wie diese Objekte von einem TO bezogen werden, ist nicht angegeben, und die Member von `CamDataFormat`/`CamDataFormatSeparator` sind nicht gelistet. Sie brauchen dieselbe Service-Discovery plus Live-Nachweis; zurückgestellt. |
+| Interpreterprogramme (`InterpreterProgramSupport.LoadSource`/`SaveSource`) | Die Methoden sind dokumentiert, aber wie das Objekt aus einem TO erreicht wird, steht nicht in den Quellen; zurückgestellt. Kurvenscheiben sind jetzt `plc_write save_cam_data`/`load_cam_data` (Paket G, `GetServiceInfos()` des TO; siehe [Referenz Vervollständigung der V21-API](V21_API_COMPLETION_SUMMARY.de.md)). |
 | Leitwertkopplungen (`SynchronousAxisMasterValues`, `ConveyorTrackingLeadingValues`, `SuperimposingAxes` mit `SetPointCoupling`/`ActualValueCoupling`/`DelayedCoupling`, `TechnologicalInstanceDBAssociation.Add/Remove`), Interpreter-Mappings (`InterpreterMappings`, `TOMapping`, `DBMemberMapping`) und `OutputCamMeasuringInputContainer` | Wie diese Objekte erreicht werden und die Eigenschaftstypen der Kopplungen sind in den Quellen nicht angegeben; zurückgestellt, bis ein Live-Discovery-Nachweis existiert. |
 | `ShowInEditor` | Eine UI-Aktion; in den Quellen für TOs nicht dokumentiert. |
 | TOs in Software Units | Von TIA Portal nicht unterstützt (Siemens-Skill). |

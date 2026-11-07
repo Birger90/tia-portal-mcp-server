@@ -4,7 +4,7 @@
 
 `bind_project` stellt in allen Modi eine explizite Portal-Ermittlung und fünf Inventaraktionen für den Project Server
 bereit. Weggelassenes/null `action` oder `action:"bind"` wählt bereits geöffnete Standalone-Besitzer (`.ap21`)
-oder typisierte Besitzer lokaler Sitzungen (`.amc21`) aus. Die aktuelle Discovery umfasst **11/30/30** Tools in
+oder typisierte Besitzer lokaler Sitzungen (`.amc21`) aus. Die aktuelle Discovery umfasst **13/32/32** Tools in
 read-only/read-write/full. PR4 fügt in schreibfähigen Modi das explizite Öffnen existierender `.als21` und
 einen grundlegenden lokalen Status hinzu; PR5 fügt lokale Inhaltslesevorgänge hinzu und PR6 lokale Inhaltsschreibvorgänge, Übersetzen und
 `LocalSession.Save()` (siehe [Interner Kontext](#interner-kontext)). Die Besitzverträge aus PR1/PR2 bleiben die Grundlage; Issue #65 ist unvollständig.

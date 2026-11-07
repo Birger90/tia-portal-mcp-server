@@ -70,6 +70,7 @@ public class PlcDownloadTools
         [Description("R/H system only: primary or backup downloads to that CPU of the redundant system through RHDownloadProvider.DownloadToPrimary/DownloadToBackup "
             + "(same path, decisions, passwords, guards and confirmation as a normal download). Omitted or null: the normal DownloadProvider.Download. A PLC without "
             + "RHDownloadProvider fails unsupported_capability before anything is downloaded.")] string? rhTarget = null,
+        [Description(PlcPasswordChannelDescription.Text)] bool allowInsecurePasswordTransfer = false,
         [Description("Resolve the path and evaluate guards without downloading or asking for confirmation.")] bool dryRun = false,
         McpServer? server = null, CancellationToken cancellationToken = default)
     {
@@ -96,11 +97,20 @@ public class PlcDownloadTools
             PortalConfirmations = portalConfirmations,
             // trustedCertificates: an explicit JSON null means omitted.
             TrustedCertificates = trustedCertificates?.Entries ?? Array.Empty<string>(),
+            AllowInsecurePasswordTransfer = allowInsecurePasswordTransfer,
         };
         return execution.RunAsync(new PlcDownloadWriteDomain(workerClient), new WriteCall<PlcDownloadWriteItem>(new[] { item }, dryRun),
             new WriteConfirmationContext(server is null ? null : UserConfirmation.For(server, TimeSpan.FromMinutes(2))),
             bindingStrategy: null, cancellationToken);
     }
+}
+
+/// <summary>The one description of the <c>allowInsecurePasswordTransfer</c> argument (audit T1; plc_download, plc_tia_online, plc_station_upload, plc_read compare items).</summary>
+internal static class PlcPasswordChannelDescription
+{
+    internal const string Text = "Default false: a password from 'passwords' is handed to TIA Portal only when the password configuration reports "
+        + "IsSecureCommunication true; when it is false or unreadable the password is not sent and the call aborts with reason insecure_communication. "
+        + "true sends it anyway over the non-secure (legacy) connection, as TIA Portal allows: set it only after the user agreed. Not live-tested.";
 }
 
 /// <summary>The one description of the <c>trustedCertificates</c> argument (plc_download, plc_tia_online, plc_station_upload, plc_read compare_to_online).</summary>

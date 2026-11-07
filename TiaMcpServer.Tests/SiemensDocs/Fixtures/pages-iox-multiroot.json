@@ -1,0 +1,313 @@
+{
+ "configuration": {
+  "splitCurrentPageToc": true
+ },
+ "paginatedToc": [
+  {
+   "tocId": "FFu0ofB~XiRGYeQnBIqeAA",
+   "contentId": "~_uoVimLbbt51ONhNyeIHw",
+   "title": "High-Speed Counter overview",
+   "prettyUrl": "/r/en-us/ax/simatic-technology-objects/4.1.3/high-speed-counter-overview",
+   "hasRating": false,
+   "pageConfiguration": {
+    "isVisible": true
+   },
+   "pageToc": [
+    {
+     "tocId": "CZ1KsoXRcWC6TvWjfDNWDg",
+     "contentId": "G9l3VR8IMlnx0k~T5aTLyQ",
+     "title": "Getting started",
+     "prettyUrl": "/r/en-us/ax/simatic-technology-objects/4.1.3/high-speed-counter-overview/getting-started",
+     "hasRating": false,
+     "children": []
+    },
+    {
+     "tocId": "APnbAEi_6TbM7APDnMSVZw",
+     "contentId": "nqg8TeMR9OdSDFmroaGrGQ",
+     "title": "Classes",
+     "prettyUrl": "/r/en-us/ax/simatic-technology-objects/4.1.3/high-speed-counter-overview/classes",
+     "hasRating": false,
+     "children": []
+    },
+    {
+     "tocId": "1xtXnO9X55wuqXh2Dir~rQ",
+     "contentId": "aGWsB0yWYndfbI0oLN8uMw",
+     "title": "Methods",
+     "prettyUrl": "/r/en-us/ax/simatic-technology-objects/4.1.3/high-speed-counter-overview/methods",
+     "hasRating": false,
+     "children": []
+    },
+    {
+     "tocId": "A0wfxC~2qwMjvjjfrpNWlA",
+     "contentId": "_zUI5vHJ5Br1btUAEZ4I8w",
+     "title": "Usage example",
+     "prettyUrl": "/r/en-us/ax/simatic-technology-objects/4.1.3/high-speed-counter-overview/usage-example",
+     "hasRating": false,
+     "children": []
+    },
+    {
+     "tocId": "T~YXnTfaU6RewQNqRLYnLA",
+     "contentId": "QmVIhHnZP5AzbRGxSBftnA",
+     "title": "Industrial Cybersecurity",
+     "prettyUrl": "/r/en-us/ax/simatic-technology-objects/4.1.3/high-speed-counter-overview/industrial-cybersecurity",
+     "hasRating": false,
+     "children": [
+      {
+       "tocId": "AaZBJY~_eZUbIRERZ80Dfw",
+       "contentId": "uKqIoMMDMsFpvXiX24qgUA",
+       "title": "Secure decommissioning",
+       "prettyUrl": "/r/en-us/ax/simatic-technology-objects/4.1.3/high-speed-counter-overview/industrial-cybersecurity/secure-decommissioning",
+       "hasRating": false,
+       "children": []
+      }
+     ]
+    },
+    {
+     "tocId": "NHJ~K51f48OGoGTPLw5JxQ",
+     "contentId": "4Eul~2QO1V3NKgwlP~sZpg",
+     "title": "Additional information",
+     "prettyUrl": "/r/en-us/ax/simatic-technology-objects/4.1.3/high-speed-counter-overview/additional-information",
+     "hasRating": false,
+     "children": []
+    }
+   ],
+   "children": []
+  },
+  {
+   "tocId": "ZjTTUtabrCto~MD3qXxchA",
+   "contentId": "q8PpoN44UYAiRb5xz5zIyw",
+   "title": "High-Speed Counter",
+   "prettyUrl": "/r/en-us/ax/simatic-technology-objects/4.1.3/high-speed-counter",
+   "hasRating": false,
+   "pageConfiguration": {
+    "isVisible": true
+   },
+   "pageToc": [
+    {
+     "tocId": "cdrTMfzgCnr5iR02QUP7rA",
+     "contentId": "HXJXmsjRY_gpcmcHK2Fi7g",
+     "title": "Methods",
+     "prettyUrl": "/r/en-us/ax/simatic-technology-objects/4.1.3/high-speed-counter/methods",
+     "hasRating": false,
+     "children": [
+      {
+       "tocId": "5ocI4dUj4nxoS4xN9hMnCg",
+       "contentId": "a0I4tJZOvlXnd5GPon5hBQ",
+       "title": "Process",
+       "prettyUrl": "/r/en-us/ax/simatic-technology-objects/4.1.3/high-speed-counter/methods/process",
+       "hasRating": false,
+       "children": []
+      }
+     ]
+    },
+    {
+     "tocId": "kc3bsBzctBDAtxSG9gvt0w",
+     "contentId": "qs1VpFSHjt4giKSaeZynUg",
+     "title": "Usage",
+     "prettyUrl": "/r/en-us/ax/simatic-technology-objects/4.1.3/high-speed-counter/usage",
+     "hasRating": false,
+     "children": [
+      {
+       "tocId": "jWbFKC4IUG1FduRZEZtQcQ",
+       "contentId": "skebX4DXtjuOFZGnZf_LRg",
+       "title": "Example",
+       "prettyUrl": "/r/en-us/ax/simatic-technology-objects/4.1.3/high-speed-counter/usage/example",
+       "hasRating": false,
+       "children": []
+      }
+     ]
+    },
+    {
+     "tocId": "p~JMAqk8KQH1sgc1g7fScQ",
+     "contentId": "MRbcPRGB01F5xFoLho71Bg",
+     "title": "Types",
+     "prettyUrl": "/r/en-us/ax/simatic-technology-objects/4.1.3/high-speed-counter/types",
+     "hasRating": false,
+     "children": [
+      {
+       "tocId": "dTzZrrkq70sF8yfKrvaJew",
+       "contentId": "UvQ561YEmiBzSNgqQSR75Q",
+       "title": "ControlFlags",
+       "prettyUrl": "/r/en-us/ax/simatic-technology-objects/4.1.3/high-speed-counter/types/controlflags",
+       "hasRating": false,
+       "children": []
+      },
+      {
+       "tocId": "hqIZB31AkyQF6Y2DW6BKdA",
+       "contentId": "KGm9ExAznsXF2u4IOQ8YTw",
+       "title": "OutputData",
+       "prettyUrl": "/r/en-us/ax/simatic-technology-objects/4.1.3/high-speed-counter/types/outputdata",
+       "hasRating": false,
+       "children": []
+      },
+      {
+       "tocId": "dhQiMi3cILYlQ~gbq1vM4g",
+       "contentId": "mu5tVJWUAIQKhQJmMaI7Wg",
+       "title": "HardwareConfiguration",
+       "prettyUrl": "/r/en-us/ax/simatic-technology-objects/4.1.3/high-speed-counter/types/hardwareconfiguration",
+       "hasRating": false,
+       "children": []
+      },
+      {
+       "tocId": "9sQ7dxEZ7FeYgO2M2iTgmQ",
+       "contentId": "T~euzsn17GTWH1MkUXw_oQ",
+       "title": "HSC_CounterInputs",
+       "prettyUrl": "/r/en-us/ax/simatic-technology-objects/4.1.3/high-speed-counter/types/hsc_counterinputs",
+       "hasRating": false,
+       "children": []
+      },
+      {
+       "tocId": "dcLx~iKPJ~~7HLiE3G3_Ew",
+       "contentId": "cJB9Wwy3C7lnk3kphm0wow",
+       "title": "HSC_BehaviorDQ",
+       "prettyUrl": "/r/en-us/ax/simatic-technology-objects/4.1.3/high-speed-counter/types/hsc_behaviordq",
+       "hasRating": false,
+       "children": []
+      },
+      {
+       "tocId": "hktQJ_t11eRipGx848DV0Q",
+       "contentId": "0JBklqX59In8VwR8k0iZZw",
+       "title": "HSC_BehaviorDI",
+       "prettyUrl": "/r/en-us/ax/simatic-technology-objects/4.1.3/high-speed-counter/types/hsc_behaviordi",
+       "hasRating": false,
+       "children": []
+      },
+      {
+       "tocId": "sCclU5gva3jKpKN0yhv9Xw",
+       "contentId": "a2o5w1_zOYBYsoTlqIZxsg",
+       "title": "HSC_Values",
+       "prettyUrl": "/r/en-us/ax/simatic-technology-objects/4.1.3/high-speed-counter/types/hsc_values",
+       "hasRating": false,
+       "children": []
+      },
+      {
+       "tocId": "xuIiR~48bCn8Wb9DJOZ42A",
+       "contentId": "ze1Am9OnbQccWYNr0c6zqw",
+       "title": "HSC_CounterBehavior",
+       "prettyUrl": "/r/en-us/ax/simatic-technology-objects/4.1.3/high-speed-counter/types/hsc_counterbehavior",
+       "hasRating": false,
+       "children": []
+      },
+      {
+       "tocId": "D6bSfVLqI~eR7hrVrYX_1A",
+       "contentId": "Cb5l6pO~PyDFkKVmq5QkrA",
+       "title": "HSC_Measuring",
+       "prettyUrl": "/r/en-us/ax/simatic-technology-objects/4.1.3/high-speed-counter/types/hsc_measuring",
+       "hasRating": false,
+       "children": []
+      }
+     ]
+    },
+    {
+     "tocId": "nScY3mwzMY9hRGow~7zhtw",
+     "contentId": "UaOomEjqisvE8WgWHSG1~w",
+     "title": "Error codes",
+     "prettyUrl": "/r/en-us/ax/simatic-technology-objects/4.1.3/high-speed-counter/error-codes",
+     "hasRating": false,
+     "children": [
+      {
+       "tocId": "I9TLDWisX6LxQCscuXOOPA",
+       "contentId": "K~olJwlcldD_uRonA2udlg",
+       "title": "OutputData.ErrorID",
+       "prettyUrl": "/r/en-us/ax/simatic-technology-objects/4.1.3/high-speed-counter/error-codes/outputdata.errorid",
+       "hasRating": false,
+       "children": []
+      }
+     ]
+    },
+    {
+     "tocId": "58WUDZwRY22eVc1qeQCU3A",
+     "contentId": "IIhkviMmEuvbgGg7VPKlsQ",
+     "title": "High-Speed Counter library development for TIA Portal example",
+     "prettyUrl": "/r/en-us/ax/simatic-technology-objects/4.1.3/high-speed-counter/high-speed-counter-library-development-for-tia-portal-example",
+     "hasRating": false,
+     "children": [
+      {
+       "tocId": "Pu2c04ptUHtdoKovJziVzw",
+       "contentId": "xvDIARWGXZ03x03o1TeOrQ",
+       "title": "Instructions",
+       "prettyUrl": "/r/en-us/ax/simatic-technology-objects/4.1.3/high-speed-counter/high-speed-counter-library-development-for-tia-portal-example/instructions",
+       "hasRating": false,
+       "children": []
+      }
+     ]
+    }
+   ],
+   "children": []
+  },
+  {
+   "tocId": "R4Mg8snSuaw72yqWEblXIw",
+   "contentId": "i8jczHa8SiWNiZ8foCIp6w",
+   "title": "Changelog",
+   "prettyUrl": "/r/en-us/ax/simatic-technology-objects/4.1.3/changelog",
+   "hasRating": false,
+   "pageConfiguration": {
+    "isVisible": true
+   },
+   "pageToc": [
+    {
+     "tocId": "x8mxA0WD4hsxaTjufOcnRw",
+     "contentId": "dOH~I5oyTOjh88ubnLbxCg",
+     "title": "[4.1.3] - 2026-10-30",
+     "prettyUrl": "/r/en-us/ax/simatic-technology-objects/4.1.3/changelog/4.1.3-2026-10-30",
+     "hasRating": false,
+     "children": [
+      {
+       "tocId": "cAHkFxXTPHQZwB_XYYEgrw",
+       "contentId": "YdzBXpK~p5w2WMXlCDAVkA",
+       "title": "Added",
+       "prettyUrl": "/r/en-us/ax/simatic-technology-objects/4.1.3/changelog/4.1.3-2026-10-30/added",
+       "hasRating": false,
+       "children": []
+      },
+      {
+       "tocId": "~177FW~AMLzpLh4mQqzeUg",
+       "contentId": "hrWr1Z67Vjl_VRZlC3K52w",
+       "title": "Changed",
+       "prettyUrl": "/r/en-us/ax/simatic-technology-objects/4.1.3/changelog/4.1.3-2026-10-30/changed",
+       "hasRating": false,
+       "children": []
+      }
+     ]
+    },
+    {
+     "tocId": "MTLm32i_tssgwjoxXLwYNA",
+     "contentId": "LmeZA_zftNbBEBURIBaZ~w",
+     "title": "[4.0.43] - 2026-04-29",
+     "prettyUrl": "/r/en-us/ax/simatic-technology-objects/4.1.3/changelog/4.0.43-2026-04-29",
+     "hasRating": false,
+     "children": [
+      {
+       "tocId": "yV~tz2cJNyBNnG_s7gEiEg",
+       "contentId": "F8qylXR7RsW~HiRvS0vCuw",
+       "title": "Added",
+       "prettyUrl": "/r/en-us/ax/simatic-technology-objects/4.1.3/changelog/4.0.43-2026-04-29/added",
+       "hasRating": false,
+       "children": []
+      }
+     ]
+    },
+    {
+     "tocId": "A2odZTvgKYYgLaWoFBntJw",
+     "contentId": "0Vz6upBLIYTE4J1E75IzYQ",
+     "title": "[4.0.8] - 2025-10-20",
+     "prettyUrl": "/r/en-us/ax/simatic-technology-objects/4.1.3/changelog/4.0.8-2025-10-20",
+     "hasRating": false,
+     "children": [
+      {
+       "tocId": "wi6lMLKo3wyPTE8ebIdEPw",
+       "contentId": "HmxzS~FGzquNeY5fWfzxpw",
+       "title": "Changed",
+       "prettyUrl": "/r/en-us/ax/simatic-technology-objects/4.1.3/changelog/4.0.8-2025-10-20/changed",
+       "hasRating": false,
+       "children": []
+      }
+     ]
+    }
+   ],
+   "children": []
+  }
+ ],
+ "filteredTocNodes": {},
+ "translationError": false
+}

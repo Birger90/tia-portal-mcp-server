@@ -97,12 +97,24 @@ public sealed class PlcDownloadWriteDomain
             text.Append(" Passwords are read from environment variables: ")
                 .Append(Listed(effect.Passwords.Select(password => ConfirmationText.Line($"{password.Type} from {password.Variable}"))))
                 .Append('.');
+        text.Append(PasswordChannelSentence(effect.Passwords.Count > 0, effect.AllowInsecurePasswordTransfer == true));
         text.Append(TrustSentence(effect.TrustedCertificates, "download"));
         text.Append(" Any other download configuration aborts the download. Every TIA Portal confirmation dialog raised until the download call returns is answered ")
             .Append(effect.PortalConfirmations == PlcDownloadPolicy.PortalConfirmationPolicies.Accept ? "Yes" : "No")
             .Append(" (a later one, until the next request, gets the same answer and is reported as late).");
         return text.ToString();
     }
+
+    /// <summary>
+    /// Audit T1, shared by plc_download, plc_tia_online and plc_station_upload: what happens to a password when TIA Portal reports
+    /// the connection as not secure (<c>IsSecureCommunication</c> false or unreadable). Empty when the call names no password.
+    /// </summary>
+    internal static string PasswordChannelSentence(bool hasPasswords, bool allowInsecure)
+        => !hasPasswords
+            ? string.Empty
+            : allowInsecure
+                ? " allowInsecurePasswordTransfer is true: a password is sent even when TIA Portal reports the connection as not secure (IsSecureCommunication false or unreadable)."
+                : " A password is sent only when TIA Portal reports the connection as secure (IsSecureCommunication); otherwise it is not sent and the call aborts (insecure_communication).";
 
     /// <summary>
     /// The prompt sentence for the call's <c>trustedCertificates</c> (shared by plc_download, plc_tia_online and
@@ -260,6 +272,7 @@ public sealed class PlcDownloadWriteDomain
             Passwords = planned.Passwords.Select(password => new PlcDownloadPasswordInfo { Type = password.Type, Variable = password.Variable }).ToList(),
             PortalConfirmations = planned.PortalConfirmations,
             TrustedCertificates = planned.TrustedCertificates.ToList(),
+            AllowInsecurePasswordTransfer = planned.AllowInsecurePasswordTransfer == true,
         });
     }
 

@@ -16,6 +16,7 @@ internal static partial class Program
             WorkerFailureCategories.ValidationError, $"{request.Method} requires the hardware-module request.");
         return WithEngineeringRoot(request, project => request.Method switch
         {
+            var feature when HardwareFeatureMethods.IsFeature(feature) => Success(HardwareModuleService.Feature(project, info, feature)),
             HardwareModuleMethods.ListPlugLocations => Success(HardwareModuleService.ListPlugLocations(project, info)),
             HardwareModuleMethods.FindModuleTypes => Success(HardwareModuleService.FindModuleTypes(project, info)),
             HardwareModuleMethods.FindContainerTypes => Success(HardwareModuleService.FindContainerTypes(project, info)),

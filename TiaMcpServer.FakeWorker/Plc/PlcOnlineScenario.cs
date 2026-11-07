@@ -328,7 +328,7 @@ sealed class PlcOnlineScenario
         var recorder = new PlcCallbackRecorder(null, action.Passwords,
             new PlcCallbackReflectionAccess(PlcCallbackPolicy.OnlineConfigurationsNamespace, _ => null,
                 variable => variable == PasswordVariable ? "fake-password" : null), trustedCertificates: action.TrustedCertificates,
-            plcSimInterface: PlcTlsTrustPolicy.IsPlcSimInterface(action.PcInterfaceName));
+            plcSimInterface: PlcTlsTrustPolicy.IsPlcSimInterface(action.PcInterfaceName), allowInsecurePasswordTransfer: action.AllowInsecurePasswordTransfer);
         try
         {
             if (_presentTls) recorder.Handle(FakeTlsCertificates.Configuration(plc.Software));
@@ -416,7 +416,7 @@ sealed class PlcOnlineScenario
             new PlcCallbackReflectionAccess(new[] { PlcCallbackPolicy.UploadConfigurationsNamespace, PlcCallbackPolicy.OnlineConfigurationsNamespace },
                 configuration => configuration is Siemens.Engineering.Upload.Configurations.UploadMissingProducts ? "Products are missing." : null,
                 variable => variable == PasswordVariable ? "fake-password" : null), trustedCertificates: upload.TrustedCertificates,
-            plcSimInterface: PlcTlsTrustPolicy.IsPlcSimInterface(upload.PcInterfaceName));
+            plcSimInterface: PlcTlsTrustPolicy.IsPlcSimInterface(upload.PcInterfaceName), allowInsecurePasswordTransfer: upload.AllowInsecurePasswordTransfer);
         try
         {
             // The upload's connection asks for trust first (online legitimation), then the upload callbacks follow.
@@ -439,6 +439,15 @@ sealed class PlcOnlineScenario
 
         result.ConfigurationsSeen = recorder.Seen;
         result.UnusedDecisions = recorder.UnusedKeys().ToList();
+        // Audit T2: an unanswered selection answered NoAction returns normally; the recorded abort decides, like the worker.
+        if (recorder.Abort is { } noAction)
+        {
+            result.Abort = noAction;
+            throw new WorkerOperationException(WorkerFailureCategories.WorkerOperationFailed,
+                PlcCallbackRecorder.AbortMessage(noAction) + " A partly uploaded station may have been added to the project.",
+                plcDownloadOutcome: WorkerJson.SerializePayload(Close(result, confirmations)));
+        }
+
         result.State = "Success";
         result.ErrorCount = 0;
         result.UploadedStationName = "Uploaded_Station";

@@ -125,7 +125,7 @@ public sealed class ServerSettingsEditor
     {
         if (LoadError is not null) return "Die Einstellungsdatei ist ungültig und wird nicht überschrieben. Bitte korrigieren oder löschen und das Programm neu starten.";
         if (mode is { } value && !Choices.Any(choice => choice.Mode == value)) return "Unbekannter Zugriffsmodus.";
-        var settings = new ServerSettings(mode);
+        var settings = new ServerSettings(mode, OnDisk() is { } disk ? disk.ClaudeBridge : Current?.ClaudeBridge);
         try
         {
             WriteFile(Path, settings);
@@ -138,6 +138,46 @@ public sealed class ServerSettingsEditor
         Current = settings;
         FileExists = true;
         return null;
+    }
+
+    /// <summary>The bridge settings in the file, or the defaults (switched off) when none are set.</summary>
+    public ClaudeBridge.ClaudeBridgeSettings CurrentBridge => Current?.ClaudeBridge ?? ClaudeBridge.ClaudeBridgeSettings.Default;
+
+    /// <summary>
+    /// Stores the Claude bridge settings (null: remove them) and keeps the access mode; returns the refusal (German), or null
+    /// when the file was written. The bridge reads the file again before each request, so no restart is needed.
+    /// </summary>
+    public string? SaveBridge(ClaudeBridge.ClaudeBridgeSettings? bridge)
+    {
+        if (LoadError is not null) return "Die Einstellungsdatei ist ungültig und wird nicht überschrieben. Bitte korrigieren oder löschen und das Programm neu starten.";
+        if (bridge?.Problem() is { } problem) return "Die Einstellungen der Claude-Brücke sind ungültig: " + problem;
+        var settings = new ServerSettings(OnDisk() is { } disk ? disk.AccessMode : Current?.AccessMode, bridge);
+        try
+        {
+            WriteFile(Path, settings);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ServerSettingsException)
+        {
+            return $"Die Einstellungsdatei konnte nicht geschrieben werden: {exception.Message}";
+        }
+
+        Current = settings;
+        FileExists = true;
+        return null;
+    }
+
+    /// <summary>The settings as the file holds them now (another section of the program may have saved since this editor loaded),
+    /// or null when there is no valid file.</summary>
+    private ServerSettings? OnDisk()
+    {
+        try
+        {
+            return File.Exists(Path) ? ServerSettingsFile.Parse(File.ReadAllText(Path)) : null;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ServerSettingsException)
+        {
+            return null;
+        }
     }
 
     /// <summary>The German status line after a successful <see cref="Save"/>.</summary>

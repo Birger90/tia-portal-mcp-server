@@ -176,7 +176,8 @@ public sealed class ConfirmationPromptInjectionTests
         // fires one (ConfirmsEveryCall is true for a call with a fail-safe or online master secret item), so unsafe operationIds are
         // refused for those calls as for library_write.
         // Security review F8 added the third: automatic acceptance of syslog client certificates.
-        Assert.Equal(new[] { TiaMcpServer.Plc.PlcGuardDefinitions.SafetyAcceptance, TiaMcpServer.Plc.PlcGuardDefinitions.MasterSecretOnline, TiaMcpServer.Plc.PlcGuardDefinitions.SyslogAutoAcceptsCertificates },
+        // Package G added the online actual-value loads and the project protection.
+        Assert.Equal(new[] { TiaMcpServer.Plc.PlcGuardDefinitions.SafetyAcceptance, TiaMcpServer.Plc.PlcGuardDefinitions.MasterSecretOnline, TiaMcpServer.Plc.PlcGuardDefinitions.LoadsActualValuesOnline, TiaMcpServer.Plc.PlcGuardDefinitions.ProtectsProject, TiaMcpServer.Plc.PlcGuardDefinitions.SyslogAutoAcceptsCertificates },
             TiaMcpServer.Plc.PlcGuardDefinitions.Definitions.Where(definition => definition.Severity == WriteGuardSeverities.Acknowledge).Select(definition => definition.Id));
     }
 

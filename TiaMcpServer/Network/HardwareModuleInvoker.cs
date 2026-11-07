@@ -85,11 +85,19 @@ public static class HardwareModuleInvoker
         CustomIdentityKey = operation.Key,
         CustomIdentityValue = operation.Operation == HardwareModuleMethods.SetCustomIdentity ? operation.Value : null,
         Partner = Selector(operation.Partner),
-        FilePath = operation.Operation is HardwareModuleMethods.ExportCax or HardwareModuleMethods.ImportCax ? operation.FilePath : null,
+        FilePath = operation.Operation is HardwareModuleMethods.ExportCax or HardwareModuleMethods.ImportCax
+            or HardwareFeatureMethods.ExportTelecontrolDataPoints or HardwareFeatureMethods.ImportTelecontrolDataPoints ? operation.FilePath : null,
+        NodeName = operation.NodeName,
+        NewSubnetName = operation.NewSubnetName,
+        PartnerNodeName = operation.PartnerNodeName,
+        AssignmentMode = operation.AssignmentMode,
+        ConnectionType = operation.ConnectionType,
+        ConnectionIndex = operation.ConnectionIndex,
+        ConnectionName = operation.ConnectionName,
         LogFilePath = operation.LogFilePath,
         DeviceName = operation.Operation == HardwareModuleMethods.ExportCax ? operation.DeviceName : null,
         // export_cax: the file and the log; import_cax: the log only (security review F4).
-        Overwrite = operation.Operation is HardwareModuleMethods.ExportCax or HardwareModuleMethods.ImportCax ? operation.Overwrite : null,
+        Overwrite = operation.Operation is HardwareModuleMethods.ExportCax or HardwareModuleMethods.ImportCax or HardwareFeatureMethods.ExportTelecontrolDataPoints ? operation.Overwrite : null,
         CaxImportOption = operation.ImportOption,
         TransferArea = operation.TransferArea is { } area
             ? new TransferAreaRequestInfo

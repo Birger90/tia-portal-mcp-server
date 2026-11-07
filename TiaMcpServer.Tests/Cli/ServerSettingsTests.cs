@@ -44,10 +44,11 @@ public class ServerSettingsTests
     [Theory]
     [InlineData("not json", "not valid JSON")]
     [InlineData("""[ 1 ]""", "must be a JSON object")]
-    [InlineData("""{ "accessMode": "full" }""", "needs \"version\": 1")]
-    [InlineData("""{ "version": "1", "accessMode": "full" }""", "needs \"version\": 1")]
-    [InlineData("""{ "version": 1.5 }""", "needs \"version\": 1")]
-    [InlineData("""{ "version": 2, "accessMode": "full" }""", "version 2; this server reads only version 1")]
+    [InlineData("""{ "accessMode": "full" }""", "needs \"version\": 1 or 2")]
+    [InlineData("""{ "version": "1", "accessMode": "full" }""", "needs \"version\": 1 or 2")]
+    [InlineData("""{ "version": 1.5 }""", "needs \"version\": 1 or 2")]
+    [InlineData("""{ "version": 3, "accessMode": "full" }""", "version 3; this server reads only versions 1 and 2")]
+    [InlineData("""{ "version": 1, "claudeBridge": { } }""", "unknown member")]
     [InlineData("""{ "version": 1, "accessMode": "full", "workerTimeoutMinutes": 10 }""", "unknown member")]
     [InlineData("""{ "version": 1, "AccessMode": "full" }""", "unknown member")]
     [InlineData("""{ "version": 1, "accessMode": "full", "accessMode": "read-only" }""", "repeats the member \"accessMode\"")]
@@ -430,14 +431,14 @@ public class ServerSettingsTests
     {
         var directory = TemporaryDirectory();
         var path = Path.Combine(directory, "settings.json");
-        const string futureFile = """{ "version": 2, "accessMode": "full", "somethingNew": true }""";
+        const string futureFile = """{ "version": 3, "accessMode": "full", "somethingNew": true }""";
         System.IO.File.WriteAllText(path, futureFile);
         try
         {
             var editor = ServerSettingsEditor.Load(path);
             Assert.False(editor.CanSave);
             Assert.Null(editor.CurrentMode);
-            Assert.Contains("version 2", editor.LoadError);
+            Assert.Contains("version 3", editor.LoadError);
             Assert.Contains("ungültig", editor.CurrentDescription);
             Assert.NotNull(editor.Save(McpAccessMode.ReadOnly));
             Assert.Equal(futureFile, System.IO.File.ReadAllText(path));

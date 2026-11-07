@@ -21,6 +21,7 @@
 | `plc_read` | `get_plc_checksums`, `get_fingerprints` | Optional `plcName`; exactly one of `blockPath` or `typePath` | Offline change detection: the PLC's software and text list checksums, the fingerprints of one block or PLC data type, as text; see [Offline change detection](#offline-change-detection-plc_read); not live-tested. |
 | `plc_read` | `get_block_protection` | Required `blockPath` | Know-how and write protection state of one block and which protection members bind; see [Block know-how and write protection](#block-know-how-and-write-protection-plc_readplc_write). Not live-tested. |
 | `plc_read` | `get_project_languages` | None | Active, editing, reference and supported project languages and the text categories; see [Project languages and project texts](#project-languages-and-project-texts-plc_readplc_write). Not live-tested. |
+| `plc_read` | `describe_operations` | Optional `operationNames` (1–3 PLC read or write operation names) | The operation reference: required and optional fields, the full field rules and the reference text of each named operation, or without names the index of every operation with its fields; no bound project needed. See [Operation reference](#operation-reference-describe_operations). |
 | `read_cross_references` | `read_cross_references` | Required `target`; optional `filter`, `maxResults` | Reads the cross-references of one project-tree target. Filters are `AllObjects`, `ObjectsWithReferences` (default), `ObjectsWithoutReferences`, and `UnusedObjects`. |
 | `compile_check` | `compile_check` | Optional `plcName`, `blockPath` | Compiles the PLC or selected block scope and returns compiler messages. |
 
@@ -33,7 +34,7 @@ Use `bind_project` in any mode to adopt or switch to an already-open project; a 
 requires `forceRebind:true`. Ordinary PLC reads never bind, switch or open. Only `open_project` and
 `create_project` open projects. Lifecycle runs in read-write with one confirmation form per actual
 call, or in full without server elicitation; block guards stop the call in every mode. The complete
-tool counts are 11/30/30. Read-only never opens, creates, saves or closes a project. Downloading a PLC to
+tool counts are 13/32/32. Read-only never opens, creates, saves or closes a project. Downloading a PLC to
 PLCSIM or real hardware is the separate `plc_download` tool; see the [PLC download reference](PLC_DOWNLOAD_SUMMARY.md).
 Going online/offline and station upload are the separate `plc_tia_online` and `plc_station_upload` tools; see the [PLC online Openness reference](PLC_ONLINE_OPENNESS_SUMMARY.md).
 Simulated CPUs are driven by the `plcsim_*` tools; see the [PLCSIM operations reference](PLCSIM_OPERATIONS_SUMMARY.md).
@@ -82,6 +83,29 @@ the hash, until the server is restarted with `--max-item-chars` at or above the 
 call. See [response size limits](../guides/mcp-client-configuration.md#response-size-limits). One PLC
 of roughly 400 tags already exceeds the default value budget: narrow `list_tag_tables` with
 `plcName`, `folderPath` or `tableName`.
+
+## Operation reference (`describe_operations`)
+
+Not live-tested (it reads nothing from TIA Portal). Claude Desktop refused `plc_read` and `plc_write` while their
+tool listing carried the full per-operation text ("Claude can't use 2 tools from Tia portal because of a problem with
+that connector", defect K91): the input schemas were 77–79 KB and the descriptions 20,590 and 49,996 characters. The
+tool descriptions now carry a summary, every operation name and, for `plc_write`, every acknowledge and block guard
+and the safety acceptance rule; the item schema keeps every field, type, enum and nesting level, but each field
+description is shortened to its first sentence (none when that is longer than 160 characters). Every tool stays at
+most 8,000 description characters and 30 KB of input schema, with no deeper nesting than before.
+
+The full text moved to `plc_read` `describe_operations` (`Observe`, every access mode; a call of only
+`describe_operations` items needs no bound project):
+
+- `operationNames` (1–3 names per item, several items per call): per operation its `tool`, `requiredFields`,
+  `optionalFields`, `fields` (each field's full documentation), `reference` (every segment of the former tool
+  description that names the operation) and `sectionNotes` (the segments of those sections that name no operation).
+- without `operationNames`: `index`, every PLC read and write operation with its fields as one text
+  (`"blockPath; optional: format, withDependencies"`).
+- always: `readToolRules` and `writeToolRules` (the tool-wide rules) and `referenceDocument`, this page.
+
+Unknown, repeated or blank names and more than 3 names are a `validation_error`; `operationNames` is refused on
+every other operation. Validation of every other operation is unchanged: the schema descriptions are never read by it.
 
 ## Program analysis (`plc_read`)
 
@@ -815,6 +839,7 @@ at runtime (`api_member_missing` before any call).
 | `download_to_folder` | `directoryPath` (an existing absolute directory; one that is not empty is refused unless `overwrite:true`); optional `plcName`, `rhSystem` (true: the R/H system's `RHDownloadProvider`), `overwrite`, `portalConfirmations` | `ProjectMutation`, info guard `plc_download_to_folder_writes_files` (with `overwrite:true` also `plc_export_overwrites_file`); no device is touched; the directory passes `PlcFileTargets.InspectDirectory` (links, junctions, network locations reported) | `Download(DirectoryInfo, DownloadConfigurationDelegate)`; download configurations get the built-in `plc_download` answers through the same recorder, any other one aborts (`worker_operation_failed` with the abort reason) | `deviceData`: the files the call wrote (last write time since the call), re-hashed (at most 1,000); none is `postcondition_failed` |
 | `set_plc_master_secret_online` | `passwordVariable` (an environment variable NAME or `{ "credential": "TiaMcp/..." }`, never the secret); optional `plcName`, `portalConfirmations` | `OnlineControl` (read-write and full), acknowledge guard `plc_master_secret_online` | `OnlineProvider.SetPlcMasterSecret(SecureString)` only while `OnlineProvider.State` reads `Online` (connect first with `plc_tia_online go_online`; otherwise `state_changed`, nothing changed) | `deviceData` notVerified (success false): no documented member reads the master secret back |
 | `reset_plc_master_secret_online` | optional `plcName`, `portalConfirmations` | as above | `OnlineProvider.ResetPlcMasterSecret()` under the same online check | as above |
+| `load_snapshot_as_actual_values`, `load_start_values_as_actual_values` (package G) | `blockPath` of a DB; optional `portalConfirmations` | `OnlineControl`, acknowledge guard `plc_loads_actual_values_online` | `ValueService.LoadSnapshotAsActualValues()` / `LoadStartValuesAsActualValues()` of the DB interface under the same online check | notVerified; see the [V21 API completion reference](V21_API_COMPLETION_SUMMARY.md#actual-values-of-a-running-plc-plc_write) |
 
 The acknowledge guard makes `plc_write` confirm every call with an online master secret item (`ConfirmsEveryCall`; read-write asks
 the human with a prompt naming the PLC and the password source, full runs it under policy). The secret is read by the worker from

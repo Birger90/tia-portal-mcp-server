@@ -1,0 +1,202 @@
+<div class="content-locale-en-US content-locale-en"><meta name="Siemens.TIAHelp.HelpComponent" content="$COMPONENT=TIAPortal"><meta name="Siemens.TIAHelp.Culture" content="en-US"><meta name="Siemens.TIAHelp.Package" content="TIAPortalOpennessenUS"><meta name="Siemens.TIAHelp.Id" content="TIAPortalOpennessenUS/37231359755/37752246795.htm"><meta name="Siemens.TIAHelp.TocParentId" content="TIAPortalOpennessenUS/37231359755/37233011467.htm"><meta name="Siemens.TIAHelp.TocOrder" content="800"><meta name="Siemens.TIAHelp.TocTitle" content="Connecting to the TIA Portal"><meta name="Siemens.TIAHelp.IsDefault" content="False"><meta name="Siemens.TIAHelp.IsChapterPage" content="False"><meta name="Siemens.TIAHelp.DocumentationScope" content="SoftwareDocumentation"><meta name="Siemens.TIAHelp.ImageCategory" content="Factual Information"><meta name="Siemens.TIAHelp.HelpPackageTitle" content="TIA Portal Openness: API for automation of engineering workflows"><meta name="Siemens.TIAHelp.HelpPackageTitleWithClient" content="TIA Portal Openness: API for automation of engineering workflows"><meta name="Siemens.TIAHelp.HelpConverterVersion" content="0.14.09"><div id="nsbanner">
+      <div id="titlerowdefault">
+        <table class="title">
+          <tbody><tr>
+            <td class="title">Connecting to the TIA Portal</td>
+          </tr>
+        </tbody></table>
+      </div>
+    </div><div id="nstext">
+      <a id="block_1"></a>
+      <p class="BlocktitleFirst">Introduction</p>
+      <p>TIA Portal Openness has the possibilities to</p>
+      <ul>
+        <li>
+          <p>get running TIA Portal processes and attach to TIA Portal instances</p>
+        </li>
+        <li>
+          <p>start new TIA Portal instances, either with or without graphical user interface</p>
+        </li>
+      </ul>
+      <p>
+        </p><table class="safety">
+          <tbody><tr>
+            <td>
+              <p>
+                <b>Note</b>
+              </p>
+              <p>Since you always use TIA Portal Openness by loading Siemens.Engineering assemblies from a specific TIA Portal version, the returned processes are all from that same TIA Portal version. It is not supported to access different versions in the same AppDomain.</p>
+            </td>
+          </tr>
+        </tbody></table>
+      
+      <p>The app.config file and the AppDomain.CurrentDomain.AssemblyResolve event are two solutions for resolving the Siemens.Engineering assemblies during runtime.</p>
+      <p>
+        </p><table class="safety">
+          <tbody><tr>
+            <td>
+              <p>
+                <b>Note</b>
+              </p>
+              <p>Resolving Siemens.Engineering assemblies is only needed for TIA Portal Openness applications, but not for TIA Portal Add-Ins.</p>
+            </td>
+          </tr>
+        </tbody></table>
+      
+      <a id="block_2"></a>
+      <p class="Blocktitle">Using the app.config file</p>
+      <p>Set “Copy Local: False” for every Siemens.Engineering assembly after adding the references to the project and clean the output directory.</p>
+      <p>By adding an application configuration file (app.config file) to a .NET project, you can customize how the Microsoft CLR locates and loads assemblies. The app.config file is deployed next to the executable and renamed to match the executable.</p>
+      <p>
+        </p><table class="safety">
+          <tbody><tr>
+            <td>
+              <p>
+                <b>Note</b>
+              </p>
+              <p>The disadvantage of the app.config file is that it must contain the correct entries before the application starts. Changes cannot be made during program execution.</p>
+            </td>
+          </tr>
+        </tbody></table>
+      
+      <p>Example app.config file for .NET Framework 4.8:</p>
+      <p space-before="0pt">
+        </p><p class="p_table_title" space-after="0pt"></p>
+        <div>
+          <table id="1356241d-6f22-0353-5b26-eec7b96bcf4e" class="table_sourcecode" width="100%" cellspacing="0" cellpadding="0">
+            <colgroup>
+              <col width="100%">
+            </colgroup>
+            <thead>
+              <tr>
+                <th>
+                  <p class="table_sourcecode">
+                    <a href="https://docs.tia.siemens.cloud/r/gpR5ZkKnLSuzVoGX1ovoKg/7g593pqgubN9AV3Dqy9FQQ?section=" title="Copies the following program code to clipboard." class="ft-internal-link" data-ft-click-interceptor="ft-internal-link">
+                      <img src="https://siemens-tiaportal-staging.fluidtopics.net/portal-asset/iconCopy" alt="Copies the following program code to clipboard.">
+                    </a>
+                  </p>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <p class="p_table_l_code">&lt;?xml version="1.0" encoding="utf-8" ?&gt;<br>&lt;configuration&gt;<br>  &lt;startup&gt; <br>    &lt;supportedRuntime version="v4.0" sku=".NETFramework,Version=v4.8" /&gt;<br>  &lt;/startup&gt;<br>  &lt;runtime&gt;<br>    &lt;assemblyBinding xmlns="urn:schemas-microsoft-com:asm.v1"&gt;<br>      &lt;dependentAssembly&gt;<br>        &lt;assemblyIdentity name="Siemens.Engineering.Base" culture="neutral" publicKeyToken="29bfe5fdf4ba5d3b " /&gt;<br>        &lt;!-- Edit the following version and path according to your required TIA Portal Openness version --&gt;<br>        &lt;codeBase version="xx.xx.xx.xx" <br>         href="FILE://C:\Program Files\Siemens\Automation\Portal Vxx\PublicAPI\Vxx\net48\Siemens.Engineering.Base.dll" /&gt;<br>      &lt;/dependentAssembly&gt;<br>      &lt;!-- Depending on your application, you may need to provide additional Siemens.Engineering assemblies --&gt;<br>      &lt;dependentAssembly&gt;<br>        &lt;assemblyIdentity name="Siemens.Engineering.Step7" culture="neutral" publicKeyToken="29bfe5fdf4ba5d3b" /&gt;<br>        &lt;!-- Edit the following version and path according to your required TIA Portal Openness version --&gt;<br>        &lt;codeBase version="xx.xx.xx.xx" <br>         href="FILE://C:\Program Files\Siemens\Automation\Portal Vxx\PublicAPI\Vxx\net48\Siemens.Engineering.Step7.dll" /&gt;<br>      &lt;/dependentAssembly&gt;<br>    &lt;/assemblyBinding&gt;<br>  &lt;/runtime&gt;<br>&lt;/configuration&gt;<br></p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      
+      <a id="block_3"></a>
+      <p class="Blocktitle">Using AppDomain.CurrentDomain.AssemblyResolve event</p>
+      <p>The assembly resolver must be registered at the earliest stage in the program.</p>
+      <p>Register the AssemblyResolve event before using any TIA Portal Openness types. This cannot happen in the same method. Place all TIA Portal Openness code in a separate method or separate class that is called only after event subscription.</p>
+      <p>Note: The .NET runtime will throw an exception if it encounters TIA Portal Openness types before the resolver is registered. </p>
+      <p>Important: This applies not only to method bodies but also to:</p>
+      <ul>
+        <li>
+          <p>Class properties with TIA Portal Openness types</p>
+        </li>
+        <li>
+          <p>Method parameters with TIA Portal Openness types</p>
+        </li>
+        <li>
+          <p>Return values with TIA Portal Openness types</p>
+        </li>
+      </ul>
+      <p>Even when placed in separate methods, these will be resolved during class loading.</p>
+      <p>When you move your TIA Portal Openness code outside the Program class, the resolver will be active before that classes are evaluated during runtime.</p>
+      <p>Example of recommended application code structure:</p>
+      <p space-before="0pt">
+        </p><p class="p_table_title" space-after="0pt"></p>
+        <div>
+          <table id="2b84608d-be74-fa0e-3036-cc0f08070373" class="table_sourcecode" width="100%" cellspacing="0" cellpadding="0">
+            <colgroup>
+              <col width="100%">
+            </colgroup>
+            <thead>
+              <tr>
+                <th>
+                  <p class="table_sourcecode">
+                    <a href="https://docs.tia.siemens.cloud/r/gpR5ZkKnLSuzVoGX1ovoKg/7g593pqgubN9AV3Dqy9FQQ?section=" title="Copies the following program code to clipboard." class="ft-internal-link" data-ft-click-interceptor="ft-internal-link">
+                      <img src="https://siemens-tiaportal-staging.fluidtopics.net/portal-asset/iconCopy" alt="Copies the following program code to clipboard.">
+                    </a>
+                  </p>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <p class="p_table_l_code">internal static class Program<br>{<br>    static Program()<br>    {<br>        // First register assembly resolver at the earliest stage in static Program constructor<br>        AppDomain.CurrentDomain.AssemblyResolve += OnAssemblyResolve;<br>    }<br><br>    public static void Main()<br>    {<br>        // Then call method with TIA Portal Openness code in separate class<br>        HelloOpennessApp app = new HelloOpennessApp();<br>        app.Run();<br>    }<br><br>    private static Assembly OnAssemblyResolve(object sender, ResolveEventArgs args)<br>    {<br>        // Code is shown in the next section<br>        // ...<br>    }<br>}<br><br>internal static class HelloOpennessApp<br>{<br>    public void Run()<br>    {<br>        using (TiaPortal portal = new TiaPortal(TiaPortalMode.WithUserInterface))<br>        {<br>            // Do something with TIA Portal Openness<br>        }<br>    }<br>}<br></p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      
+      <p>Example for a basic AssemblyResolve implementation where the installation path is given:</p>
+      <p space-before="0pt">
+        </p><p class="p_table_title" space-after="0pt"></p>
+        <div>
+          <table id="f9c37589-02f4-1e4a-33bd-0a15c9d0910b" class="table_sourcecode" width="100%" cellspacing="0" cellpadding="0">
+            <colgroup>
+              <col width="100%">
+            </colgroup>
+            <thead>
+              <tr>
+                <th>
+                  <p class="table_sourcecode">
+                    <a href="https://docs.tia.siemens.cloud/r/gpR5ZkKnLSuzVoGX1ovoKg/7g593pqgubN9AV3Dqy9FQQ?section=" title="Copies the following program code to clipboard." class="ft-internal-link" data-ft-click-interceptor="ft-internal-link">
+                      <img src="https://siemens-tiaportal-staging.fluidtopics.net/portal-asset/iconCopy" alt="Copies the following program code to clipboard.">
+                    </a>
+                  </p>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <p class="p_table_l_code">private const string OpennessFolder = @"C:\Program Files\Siemens\Automation\Portal Vxx\PublicAPI\Vxx\netxxx";<br><br>private static Assembly OnAssemblyResolve(object sender, ResolveEventArgs args)<br>{<br>    AssemblyName requestedAssemblyName = new AssemblyName(args.Name);<br><br>    string filePath = Path.Combine(OpennessFolder, string.Concat(requestedAssemblyName.Name, ".dll"));<br><br>    // Only respond to requests for TIA Portal Openness; must ignore missing files<br>    if (!requestedAssemblyName.Name.StartsWith("Siemens.Engineering.") || !File.Exists(filePath))<br>        return null;<br><br>    Assembly loadedAssembly = Assembly.LoadFrom(filePath);<br><br>    // Check if details like version match the requested assembly<br>    if (requestedAssemblyName.FullName != loadedAssembly.GetName().FullName)<br>        throw new FileNotFoundException("TIA Portal Openness version does not match", filePath);<br><br>    return loadedAssembly;<br>}<br></p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      
+      <p>
+        </p><table class="safety">
+          <tbody><tr>
+            <td>
+              <p>
+                <b>Note</b>
+              </p>
+              <p>These examples have demonstrated how to resolve multiple Siemens.Engineering assemblies using a robust and reliable approach. If your application architecture is very modular and your first class only accesses the TiaPortal class from Siemens.Engineering.Base.dll, it is sufficient to resolve only the Siemens.Engineering.Base.dll in your code. All subsequent Siemens.Engineering assemblies will then be automatically resolved by the Base library.</p>
+            </td>
+          </tr>
+        </tbody></table>
+      
+      <p>
+        </p><table class="safety">
+          <tbody><tr>
+            <td>
+              <p>
+                <b>Note</b>
+              </p>
+              <p>Recommended way is using the TIA Portal Openness registry keys with the AppDomain.CurrentDomain.AssemblyResolve event.</p>
+            </td>
+          </tr>
+        </tbody></table>
+      
+      <p>See also:<a href="https://docs.tia.siemens.cloud/r/gpR5ZkKnLSuzVoGX1ovoKg/jZyl8sPt7X22O~m~MuWFJg" class="ft-internal-link" data-ft-click-interceptor="ft-internal-link"> Information about installed TIA Portal Openness versions</a></p>
+      <div id="nsseealso">
+        <p>
+          <b>See also</b>
+        </p>
+        <p>
+          <a href="https://docs.tia.siemens.cloud/r/gpR5ZkKnLSuzVoGX1ovoKg/IU4JgoDdho07e_RMo4DfIg" class="ft-internal-link" data-ft-click-interceptor="ft-internal-link">TIA Portal Openness firewall</a>
+          <br>
+        </p>
+      </div>
+    </div><br><hr></div>

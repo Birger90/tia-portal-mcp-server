@@ -104,6 +104,29 @@ public sealed class PlcDeviceDataTests
     }
 
     [Fact]
+    public async Task FakeWorker_ActualValueLoads_FireTheAcknowledgeGuard_AreNeverVerified_AndNeedAnOnlinePlc()
+    {
+        Assert.All(PlcDeviceDataMethods.ActualValues, method => Assert.Equal(OperationCapability.OnlineControl, OperationPolicyCatalog.GetCapability(method)));
+        Assert.Contains(PlcGuardDefinitions.Definitions, d => d.Id == PlcGuardDefinitions.LoadsActualValuesOnline && d.Severity == TiaMcpServer.Safety.Pipeline.WriteGuardSeverities.Acknowledge);
+        Assert.False(PlcOperationCatalog.ValidateWrite(new[] { new PlcOperationRequest { OperationId = "a", Operation = PlcDeviceDataMethods.LoadSnapshotAsActualValues } }).IsValid);
+
+        using var audit = new TempAuditDirectory();
+        using var fixture = await PlcGuardedWriteFixture.CreateAsync(audit, "plc-write-roundtrip", McpAccessMode.Full);
+        foreach (var method in PlcDeviceDataMethods.ActualValues)
+        {
+            var load = await fixture.RunAsync(false, new PlcOperationRequest { OperationId = "v", Operation = method, BlockPath = "Station_1/Data_block_1" });
+            Assert.Contains(load.Guards, g => g.Id == PlcGuardDefinitions.LoadsActualValuesOnline);
+            var entry = Assert.Single(load.Verification!.Operations);
+            Assert.False(entry.Success);
+            Assert.Contains("nothing documented reads it back", entry.Message, StringComparison.Ordinal);
+            Assert.Null(load.Batch!.Operations.Single().Failure);
+        }
+
+        var offline = await fixture.RunAsync(false, new PlcOperationRequest { OperationId = "o", Operation = PlcDeviceDataMethods.LoadStartValuesAsActualValues, BlockPath = "PLC_2/Data_block_1" });
+        Assert.Equal("state_changed", offline.Batch!.Operations.Single().Failure!.Category);
+    }
+
+    [Fact]
     public void TargetDirectory_NonEmptyIsRefusedWithoutOverwrite_EmptyAndOverwriteAreAccepted()
     {
         var root = Path.Combine(Path.GetTempPath(), "tiamcp-f3-" + Guid.NewGuid().ToString("N"));

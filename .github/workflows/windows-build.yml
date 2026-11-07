@@ -77,3 +77,32 @@ jobs:
           name: tia-mcp-windows-dotnet-${{ github.sha }}
           path: TiaMcpServer/bin/Release/net10.0/
           retention-days: 30
+
+      # "Claude in TIA" (TIA Portal V21 Add-In, not live-tested): a compile check against the reference stubs, uploaded
+      # with its Publisher configuration and the install script. TIA Portal loads only an Add-In compiled against the
+      # installed V21 assemblies and packed by Siemens.Engineering.AddIn.Publisher.exe, which needs TIA Portal and does
+      # not run here: scripts/install-claude-in-tia.ps1 does both on the engineering PC.
+      - name: Build Claude in TIA Add-In (compile check)
+        run: dotnet build TiaMcpServer.AddIn/TiaMcpServer.AddIn.csproj -m:1 -c Release --no-restore /p:UseTiaPortalReferenceStubs=true -o ./addin-build
+
+      - name: Check Add-In output
+        shell: pwsh
+        run: |
+          # -o also receives the compile-only stub project's output (Siemens.Engineering.AddIn.Base.dll);
+          # the artifact takes only the Add-In's own files, and the check below still guards the result.
+          New-Item -ItemType Directory -Force ./addin-bin | Out-Null
+          Get-ChildItem ./addin-build -File | Where-Object { $_.Name -notlike 'Siemens.*' } | Copy-Item -Destination ./addin-bin
+          foreach ($path in @('TiaMcpServer.AddIn.dll', 'AddInPublisherConfig.xml')) {
+            if (-not (Test-Path (Join-Path ./addin-bin $path))) { throw "Add-In output is missing $path." }
+          }
+          $siemens = Get-ChildItem ./addin-bin -Recurse -Filter 'Siemens.*.dll'
+          if ($siemens) { throw "Add-In output contains Siemens assemblies: $($siemens.FullName -join ', ')" }
+          Copy-Item scripts/install-claude-in-tia.ps1 ./addin-bin/
+          "commit=$env:GITHUB_SHA`nThis DLL is a compile check against the reference stubs. Install with install-claude-in-tia.ps1 from a source checkout (it rebuilds against the installed TIA Portal V21)." | Out-File ./addin-bin/BUILD-INFO.txt -Encoding utf8
+
+      - name: Upload Add-In artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: claude-in-tia-addin-${{ github.sha }}
+          path: addin-bin/
+          retention-days: 30

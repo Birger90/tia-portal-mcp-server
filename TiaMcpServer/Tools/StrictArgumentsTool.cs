@@ -59,6 +59,40 @@ internal static class PlcWriteToolRegistration
     }
 }
 
+/// <summary>
+/// The plc_read and plc_write item schema (K91): every <see cref="PlcOperationRequest"/> field keeps its type, nullability,
+/// enums and nesting, but its description is shortened to its first sentence (none when that is longer than
+/// <see cref="MaxFieldDescription"/> characters); the full field rules are served by plc_read describe_operations.
+/// Validation never reads the schema descriptions, so nothing the tools accept or refuse changes.
+/// </summary>
+internal static class PlcItemSchema
+{
+    internal const int MaxFieldDescription = 160;
+
+    internal const string OperationDescription =
+        "PLC operation to run; the tool description lists them and plc_read describe_operations documents each.";
+
+    internal static JsonNode ShortenFieldDescriptions(AIJsonSchemaCreateContext context, JsonNode schema)
+    {
+        if (context.PropertyInfo is not { } property || schema is not JsonObject node
+            || node["description"] is not JsonValue value || !value.TryGetValue<string>(out var text))
+            return schema;
+        if (property.Name == "operation" && property.DeclaringType == typeof(PlcOperationRequest))
+        {
+            node["description"] = OperationDescription;
+            return schema;
+        }
+
+        if (PlcOperationReference.ShortDescription(text, MaxFieldDescription) is { } shortText) node["description"] = shortText;
+        else node.Remove("description");
+        return schema;
+    }
+
+    /// <summary>plc_write: the existing enum and password-source shapes, then the shortened descriptions.</summary>
+    internal static JsonNode TransformWrite(AIJsonSchemaCreateContext context, JsonNode schema)
+        => ShortenFieldDescriptions(context, PlcWriteToolRegistration.AddObEventClassEnum(context, schema));
+}
+
 internal static class ClosedToolRegistration
 {
     /// <summary>

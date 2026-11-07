@@ -63,6 +63,9 @@ namespace Siemens.Engineering.Download.Configurations
         /// <summary>What the double received, so tests can prove the value arrived without the evidence holding it.</summary>
         public string? ReceivedForTest { get; private set; }
 
+        /// <summary>Audit T1: documented IsSecureCommunication; secure unless a test says otherwise.</summary>
+        public bool IsSecureCommunication { get; set; } = true;
+
         public void SetPassword(SecureString password)
         {
             ArgumentNullException.ThrowIfNull(password);

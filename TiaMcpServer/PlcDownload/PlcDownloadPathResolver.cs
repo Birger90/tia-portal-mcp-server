@@ -99,7 +99,7 @@ public static class PlcDownloadPathResolver
             item.Decisions,
             item.Passwords,
             item.PortalConfirmations,
-            trusted) { RhTarget = item.RhTarget }, Error: null);
+            trusted) { RhTarget = item.RhTarget, AllowInsecurePasswordTransfer = item.AllowInsecurePasswordTransfer ? true : null }, Error: null);
     }
 
     private static string Candidates(IEnumerable<string> names)

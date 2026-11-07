@@ -9,6 +9,7 @@ public static partial class HmiWriteCatalog
     {
         "create_audit_class", "delete_audit_class", "set_audit_class_property", "set_runtime_setting",
         "create_plant_view", "delete_plant_view", "create_plant_view_node", "delete_plant_view_node", "set_plant_object_interface_property",
+        "resize_screen", "set_log_duration", "set_opcua_alarm_type_node",
     };
 
     private static void ValidateConfiguration(HmiWriteOperationRequest r, Action<string> error)
@@ -26,6 +27,15 @@ public static partial class HmiWriteCatalog
             error($"'settingsSection' must be one of: {string.Join(", ", HmiUnifiedConfigurationMethods.RuntimeSettingSections)}.");
         if (r.Operation == "set_runtime_setting" && r.PropertyName is { } setting && !setting.All(c => char.IsLetterOrDigit(c) || c == '_'))
             error("'propertyName' must be the Openness property name of a runtime setting, e.g. StartScreen.");
+        if (r.Operation == "set_log_duration")
+        {
+            if (r.PropertyName is { } durationProperty && !HmiUnifiedConfigurationMethods.LogDurationProperties.Contains(durationProperty))
+                error($"'propertyName' must be one of {string.Join(", ", HmiUnifiedConfigurationMethods.LogDurationProperties)}.");
+            if (r.Value is { } duration && (duration.Split(':') is var parts && (parts.Length is < 4 or > 5
+                || parts.Any(p => !uint.TryParse(p, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out _)))))
+                error("'value' must be days:hours:minutes:seconds[:ticks] as non-negative integers (ticks: hundred nanoseconds), e.g. 7:0:0:0.");
+        }
+
         if (r.Culture is not null && !ValidCulture(r.Culture)) error("'culture' must be a culture name, e.g. en-US.");
         if (r.PlantObjectType is not null && string.IsNullOrWhiteSpace(r.PlantObjectType)) error("'plantObjectType' must be nonblank.");
     }

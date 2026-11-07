@@ -121,7 +121,9 @@ public sealed class FakeWorkerIdentityEnforcementTests
             // PLCSIM reads go to the separate PLCSIM worker, never to the Openness worker.
             .Except(TiaMcpServer.Contracts.PlcSim.PlcSimMethods.All)
             // S7-1500 Web API reads run in the host against a configured controller.
-            .Except(TiaMcpServer.Contracts.PlcWebApi.PlcWebApiMethods.All);
+            .Except(TiaMcpServer.Contracts.PlcWebApi.PlcWebApiMethods.All)
+            // Siemens documentation reads run in the host against the documentation hosts.
+            .Except(TiaMcpServer.Contracts.Docs.SiemensDocsMethods.All);
 
         foreach (var method in reads)
         {

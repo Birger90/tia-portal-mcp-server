@@ -157,8 +157,8 @@ public class McpToolSchemaTests
     /// ProjectWriteTools lives in - which, for TiaMcpServer.Tests, is the test assembly
     /// itself, since the host's tool source files are compiled directly into it (see
     /// TiaMcpServer.Tests.csproj's Compile Include entries). Counts every method on those types
-    /// carrying [McpServerTool] and asserts the exact approved surface: 30 tools total (22 TIA Portal
-    /// tools, library_read and library_write included, plus plc_download, plc_tia_online, plc_station_upload, plcsim_read, plcsim_write, plcsim_test, plc_online_read and plc_online_write), and the internal lifecycle probe
+    /// carrying [McpServerTool] and asserts the exact approved surface: 32 tools total (22 TIA Portal
+    /// tools, library_read and library_write included, plus plc_download, plc_tia_online, plc_station_upload, plcsim_read, plcsim_write, plcsim_test, plc_online_read and plc_online_write, siemens_docs and tia_inbox), and the internal lifecycle probe
     /// (probe_project_status_for_lifecycle, never [McpServerTool]-decorated) absent.
     /// </summary>
     [Fact]
@@ -201,7 +201,9 @@ public class McpToolSchemaTests
             "read_cross_references", "vci_read", "vci_write",
             "plcsim_read", "plcsim_write", "plcsim_test",
             "plc_online_read", "plc_online_write",
-            "library_read", "library_write"
+            "library_read", "library_write",
+            "siemens_docs",
+            "tia_inbox"
         };
 
         Assert.Equal(expected.OrderBy(name => name), toolNames);
@@ -223,6 +225,8 @@ public class McpToolSchemaTests
             typeof(TiaMcpServer.PlcSim.PlcSimReadTools),
             typeof(TiaMcpServer.PlcWebApi.PlcWebApiReadTools),
             typeof(TiaMcpServer.Library.LibraryReadTools),
+            typeof(TiaMcpServer.ClaudeInbox.TiaInboxTools),
+            typeof(TiaMcpServer.SiemensDocs.SiemensDocsTools),
         }
             .SelectMany(type => type.GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance))
             .Select(method => method.GetCustomAttribute<McpServerToolAttribute>())
@@ -232,7 +236,7 @@ public class McpToolSchemaTests
             .ToArray();
 
         Assert.Equal(
-            new[] { "bind_project", "browse_project_tree", "get_project_status", "hmi_read", "library_read", "network_read", "plc_online_read", "plc_read", "plcsim_read", "read_cross_references", "vci_read" },
+            new[] { "bind_project", "browse_project_tree", "get_project_status", "hmi_read", "library_read", "network_read", "plc_online_read", "plc_read", "plcsim_read", "read_cross_references", "siemens_docs", "tia_inbox", "vci_read" },
             toolNames);
         Assert.DoesNotContain("probe_network_object_attributes", toolNames);
     }

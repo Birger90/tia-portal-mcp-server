@@ -235,3 +235,5 @@ Left out (issue #25), by the rule that the MCP never marks a test as passed on b
 - **`SafetyFunction.Export`** (SimaticML of one function): left out with the imports it pairs with; `export_activation_test`
   exports the whole test.
 - **`DocumentInfoOptions`** overloads of `Export`: the options are not documented beyond their type.
+
+Package G adds `protect_project`, `create_offline_umc_user`, `create_offline_umc_user_group`, `import_umc_user` and the reads `get_umc_server_user`, `check_umc_consistency` to the UMAC operations; see the [V21 API completion reference](V21_API_COMPLETION_SUMMARY.md#project-protection-and-umc-plc_read--plc_write-settings-family).

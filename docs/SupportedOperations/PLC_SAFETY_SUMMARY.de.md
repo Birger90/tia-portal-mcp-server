@@ -18,7 +18,7 @@ installierten Option STEP 7 Safety gehört und fehlen kann.
 > Signaturen, Rücklesungen), ist ein Abnahmenachweis. Jeder fehlersichere Schreibvorgang trägt diesen Hinweis in seinem Guard, seiner Abfrage und
 > seinem Ergebnis.
 
-Die Oberfläche bleibt 11/30/30: Die Operationen gehören zu `plc_read` und `plc_write`, weil das Sicherheitsprogramm PLC-Software
+Die Oberfläche bleibt 13/32/32: Die Operationen gehören zu `plc_read` und `plc_write`, weil das Sicherheitsprogramm PLC-Software
 ist. Methodennamen stehen in `PlcSafetyMethods` (Contracts), Parameter in `WorkerRequest.PlcSafety`, die Verteilung in
 `TiaMcpServer.OpennessWorker/Program.PlcSafety.cs`, der Host-Code in `TiaMcpServer/Plc/Safety/`.
 
@@ -136,6 +136,20 @@ Was der Server tut (nur offline verifiziert):
 Nicht abgedeckt: `move_block` und `copy_block` (ein Verschieben importiert in eine andere Gruppe und löscht das Original; ob TIA
 Portal die Gruppenreferenz dann behält, ist ungetestet, und der Rundlauf läuft in seiner eigenen Transaktion), und Importe
 über `vci_write`. Danach `get_safety_administration` prüfen. Die automatische Route ist nicht live als ein Aufruf gelaufen.
+
+## Safety-Units in den allgemeinen Lesevorgängen (Audit T4, nicht live getestet)
+
+Bisher lasen nur `get_safety_administration`/`list_safety_blocks` `PlcUnitSystemGroup.SafetyUnits`; jeder allgemeine
+Durchlauf ging nur über `Units`, sodass auf einer F-CPU mit fehlersicheren Software-Units das F-Programm in
+`browse_project_tree`, der Baustein- und Typauflösung von `plc_read`/`plc_write`, den Variablenkommentaren, externen Quellen
+und `read_cross_references` fehlte. Diese Durchläufe nutzen jetzt `PlcUnits.All` (Worker `Openness/Plc/PlcUnits.cs`):
+`Units`, dann `SafetyUnits` (members.txt, per Reflection gelesen; die Referenz-Stubs deklarieren es nicht), jeweils über
+`PlcUnitBase` (`BlockGroup`, `TagTableGroup`, `TypeGroup`, `ExternalSourceGroup`, `Name`). Eine Safety-Unit wird wie eine
+Software-Unit gezeigt und adressiert (`<PLC>/Units/<Name>`, Knotentyp `SoftwareUnit`), wie `list_safety_blocks` es schon tat.
+Ein Lesefehler von `SafetyUnits` wird gemeldet (Baum: `skipped`; Variablenkommentare: `messages`), die Standard-Units bleiben
+lesbar. Schreibvorgänge in eine Safety-Unit durchlaufen weiter die F-Schranken (`plc_safety_login_required`, Abnahme-Guards);
+`generate_loadable` lehnt einen Safety-Unit-Namen ab (die dokumentierte Überladung nimmt `PlcUnit`); die Ordner- und
+Container-Schreibvorgänge (`PlcSourceFolderTree.Unit`) bleiben auf Standard-Units beschränkt.
 
 ## Guards, Bestätigung und Audit
 

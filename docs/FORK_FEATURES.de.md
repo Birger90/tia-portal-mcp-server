@@ -13,17 +13,18 @@ den Testprojekten `MCP_Livetest_01`, `MCP_Safety_01`, `MCP_G2_Test` ausgeführt;
 
 | | Original | Fork |
 | --- | --- | --- |
-| MCP-Werkzeuge | 19 | 30 |
-| `plc_read`-Operationen | 3 | 54 |
-| `plc_write`-Operationen | 14 | 202 |
-| `network_read` / `network_write` | 4 / 5 | 11 / 25 |
-| `hmi_read` / `hmi_write` | 20 / 9 | 24 / 39 |
+| MCP-Werkzeuge | 19 | 32 |
+| `plc_read`-Operationen | 3 | 63 |
+| `plc_write`-Operationen | 14 | 212 |
+| `network_read` / `network_write` | 4 / 5 | 17 / 35 |
+| `hmi_read` / `hmi_write` | 20 / 9 | 24 / 42 |
 | `library_read` / `library_write` | – | 14 / 39 |
 | `plc_online_read` / `plc_online_write` (S7-1500-Web-API) | – | 18 / 7 |
 | `vci_read` / `vci_write` | 3 / 6 | 3 / 6 |
+| `siemens_docs` (Siemens-Dokumentation) | – | 4 |
 
 Neue Werkzeuge: `retrieve_project` (Projektarchiv dearchivieren; nicht live getestet), `plc_download`, `plc_tia_online`, `plc_station_upload`, `plcsim_read`, `plcsim_write`, `plcsim_test`,
-`plc_online_read`, `plc_online_write`, `library_read`, `library_write`.
+`plc_online_read`, `plc_online_write`, `library_read`, `library_write`, `tia_inbox` (Claude in TIA; nicht live getestet), `siemens_docs` (die Siemens-Dokumentation ohne TIA Portal durchsuchen und lesen; eigene C#-Portierung von Czarnak/siemens-docs-mcp, MIT; auf dem Windows-PC nicht live getestet).
 
 ## Funktionen, die es im Original nicht gibt
 
@@ -42,6 +43,8 @@ Neue Werkzeuge: `retrieve_project` (Projektarchiv dearchivieren; nicht live gete
 | Safety Validation Assistant (`plc_read get_safety_validation`, `check_activation_test`, 14 `plc_write`-Operationen; Issue #25) | Aktivierungstests, Sicherheitsfunktionen und Bedingungen lesen, prüfen und vorbereiten, exportieren und den Testbericht erzeugen; trägt nie ein Testergebnis ein, jede Änderung unter dem Safety-Abnahme-Guard | nein |
 | OPC-UA-Server-Schnittstellen (`get_opcua_configuration`, elf `plc_write`-Operationen) | Server- und SIMATIC-Schnittstellen, Referenz-Namensräume, Zugriffsbeschränkungen, Rollen und Berechtigungen | nein |
 | Laden in einen Ordner und Master-Secret online (`download_to_folder`, `set_/reset_plc_master_secret_online`; `plc_download rhTarget`) | Ladedaten in einen Windows-Ordner, Master-Secret der Online-PLC, R/H-Download in Primär-/Backup-CPU | nein |
+| Istwerte einer laufenden PLC (`load_snapshot_as_actual_values`, `load_start_values_as_actual_values`; Paket G) | Snapshot oder Startwerte eines DB in die Online-PLC (`ValueService`), Acknowledge-Guard, Rückfrage in read-write | nein |
+| Vervollständigung der V21-API, Paket G (Markierungen, Projektschutz, UMC, Objektkennungen und Erzeugungsinfos, verknüpfte Variablen, Kurvenscheiben, Istwerte, Hardware-Funktionen, Kommunikationsverbindungen, HMI-Archivdauern) | die dokumentierten V21-Methoden, die ein Namensvergleich als ungenutzt fand, in den bestehenden Tools; [Referenz](SupportedOperations/V21_API_COMPLETION_SUMMARY.de.md) | nein |
 | Station hochladen (`plc_station_upload`) | Station aus dem Gerät ins Projekt laden | nein |
 | PLCSIM Advanced (`plcsim_*`) | Instanzen steuern (Stopp/Run), Werte lesen und schreiben, Testabläufe mit Erwartungen und Zeitgrenzen, auch vorzeichenlose Typen | ja, inklusive Sicherheits-Abschalttest 8/8 |
 | S7-1500-Web-API (`plc_online_*`) | Beobachten und Steuern echter CPUs ohne TIA | nein (braucht echte Hardware) |
@@ -55,6 +58,7 @@ Neue Werkzeuge: `retrieve_project` (Projektarchiv dearchivieren; nicht live gete
 | Übersetzen | Hardware übersetzen (`scope:"hardware"`), Einstellung „Simulation bei Bausteinübersetzung unterstützen“ setzen | ja |
 | Änderungserkennung | Prüfsummen von Software und Textlisten einer PLC, Fingerprints eines Bausteins oder PLC-Datentyps (`get_plc_checksums`, `get_fingerprints`) | nein |
 | Bibliotheken | Projekt- und globale Bibliotheken, Typen, Versionen, Kopiervorlagen und ihre Ordner, Aufräumen, Harmonisieren, Typen aus Dokumenten, Exporte, Detailvergleiche | nein |
+| Claude in TIA (`tia_inbox`, TIA-Portal-Add-In, Claude-Brücke) | Kontextmenü „Claude“ in TIA Portal übergibt die markierten Objekte an Claude (Ein-/Ausgangsdateien, nur Namen), Antworten erscheinen in TIA Portal; optionale Brücke startet je Anfrage einen Claude-Lauf ohne Chat ([Referenz](SupportedOperations/CLAUDE_IN_TIA.de.md)) | nein |
 | Meldungen und Textlisten | Textlisten, Meldetexte, Überwachungen, ProDiag, Meldeklassen, Systemdiagnose-Einstellungen als Datei | nein |
 | Externe Quellen, Ordner, Software Units | Quellen importieren und generieren, Gruppen und Units verwalten, Dateiexporte | nein |
 | WinCC Unified | Bilder, Skripte und Massen-Umbenennungen zusätzlich zu Variablen und Meldungen | nein |

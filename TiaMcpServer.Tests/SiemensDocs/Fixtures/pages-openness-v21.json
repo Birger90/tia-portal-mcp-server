@@ -1,0 +1,320 @@
+{
+ "configuration": {
+  "splitCurrentPageToc": false
+ },
+ "paginatedToc": [
+  {
+   "tocId": "1AoG1_LGVdBOeQD_uCRegA",
+   "contentId": "QaJz2AlV7QFrZCe4DSDmGA",
+   "title": "TIA Portal Openness: API for automation of engineering workflows",
+   "prettyUrl": "/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows",
+   "hasRating": false,
+   "pageConfiguration": {
+    "isVisible": true
+   },
+   "pageToc": [
+    {
+     "tocId": "6RaR8xRNAPaQxXbgKppZ9A",
+     "contentId": "3UXRVLZwtDzgAc4Mwc~Hgw",
+     "title": "Cybersecurity information",
+     "prettyUrl": "/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/cybersecurity-information",
+     "hasRating": false,
+     "children": []
+    },
+    {
+     "tocId": "xLkKf8Qd_SNEy_x4jzUAQw",
+     "contentId": "rajAJWIJSS9m84qRksoNrg",
+     "title": "What's new in TIA Portal Openness?",
+     "prettyUrl": "/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/what-s-new-in-tia-portal-openness",
+     "hasRating": false,
+     "children": []
+    },
+    {
+     "tocId": "IK~y8APd4B7oNz~bkHB5fA",
+     "contentId": "FTwvVoDQUgrKJy8A05IpXQ",
+     "title": "Basics",
+     "prettyUrl": "/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/basics",
+     "hasRating": false,
+     "children": [
+      {
+       "tocId": "wsSXELAOF5v2J6RtaarJ5A",
+       "contentId": "f69JvDjVD8Ojpnj3WovI2g",
+       "title": "Installation",
+       "prettyUrl": "/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/basics/installation",
+       "hasRating": false,
+       "children": [
+        {
+         "tocId": "vOUYWj8rLAFsopiQ16M70Q",
+         "contentId": "sFlotaF06bTvAIslvMyVUg",
+         "title": "Requirements for TIA Portal Openness",
+         "prettyUrl": "/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/basics/installation/requirements-for-tia-portal-openness",
+         "hasRating": false,
+         "children": []
+        },
+        {
+         "tocId": "GoC9rjpof5yVLFbzNU2aEA",
+         "contentId": "_82P6forQgOgMe2emVfrlA",
+         "title": "Installing TIA Portal Openness",
+         "prettyUrl": "/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/basics/installation/installing-tia-portal-openness",
+         "hasRating": false,
+         "children": []
+        },
+        {
+         "tocId": "r1Gj~mvYI5dvOGkgLG7UxA",
+         "contentId": "iPlDj7ncbeBuWwFXBTdntA",
+         "title": "Adding users to the 'Siemens TIA Openness' user group",
+         "prettyUrl": "/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/basics/installation/adding-users-to-the-siemens-tia-openness-user-group",
+         "hasRating": false,
+         "children": []
+        },
+        {
+         "tocId": "4sttJ8mEro2NTNJe1xTALA",
+         "contentId": "skM6tl3zitfM4WmNTPRWcg",
+         "title": "Using Windows Service",
+         "prettyUrl": "/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/basics/installation/using-windows-service",
+         "hasRating": false,
+         "children": []
+        }
+       ]
+      },
+      {
+       "tocId": "~_XelsgVvONb0VtRSfIuwg",
+       "contentId": "fP5zA5XNx5EJMJednotDYw",
+       "title": "Openness tasks",
+       "prettyUrl": "/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/basics/openness-tasks",
+       "hasRating": false,
+       "children": [
+        {
+         "tocId": "wxZBwcsURhkYA5mYWRIDZg",
+         "contentId": "M9BKHGqQgpJQn6ImhBB~bA",
+         "title": "Introduction",
+         "prettyUrl": "/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/basics/openness-tasks/introduction",
+         "hasRating": false,
+         "children": []
+        },
+        {
+         "tocId": "fBqnGMY1ShYQG0Isdzl7yQ",
+         "contentId": "Zp4Np8KG7lt5WNMNwxA1fA",
+         "title": "Applications",
+         "prettyUrl": "/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/basics/openness-tasks/applications",
+         "hasRating": false,
+         "children": []
+        },
+        {
+         "tocId": "DYaQ68JZosDsgqqrGmGTDg",
+         "contentId": "PYhbZvAbiUnRkuHa2seW9w",
+         "title": "Export/import",
+         "prettyUrl": "/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/basics/openness-tasks/export/import",
+         "hasRating": false,
+         "children": []
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "tocId": "jR_EQYXZduL0yv_n17EcZA",
+     "contentId": "~~8wSiwSWV3Triktc6ADDw",
+     "title": "TIA Portal Openness API",
+     "prettyUrl": "/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/tia-portal-openness-api",
+     "hasRating": false,
+     "children": [
+      {
+       "tocId": "4xPv4TOyKUqZyf3N40M7Og",
+       "contentId": "4X9rqxm5jVWf5qVFfl9tag",
+       "title": "TIA Portal Openness object",
+       "prettyUrl": "/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/tia-portal-openness-api/tia-portal-openness-object",
+       "hasRating": false,
+       "children": [
+        {
+         "tocId": "rKba9uek9o1hRfOzrdA6Kg",
+         "contentId": "2nTegtIrIPOhtha_t5HM0A",
+         "title": "TIA Portal Openness object model",
+         "prettyUrl": "/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/tia-portal-openness-api/tia-portal-openness-object/tia-portal-openness-object-model",
+         "hasRating": false,
+         "children": []
+        },
+        {
+         "tocId": "Nm52AG7lExRzNzRmPNDe7w",
+         "contentId": "7zRyAZkhINo64QgP1H6mUQ",
+         "title": "Blocks and types of the TIA Portal Openness object model",
+         "prettyUrl": "/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/tia-portal-openness-api/tia-portal-openness-object/blocks-and-types-of-the-tia-portal-openness-object-model",
+         "hasRating": false,
+         "children": []
+        },
+        {
+         "tocId": "YJyPjPAxzS1QRoBLKib3tw",
+         "contentId": "fZ68xa9bYvm9tBqmtBo~hA",
+         "title": "Hierarchy of hardware objects of the object model",
+         "prettyUrl": "/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/tia-portal-openness-api/tia-portal-openness-object/hierarchy-of-hardware-objects-of-the-object-model",
+         "hasRating": false,
+         "children": []
+        },
+        {
+         "tocId": "2sl6nVOKpzQz~6oYZH0ALg",
+         "contentId": "6KC67KZF3fLSGEA_9eMd1Q",
+         "title": "Object list",
+         "prettyUrl": "/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/tia-portal-openness-api/tia-portal-openness-object/object-list",
+         "hasRating": false,
+         "children": []
+        }
+       ]
+      },
+      {
+       "tocId": "SBJYhWyZuGktnOTw_bgElA",
+       "contentId": "UtNORpb3PLKA6EEl3zWl2Q",
+       "title": "General functions",
+       "prettyUrl": "/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/tia-portal-openness-api/general-functions",
+       "hasRating": false,
+       "children": [
+        {
+         "tocId": "b6ASQm9GafjQU3nFnYfrcA",
+         "contentId": "NpABGOiaZBL3p2c_D2ARAg",
+         "title": "Introduction",
+         "prettyUrl": "/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/tia-portal-openness-api/general-functions/introduction",
+         "hasRating": false,
+         "children": []
+        },
+        {
+         "tocId": "jZyl8sPt7X22O~m~MuWFJg",
+         "contentId": "t0cnExGDFivs6n2~x3tZyQ",
+         "title": "Information about installed TIA Portal Openness versions",
+         "prettyUrl": "/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/tia-portal-openness-api/general-functions/information-about-installed-tia-portal-openness-versions",
+         "hasRating": false,
+         "children": []
+        },
+        {
+         "tocId": "dzlrqYqDX0MoapuFZ~KziQ",
+         "contentId": "cYKJ3D_MHRrR81ULJLyqCQ",
+         "title": "TIA Portal Openness IntelliSense support",
+         "prettyUrl": "/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/tia-portal-openness-api/general-functions/tia-portal-openness-intellisense-support",
+         "hasRating": false,
+         "children": []
+        },
+        {
+         "tocId": "FvprC2ZJTTeToRKPqCn8Sw",
+         "contentId": "wxTSI4HQK7m5tzgNXjUCqw",
+         "title": "Standard libraries",
+         "prettyUrl": "/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/tia-portal-openness-api/general-functions/standard-libraries",
+         "hasRating": false,
+         "children": []
+        },
+        {
+         "tocId": "7g593pqgubN9AV3Dqy9FQQ",
+         "contentId": "DP7NDA58oox~t1~oZJkHQQ",
+         "title": "Connecting to the TIA Portal",
+         "prettyUrl": "/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/tia-portal-openness-api/general-functions/connecting-to-the-tia-portal",
+         "hasRating": false,
+         "children": []
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "tocId": "x9zJfTFr1IoYQivDvtbQaQ",
+     "contentId": "RRhMdhATvg1tK_WT~C4CYw",
+     "title": "Export/import",
+     "prettyUrl": "/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/export/import",
+     "hasRating": false,
+     "children": [
+      {
+       "tocId": "y32F6MN8JenjpjFEVUrw7A",
+       "contentId": "jvppEtulvHQl3WSvUESL_w",
+       "title": "Overview",
+       "prettyUrl": "/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/export/import/overview",
+       "hasRating": false,
+       "children": [
+        {
+         "tocId": "www4ZM8VreL78aIz6qaqKQ",
+         "contentId": "M4Hy12tXpMi3ncB~6qhM_g",
+         "title": "Basic principles of importing/exporting",
+         "prettyUrl": "/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/export/import/overview/basic-principles-of-importing/exporting",
+         "hasRating": false,
+         "children": []
+        },
+        {
+         "tocId": "YI61ahAebpWu3JFcNHNasg",
+         "contentId": "TNZgPzzl~PS~WwLFW8ZLeA",
+         "title": "Field of application for Import/Export",
+         "prettyUrl": "/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/export/import/overview/field-of-application-for-import/export",
+         "hasRating": false,
+         "children": []
+        },
+        {
+         "tocId": "pLNWdHmeUfWH3bZiFgMigA",
+         "contentId": "z4VceYWjcqBP_t7R1gHLyQ",
+         "title": "Version Specific Simatic ML Import",
+         "prettyUrl": "/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/export/import/overview/version-specific-simatic-ml-import",
+         "hasRating": false,
+         "children": []
+        },
+        {
+         "tocId": "sr3egGmhmOEvpJKXl7KnbA",
+         "contentId": "KKHxTZLmokviKVtA0JFAhA",
+         "title": "Editing the XML file",
+         "prettyUrl": "/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/export/import/overview/editing-the-xml-file",
+         "hasRating": false,
+         "children": []
+        }
+       ]
+      },
+      {
+       "tocId": "SdJU470a18RpOGzcrdAf0w",
+       "contentId": "oIaTWJOhP8wcEfMPeozoNQ",
+       "title": "Import/export of project data",
+       "prettyUrl": "/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/export/import/import/export-of-project-data",
+       "hasRating": false,
+       "children": [
+        {
+         "tocId": "Ee~jLgtt96bw3f3QcPJ1eg",
+         "contentId": "UfwnSKdjqRwwO7_SHVilbw",
+         "title": "Project graphics",
+         "prettyUrl": "/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/export/import/import/export-of-project-data/project-graphics",
+         "hasRating": false,
+         "children": []
+        },
+        {
+         "tocId": "ou3XdmDNYVNtRROmXQvxmQ",
+         "contentId": "w8A0ckkUs8d4PJC9w0mVGA",
+         "title": "Project texts",
+         "prettyUrl": "/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/export/import/import/export-of-project-data/project-texts",
+         "hasRating": false,
+         "children": []
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "tocId": "buWKmwL3Ee08YUUMWeguaA",
+     "contentId": "5vDW3V44h_EpkH_GkgCJWw",
+     "title": "Major Changes",
+     "prettyUrl": "/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/major-changes",
+     "hasRating": false,
+     "children": [
+      {
+       "tocId": "f3Rxmnu55tM9mcqLbvIPhQ",
+       "contentId": "lWBIDqdI3LneM1Cv0yF2sQ",
+       "title": "Major changes for long-term stability in TIA Portal Openness V20",
+       "prettyUrl": "/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/major-changes/major-changes-for-long-term-stability-in-tia-portal-openness-v20",
+       "hasRating": false,
+       "children": []
+      },
+      {
+       "tocId": "Y7Pn8y96kI1Nrb47jkVSNw",
+       "contentId": "l~fqJBb4cglQe8k9C6XHXw",
+       "title": "Major changes for long-term stability in TIA Portal Openness V19",
+       "prettyUrl": "/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows/major-changes/major-changes-for-long-term-stability-in-tia-portal-openness-v19",
+       "hasRating": false,
+       "children": []
+      }
+     ]
+    }
+   ],
+   "children": []
+  }
+ ],
+ "filteredTocNodes": {},
+ "translationError": false
+}

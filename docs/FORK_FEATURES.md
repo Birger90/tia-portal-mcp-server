@@ -13,17 +13,18 @@ checked offline only (unit tests, FakeWorker).
 
 | | Original | Fork |
 | --- | --- | --- |
-| MCP tools | 19 | 30 |
-| `plc_read` operations | 3 | 54 |
-| `plc_write` operations | 14 | 202 |
-| `network_read` / `network_write` | 4 / 5 | 11 / 25 |
-| `hmi_read` / `hmi_write` | 20 / 9 | 24 / 39 |
+| MCP tools | 19 | 32 |
+| `plc_read` operations | 3 | 63 |
+| `plc_write` operations | 14 | 212 |
+| `network_read` / `network_write` | 4 / 5 | 17 / 35 |
+| `hmi_read` / `hmi_write` | 20 / 9 | 24 / 42 |
 | `library_read` / `library_write` | – | 14 / 39 |
 | `plc_online_read` / `plc_online_write` (S7-1500 Web API) | – | 18 / 7 |
 | `vci_read` / `vci_write` | 3 / 6 | 3 / 6 |
+| `siemens_docs` (Siemens documentation) | – | 4 |
 
 New tools: `retrieve_project` (retrieve a project archive; not live-tested), `plc_download`, `plc_tia_online`, `plc_station_upload`, `plcsim_read`, `plcsim_write`, `plcsim_test`,
-`plc_online_read`, `plc_online_write`, `library_read`, `library_write`.
+`plc_online_read`, `plc_online_write`, `library_read`, `library_write`, `tia_inbox` (Claude in TIA; not live-tested), `siemens_docs` (search and read the Siemens documentation without TIA Portal; own C# port of Czarnak/siemens-docs-mcp, MIT; not live-tested on the Windows PC).
 
 ## Features the original does not have
 
@@ -42,6 +43,8 @@ New tools: `retrieve_project` (retrieve a project archive; not live-tested), `pl
 | Safety Validation Assistant (`plc_read get_safety_validation`, `check_activation_test`, 14 `plc_write` operations; issue #25) | read, check and prepare activation tests, safety functions and conditions, export them and generate the test report; never records a test result, every change under the safety acceptance guard | no |
 | OPC UA server interfaces (`get_opcua_configuration`, eleven `plc_write` operations) | server and SIMATIC interfaces, reference namespaces, access restrictions, roles and permissions | no |
 | Download to a folder and the online master secret (`download_to_folder`, `set_/reset_plc_master_secret_online`; `plc_download rhTarget`) | download data into a Windows folder, the online PLC's master secret, R/H primary/backup download | no |
+| Actual values of a running PLC (`load_snapshot_as_actual_values`, `load_start_values_as_actual_values`; package G) | a DB's snapshot or start values written into the online PLC (`ValueService`), acknowledge guard, confirmed in read-write | no |
+| V21 API completion, package G (markings, project protection, UMC, object identifiers and creation infos, linked tags, cam data, actual values, hardware features, communication connections, HMI log durations) | the documented V21 methods a name comparison found unused, in the existing tools; [reference](SupportedOperations/V21_API_COMPLETION_SUMMARY.md) | no |
 | Station upload (`plc_station_upload`) | upload a station from the device into the project | no |
 | PLCSIM Advanced (`plcsim_*`) | control instances (stop/run), read and write values, test sequences with expectations and time limits, unsigned types included | yes, including the safety shutdown test 8/8 |
 | S7-1500 Web API (`plc_online_*`) | observe and control real CPUs without TIA | no (needs real hardware) |
@@ -55,6 +58,7 @@ New tools: `retrieve_project` (retrieve a project archive; not live-tested), `pl
 | Compile | compile hardware (`scope:"hardware"`), set "support simulation during block compilation" | yes |
 | Change detection | software and text list checksums of a PLC, fingerprints of a block or PLC data type (`get_plc_checksums`, `get_fingerprints`) | no |
 | Libraries | project and global libraries, types, versions, master copies and their folders, clean-up, harmonize, types from documents, exports, detailed compares | no |
+| Claude in TIA (`tia_inbox`, TIA Portal Add-In, Claude bridge) | context menu "Claude" in TIA Portal hands the selected objects to Claude (inbox/outbox files, names only), replies shown in TIA Portal; optional bridge starts a headless Claude run per request ([reference](SupportedOperations/CLAUDE_IN_TIA.md)) | no |
 | Alarms and text lists | text lists, alarm texts, supervisions, ProDiag, alarm classes, system diagnostics settings as a file | no |
 | External sources, folders, software units | import and generate sources, manage groups and units, file exports | no |
 | WinCC Unified | screens, scripts and batch renames in addition to tags and alarms | no |

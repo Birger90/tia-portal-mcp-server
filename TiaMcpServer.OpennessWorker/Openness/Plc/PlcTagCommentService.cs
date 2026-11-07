@@ -41,7 +41,7 @@ internal static class PlcTagCommentService
             try
             {
                 if (discovered.Software.GetService<PlcUnitProvider>() is { } provider)
-                    Each(provider.UnitGroup.Units, $"a software unit of PLC '{plc.PlcName}'", inventory.Messages, unit =>
+                    Each(PlcUnits.All(provider.UnitGroup, inventory.Messages.Add), $"a software unit of PLC '{plc.PlcName}'", inventory.Messages, unit =>
                         Walk(unit.TagTableGroup, "/", unit.Name, request.TableName, folder, plc.Tables, inventory.Messages));
             }
             catch (EngineeringException ex) when (Infrastructure.OpennessExceptions.IsRecoverable(ex))

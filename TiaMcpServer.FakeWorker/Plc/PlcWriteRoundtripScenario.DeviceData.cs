@@ -59,6 +59,16 @@ sealed partial class PlcWriteRoundtripScenario
         result.OnlineState = plc.Software == "PLC_1" ? "Online" : "Offline";
         if (result.OnlineState != "Online")
             throw new WorkerOperationException(WorkerFailureCategories.StateChanged, $"PLC '{plc.Software}' is Offline, not Online: connect first with plc_tia_online go_online. Nothing was changed.");
+        if (PlcDeviceDataMethods.IsActualValues(info.Operation))
+        {
+            // Package G: the DB's ValueService; the fake accepts any DB path of the online PLC and models no actual values.
+            result.BlockPath = info.BlockPath ?? throw new WorkerOperationException(WorkerFailureCategories.ValidationError, "blockPath is required.");
+            result.Call = info.Operation == PlcDeviceDataMethods.LoadSnapshotAsActualValues ? "ValueService.LoadSnapshotAsActualValues()" : "ValueService.LoadStartValuesAsActualValues()";
+            result.Evidence = "notReadBack";
+            result.Note = "Openness documents no read of a CPU's actual values.";
+            return Ok(result);
+        }
+
         result.Call = info.Operation == PlcDeviceDataMethods.SetMasterSecretOnline ? "OnlineProvider.SetPlcMasterSecret(SecureString)" : "OnlineProvider.ResetPlcMasterSecret()";
         result.PasswordSource = info.Operation == PlcDeviceDataMethods.SetMasterSecretOnline ? info.PasswordVariable : null;
         result.Evidence = "notReadBack";

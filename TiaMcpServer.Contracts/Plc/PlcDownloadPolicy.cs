@@ -366,6 +366,7 @@ public static class PlcDownloadPolicy
         /// The server's fixed TLS policy: a TLS verification configuration whose certificates are not all trusted is answered
         /// <c>NonTrusted</c> (and the download is reported as aborted with the certificate evidence) instead of throwing from
         /// the callback (K27: throwing from the online legitimation callback was followed by TIA Portal terminating, live 2026-11-02).
+        /// Audit T2: also an unanswered selection configuration answered <c>NoAction</c> instead of a throw (it carries the abort).
         /// </summary>
         public const string Policy = "policy";
 
@@ -416,10 +417,16 @@ public static class PlcDownloadPolicy
         /// <summary>The TLS verification of the connection presented certificates that are not all in <c>trustedCertificates</c>.</summary>
         public const string CertificateNotTrusted = PlcTlsTrustPolicy.CertificateNotTrustedReason;
 
+        /// <summary>
+        /// Audit T1: a password configuration whose <c>IsSecureCommunication</c> is false or unreadable, without the call's
+        /// <c>allowInsecurePasswordTransfer</c>; the password was not sent (<see cref="PlcOnline.PlcPasswordChannel"/>).
+        /// </summary>
+        public const string InsecureCommunication = PlcOnline.PlcPasswordChannel.InsecureCommunicationReason;
+
         public static IReadOnlyList<string> All { get; } = new[]
         {
             UnsupportedConfiguration, DecisionRequired, DecisionNotApplicable, SelectionUnavailable,
-            PasswordUnavailable, DecisionRejected, ConfigurationLimitExceeded, CertificateNotTrusted,
+            PasswordUnavailable, DecisionRejected, ConfigurationLimitExceeded, CertificateNotTrusted, InsecureCommunication,
         };
 
         public static bool IsKnown(string? reason) => reason is not null && All.Contains(reason);
@@ -510,6 +517,8 @@ public static class PlcDownloadPolicy
             AbortReasons.DecisionRejected => $"TIA Portal rejected the answer for '{key}'.",
             AbortReasons.ConfigurationLimitExceeded => $"More than {MaxConfigurations} configurations were presented.",
             AbortReasons.CertificateNotTrusted => $"The device's TLS certificate is trusted only through {PlcTlsTrustPolicy.ArgumentName}.",
+            AbortReasons.InsecureCommunication => (abort.Detail ?? "The password would not travel over a secure connection; it was not sent.")
+                + ". Ask the user before retrying with " + PlcOnline.PlcPasswordChannel.ArgumentName + ": true.",
             _ => "It was not answered.",
         };
         return $"plc_download aborted in the {abort.Phase} phase: TIA Portal presented '{abort.Type}' ({abort.Reason}). {guidance} "
@@ -577,8 +586,9 @@ public sealed class PlcDownloadDecisionSet
     private readonly Dictionary<string, string> _passwords;
 
     public PlcDownloadDecisionSet(IEnumerable<PlcDownloadDecisionInfo>? decisions, IEnumerable<PlcDownloadPasswordInfo>? passwords,
-        bool startAfterDownload, string? pcInterfaceName, IEnumerable<string>? trustedCertificates = null)
+        bool startAfterDownload, string? pcInterfaceName, IEnumerable<string>? trustedCertificates = null, bool allowInsecurePasswordTransfer = false)
     {
+        AllowInsecurePasswordTransfer = allowInsecurePasswordTransfer;
         _decisions = (decisions ?? Array.Empty<PlcDownloadDecisionInfo>()).ToDictionary(decision => decision.Type, StringComparer.Ordinal);
         _passwords = (passwords ?? Array.Empty<PlcDownloadPasswordInfo>()).ToDictionary(password => password.Type, password => password.Variable, StringComparer.Ordinal);
         StartAfterDownload = startAfterDownload;
@@ -592,8 +602,11 @@ public sealed class PlcDownloadDecisionSet
     {
         if (request is null) throw new ArgumentNullException(nameof(request));
         return new PlcDownloadDecisionSet(request.Decisions, request.Passwords, request.StartAfterDownload, request.PcInterfaceName,
-            request.TrustedCertificates);
+            request.TrustedCertificates, request.AllowInsecurePasswordTransfer);
     }
+
+    /// <summary>Audit T1: the caller agreed that a password may be sent over a connection that is not (known to be) secure.</summary>
+    public bool AllowInsecurePasswordTransfer { get; }
 
     public bool StartAfterDownload { get; }
 

@@ -52,10 +52,11 @@ public sealed class PlcDownloadCallbackRecorderTests
     private sealed class Harness
     {
         public Harness(bool startAfterDownload = true, Func<Exception, bool>? isFatal = null, PlcDownloadDecisionInfo[]? decisions = null,
-            PlcDownloadPasswordInfo[]? passwords = null, string pc = "PLCSIM")
+            PlcDownloadPasswordInfo[]? passwords = null, string pc = "PLCSIM", bool? secure = true, bool allowInsecure = false)
         {
             Result = new PlcDownloadResultInfo { StartAfterDownload = startAfterDownload };
-            Recorder = new PlcDownloadCallbackRecorder(new PlcDownloadDecisionSet(decisions, passwords, startAfterDownload, pc), Result, Access, isFatal);
+            Recorder = new PlcDownloadCallbackRecorder(new PlcDownloadDecisionSet(decisions, passwords, startAfterDownload, pc, allowInsecurePasswordTransfer: allowInsecure),
+                Result, Access, isFatal, readSecureCommunication: _ => secure);
         }
 
         public ScriptedAccess Access { get; } = new();
@@ -159,12 +160,65 @@ public sealed class PlcDownloadCallbackRecorderTests
             seen.Select(entry => entry.DecisionKey));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(null)]
+    public void PasswordOverANonSecureChannel_IsNotSent_AndAbortsWithInsecureCommunication(bool? secure)
+    {
+        // Audit T1: IsSecureCommunication false or unreadable without allowInsecurePasswordTransfer: nothing is handed to SetPassword.
+        var harness = new Harness(passwords: new[] { Password("ModuleWriteAccessPassword", "PLC_PW") }, secure: secure);
+        harness.Aborts(Phases.PreDownload, new Scripted(Configurations + "ModuleWriteAccessPassword", Configurations + "ModuleWriteAccessPassword", Kind: Kinds.Password));
+
+        Assert.Empty(harness.Applied);
+        var abort = harness.Result.Abort!;
+        Assert.Equal(AbortReasons.InsecureCommunication, abort.Reason);
+        Assert.Contains("allowInsecurePasswordTransfer", abort.Detail);
+        Assert.DoesNotContain("PLC_PW", abort.Detail);
+        var seen = Assert.Single(harness.Result.ConfigurationsSeen);
+        Assert.Equal(Decisions.Aborted, seen.Decision);
+        Assert.Equal(secure, seen.SecureCommunication);
+        Assert.Contains("allowInsecurePasswordTransfer", AbortMessage(abort));
+    }
+
+    [Fact]
+    public void PasswordOverANonSecureChannel_IsSent_WhenTheCallerAllowedIt()
+    {
+        var harness = new Harness(passwords: new[] { Password("ModuleWriteAccessPassword", "PLC_PW") }, secure: false, allowInsecure: true);
+        harness.Recorder.PreDownload(new Scripted(Configurations + "ModuleWriteAccessPassword", Configurations + "ModuleWriteAccessPassword", Kind: Kinds.Password));
+
+        Assert.Equal(new (string?, string)[] { (Configurations + "ModuleWriteAccessPassword", "password:PLC_PW") }, harness.Applied);
+        var seen = Assert.Single(harness.Result.ConfigurationsSeen);
+        Assert.Equal(Decisions.PasswordSet, seen.Decision);
+        Assert.False(seen.SecureCommunication);
+        Assert.Null(harness.Result.Abort);
+    }
+
+    [Fact]
+    public void SecureCommunication_IsReadByReflection_FromTheDocumentedProperty()
+    {
+        Assert.True(TiaMcpServer.Contracts.PlcOnline.PlcPasswordChannel.Read(new SecureFlag { IsSecureCommunication = true }));
+        Assert.False(TiaMcpServer.Contracts.PlcOnline.PlcPasswordChannel.Read(new SecureFlag()));
+        Assert.Null(TiaMcpServer.Contracts.PlcOnline.PlcPasswordChannel.Read(new object()));
+        Assert.Null(TiaMcpServer.Contracts.PlcOnline.PlcPasswordChannel.TryRead(new ThrowingFlag(), _ => false));
+        Assert.Throws<ObjectDisposedException>(() => TiaMcpServer.Contracts.PlcOnline.PlcPasswordChannel.TryRead(new ThrowingFlag(), e => e is ObjectDisposedException));
+    }
+
+    public sealed class SecureFlag
+    {
+        public bool IsSecureCommunication { get; set; }
+    }
+
+    public sealed class ThrowingFlag
+    {
+        public bool IsSecureCommunication => throw new ObjectDisposedException("configuration");
+    }
+
     [Fact]
     public void UndecidedConfiguration_Aborts_WithItsKeyKindAndAvailableSelections()
     {
         var harness = new Harness();
         var undecided = new Scripted(Configurations + "DataBlockReinitialization", Configurations + "DataBlockReinitialization", "Reinitialize?",
-            Names: new[] { "StopPlcAndReinitialize", "NoAction" });
+            Names: new[] { "StopPlcAndReinitialize" });
         var exception = harness.Aborts(Phases.PreDownload, undecided);
 
         Assert.Equal(Phases.PreDownload, exception.Phase);
@@ -173,6 +227,26 @@ public sealed class PlcDownloadCallbackRecorderTests
         var seen = Assert.Single(harness.Result.ConfigurationsSeen);
         AssertComplete(seen);
         Assert.Equal(Decisions.Aborted, seen.Decision);
+        var abort = harness.Result.Abort!;
+        Assert.Equal((AbortReasons.DecisionRequired, "DataBlockReinitialization", Kinds.Selection, "Reinitialize?"),
+            (abort.Reason, abort.DecisionKey, abort.Kind, abort.Message));
+        Assert.Equal(new[] { "StopPlcAndReinitialize" }, abort.AvailableSelections);
+        Assert.Contains("decisions: { \"DataBlockReinitialization\": \"<selection>\" } using one of: StopPlcAndReinitialize", AbortMessage(abort));
+    }
+
+    [Fact]
+    public void UndecidedConfigurationWithNoAction_IsAnsweredNoAction_AndRecordedAsTheAbortWithoutAThrow()
+    {
+        // Audit T2: the documented NoAction member is set instead of throwing from the callback (K27).
+        var harness = new Harness();
+        var undecided = new Scripted(Configurations + "DataBlockReinitialization", Configurations + "DataBlockReinitialization", "Reinitialize?",
+            Names: new[] { "StopPlcAndReinitialize", "NoAction" });
+        harness.Recorder.PreDownload(undecided);
+
+        Assert.Equal(new (string?, string)[] { (undecided.Canonical, "NoAction") }, harness.Applied);
+        var seen = Assert.Single(harness.Result.ConfigurationsSeen);
+        AssertComplete(seen);
+        Assert.Equal((Decisions.Selected, "NoAction", Sources.Policy), (seen.Decision, seen.Selection, seen.Source));
         var abort = harness.Result.Abort!;
         Assert.Equal((AbortReasons.DecisionRequired, "DataBlockReinitialization", Kinds.Selection, "Reinitialize?"),
             (abort.Reason, abort.DecisionKey, abort.Kind, abort.Message));
@@ -197,12 +271,19 @@ public sealed class PlcDownloadCallbackRecorderTests
     public void DefaultedTypeInTheWrongPhase_NeedsADecision(string phase, string type)
     {
         var harness = new Harness();
-        harness.Aborts(phase, Defaulted(type));
+        harness.Aborts(phase, Defaulted(type) with { Names = new[] { "StopAll" } });
         Assert.Empty(harness.Applied);
         var seen = Assert.Single(harness.Result.ConfigurationsSeen);
         Assert.Equal(type, seen.CanonicalType);
         Assert.Equal(Decisions.Aborted, seen.Decision);
         Assert.Equal(AbortReasons.DecisionRequired, harness.Result.Abort!.Reason);
+
+        // Audit T2: with a NoAction member the same question is answered NoAction and recorded as the abort, without a throw.
+        var noAction = new Harness();
+        noAction.Recorder.Handle(phase, Defaulted(type));
+        Assert.Equal((type, "NoAction"), Assert.Single(noAction.Applied));
+        Assert.Equal(AbortReasons.DecisionRequired, noAction.Result.Abort!.Reason);
+        Assert.Equal(Sources.Policy, Assert.Single(noAction.Result.ConfigurationsSeen).Source);
     }
 
     [Fact]
@@ -247,7 +328,9 @@ public sealed class PlcDownloadCallbackRecorderTests
         };
         harness.Aborts(Phases.PreDownload, new Scripted(ConfigurationTypes.OverwriteSystemData, ConfigurationTypes.OverwriteSystemData, Outcome: outcome));
 
-        Assert.Equal((ConfigurationTypes.OverwriteSystemData, "Overwrite"), Assert.Single(harness.Applied));
+        // Audit T2: a selection configuration then also tries the documented NoAction, which this scripted object refuses too.
+        Assert.Equal((ConfigurationTypes.OverwriteSystemData, "Overwrite"), harness.Applied[0]);
+        Assert.Equal(reason == AbortReasons.PasswordUnavailable ? 1 : 2, harness.Applied.Count);
         var seen = Assert.Single(harness.Result.ConfigurationsSeen);
         AssertComplete(seen);
         Assert.Equal(Decisions.Aborted, seen.Decision);
@@ -295,14 +378,18 @@ public sealed class PlcDownloadCallbackRecorderTests
         harness.Aborts(Phases.PreDownload, new Scripted("X.Unknown", null));
         var first = harness.Result.Abort;
 
-        harness.Aborts(Phases.PreDownload, Defaulted(ConfigurationTypes.ConsistentBlocksDownload));
-        harness.Aborts(Phases.PostDownload, Defaulted(ConfigurationTypes.StartModules));
+        harness.Aborts(Phases.PreDownload, Defaulted(ConfigurationTypes.ConsistentBlocksDownload) with { Names = new[] { "ConsistentDownload" } });
+        // Audit T2: a later selection with a documented NoAction is answered NoAction (source policy) without a throw.
+        harness.Recorder.PostDownload(Defaulted(ConfigurationTypes.StartModules));
+        harness.Aborts(Phases.PreDownload, new Scripted(Configurations + "ModuleWriteAccessPassword", Configurations + "ModuleWriteAccessPassword", Kind: Kinds.Password));
 
         Assert.Same(first, harness.Result.Abort);
         Assert.Equal("X.Unknown", harness.Result.Abort!.Type);
-        Assert.Equal(new[] { Decisions.Selected, Decisions.Aborted, Decisions.Aborted, Decisions.Aborted },
+        Assert.Equal(new[] { Decisions.Selected, Decisions.Aborted, Decisions.Aborted, Decisions.Selected, Decisions.Aborted },
             harness.Result.ConfigurationsSeen.Select(seen => seen.Decision));
-        Assert.Single(harness.Applied); // Nothing is applied after the abort.
+        Assert.Equal(Sources.Policy, harness.Result.ConfigurationsSeen[3].Source);
+        // Only NoAction is applied after the abort.
+        Assert.Equal(new (string?, string)[] { (ConfigurationTypes.StopModules, "StopAll"), (ConfigurationTypes.StartModules, "NoAction") }, harness.Applied);
         Assert.All(harness.Result.ConfigurationsSeen, AssertComplete);
     }
 
@@ -351,7 +438,7 @@ public sealed class PlcDownloadCallbackRecorderTests
         result.ConfigurationsSeen.Clear();
         var recorder = new PlcDownloadCallbackRecorder(
             new PlcDownloadDecisionSet(effects.Decisions, effects.Passwords, effects.StartAfterDownload, effects.Path.PcInterface.Name),
-            result, new ScriptedAccess());
+            result, new ScriptedAccess(), readSecureCommunication: _ => true);
         recorder.PreDownload(Defaulted(ConfigurationTypes.StopModules));
         recorder.PreDownload(new Scripted(Configurations + "UpgradeTargetDevice", Configurations + "UpgradeTargetDevice", Kind: Kinds.Check));
         recorder.PreDownload(new Scripted(Configurations + "ModuleWriteAccessPassword", Configurations + "ModuleWriteAccessPassword", Kind: Kinds.Password));

@@ -253,6 +253,18 @@
       "applicability": "projectContent"
     },
     {
+      "operation": "hmi_resize_screen",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_set_log_duration",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_set_opcua_alarm_type_node",
+      "applicability": "projectContent"
+    },
+    {
       "operation": "update_block_logic",
       "applicability": "projectContent"
     },
@@ -715,6 +727,18 @@
       "applicability": "projectContent"
     },
     {
+      "operation": "hmi_resize_screen",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_set_log_duration",
+      "applicability": "projectContent"
+    },
+    {
+      "operation": "hmi_set_opcua_alarm_type_node",
+      "applicability": "projectContent"
+    },
+    {
       "operation": "update_block_logic",
       "applicability": "projectContent"
     },
@@ -1174,6 +1198,18 @@
     },
     {
       "operation": "hmi_set_plant_object_interface_property",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_resize_screen",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_set_log_duration",
+      "applicability": "notYetDelivered"
+    },
+    {
+      "operation": "hmi_set_opcua_alarm_type_node",
       "applicability": "notYetDelivered"
     },
     {

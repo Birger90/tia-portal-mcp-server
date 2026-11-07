@@ -32,16 +32,16 @@ Konfiguriere deinen MCP-Client so, dass er den Werkzeugbefehl startet:
 }
 ```
 
-Ohne explizite Zugriffsargumente startet der Server in `read-write` mit dreißig Werkzeugen: Änderungen (einschließlich Bibliotheksänderungen),
+Ohne explizite Zugriffsargumente startet der Server in `read-write` mit zweiunddreißig Werkzeugen: Änderungen (einschließlich Bibliotheksänderungen),
 Übersetzen, Simulationssteuerung für S7-PLCSIM Advanced, alle sieben Lifecycle-Werkzeuge, `plc_download` (in PLCSIM oder in echte Hardware),
 `plc_online_write` für konfigurierte S7-1500-CPUs, `plc_tia_online` und `plc_station_upload`. Jeder tatsächliche Lifecycle-, Lade-,
 Online-Schreib-, Online-Verbindungs- oder Upload-Aufruf und jeder `library_write`-Aufruf mit einem Lifecycle-Element einer globalen Bibliothek fragt einmal über
 Form-Elicitation `accept` mit booleschem `confirm:true` nach, auch ohne Guards oder nur mit Info-Guards. Ein Client
 ohne diese Capability erhält `access_denied`; Ablehnen, Abbrechen, Timeout oder Transportfehler
-verweigern ebenfalls. Setze `"args": ["--access-mode", "full"]` für dieselben dreißig Werkzeuge mit Bestätigung per Richtlinie (policy) für Lifecycle, Laden, Online-Schreibvorgänge,
+verweigern ebenfalls. Setze `"args": ["--access-mode", "full"]` für dieselben zweiunddreißig Werkzeuge mit Bestätigung per Richtlinie (policy) für Lifecycle, Laden, Online-Schreibvorgänge,
 Online-Verbindungen und Uploads
 und ohne Server-Elicitation; full fügt keine Werkzeuge oder Operationen hinzu.
-`tia-mcp install` verwendet davon unabhängig standardmäßig read-only mit elf Werkzeugen, einschließlich `bind_project`, `plcsim_read`, `plc_online_read` und `library_read`.
+`tia-mcp install` verwendet davon unabhängig standardmäßig read-only mit dreizehn Werkzeugen, einschließlich `bind_project`, `plcsim_read`, `plc_online_read`, `library_read`, `siemens_docs` und `tia_inbox`.
 Block-Guards stoppen den Aufruf in jedem Modus. Siehe [Installation](installation.md#access-modes).
 
 Der Zugriffsmodus kann auch ganz ohne `args` gewählt werden: in „TiaMcp Passwortverwaltung“ (`tia-mcp passwords`, Reiter
@@ -236,6 +236,21 @@ Client, der `env` in einer gemeinsam genutzten Konfigurationsdatei speichert, sp
 Webserver-Benutzer, der nur die Rechte hat, die die KI haben soll. Dateiformat, Modi der Zertifikatsprüfung,
 Voraussetzungen in TIA Portal und das Bestätigungsmodell stehen in der
 [PLC-Online-Referenz](../SupportedOperations/PLC_ONLINE_WEBAPI_SUMMARY.de.md).
+
+## Hosts der Siemens-Dokumentation
+
+`siemens_docs` kontaktiert nur die freigegebenen Dokumentations-Hosts. Die Standardwerte brauchen keine Konfiguration:
+
+| Einstellung | Kommandozeile | Umgebungsvariable | Standard |
+| --- | --- | --- | --- |
+| Freigegebene Hosts | `--docs-hosts <host,host>` | `TIA_MCP_DOCS_HOSTS` | `docs.tia.siemens.cloud,docs.industrial-operations-x.siemens.cloud` |
+| Standard-Gebietsschema der Inhalte | `--docs-locale <culture>` | `TIA_MCP_DOCS_LOCALE` | `en-US` |
+| Mindestabstand je Host | `--docs-min-interval-ms <ms>` | `TIA_MCP_DOCS_MIN_INTERVAL_MS` | 300 |
+
+Die Hostliste ersetzt den Standard und nimmt nur reine DNS-Hostnamen an (kein Schema, Port, Pfad, keine IP-Adresse und
+kein `localhost`). Ungültige Werte verhindern den Start; die Standardfehlerausgabe meldet
+`TIA MCP Siemens documentation: ...`. Siehe die
+[Referenz zur Siemens-Dokumentation](../SupportedOperations/SIEMENS_DOCS_SUMMARY.de.md#konfiguration).
 
 ## Worker-Timeout
 

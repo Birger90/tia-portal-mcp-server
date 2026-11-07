@@ -5,7 +5,7 @@
 This reference covers issue #28 (Classic WinCC: Comfort/Advanced panels) and issue #29 (WinCC Unified: events,
 dynamizations, shapes and widgets, audit, plant objects). Everything here is **not live-tested**. The evidence for every
 Siemens member is the V21 IntelliSense description (`Siemens.Engineering.WinCC.xml`, `Siemens.Engineering.WinCCUnified.xml`,
-`PublicAPI\V21\net48`, 2025-10-29); no member outside it is used. The tools, access modes and counts (11/30/30) are
+`PublicAPI\V21\net48`, 2025-10-29); no member outside it is used. The tools, access modes and counts (13/32/32) are
 unchanged: these are more `hmi_read` and `hmi_write` operations, with the conventions of the
 [HMI reference](HMI_OPERATIONS_SUMMARY.md) (50 items, caller order, stop at the first failure, no rollback, `dryRun:true`
 previews, write contract `2.0`, read contract `1.1`).
@@ -191,6 +191,8 @@ Worker `Openness/HmiExtensions/HmiUnifiedConfiguration.cs` (outside `Openness/Hm
 | Plant object interface members and plant object logging tags (`PlantObjectInterfaceMember`, `PlantObjectLoggingTag`) writes | Not built in this package; reads report interface names only. |
 | Shape parts (polyline/polygon `Points` and other `UI.Parts` compositions) | Not built in this package; geometry of box items goes through `set_screen_item_property`. |
 | SiVArc, HMI compile | Out of scope as before (`compile_check` stays PLC-only). |
+
+Package G added `resize_screen`, `set_log_duration` and `set_opcua_alarm_type_node` to this family; see the [V21 API completion reference](V21_API_COMPLETION_SUMMARY.md#wincc-unified-screens-log-durations-opc-ua-alarm-types-hmi_write).
 
 Live checks still open for issue #29: every operation above on a WinCC Unified project (none was available); the event
 enum binding for screen item types other than the documented button shape; whether `Trigger.Tags` is a mutable list;

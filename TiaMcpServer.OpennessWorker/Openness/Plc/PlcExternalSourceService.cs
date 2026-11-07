@@ -53,7 +53,7 @@ internal static class PlcExternalSourceService
             {
                 try
                 {
-                    foreach (PlcUnit unit in provider.UnitGroup.Units)
+                    foreach (var unit in PlcUnits.All(provider.UnitGroup)) // Audit T4: safety units too.
                         AddSources(info, inventory, () => unit.ExternalSourceGroup, unit.Name);
                 }
                 catch (EngineeringException exception) when (OpennessExceptions.IsRecoverable(exception))
@@ -294,7 +294,7 @@ internal static class PlcExternalSourceService
         if (Equals(software.ExternalSourceGroup, group)) return null;
         var provider = software.GetService<PlcUnitProvider>();
         if (provider is not null)
-            foreach (PlcUnit unit in provider.UnitGroup.Units)
+            foreach (var unit in PlcUnits.All(provider.UnitGroup))
                 if (Equals(unit.ExternalSourceGroup, group)) return unit.Name;
         throw new WorkerOperationException(WorkerFailureCategories.StateChanged,
             "The external source group of the resolved objects belongs neither to the PLC nor to one of its software units. No file was written.");

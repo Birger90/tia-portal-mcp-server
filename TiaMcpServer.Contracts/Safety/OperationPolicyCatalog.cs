@@ -106,6 +106,12 @@ public static class OperationPolicyCatalog
             return false;
         }
 
+        // Siemens documentation reads run in the host against public documentation hosts; no project identity.
+        if (Docs.SiemensDocsMethods.IsDocsMethod(operation))
+        {
+            return false;
+        }
+
         return GetCapability(operation) switch
         {
             OperationCapability.Observe => false,
@@ -245,6 +251,8 @@ public static class OperationPolicyCatalog
         // Host-computed plc_read program analysis over the tree, read_cross_references and get_block_content.
         foreach (var method in PlcAnalysisMethods.All)
             dict[method] = OperationCapability.Observe;
+        // Host-computed plc_read operation reference from the catalog and the tool reference texts; reads nothing.
+        dict[PlcOperationHelpMethods.DescribeOperations] = OperationCapability.Observe;
         // External sources, project-tree folders, file exports and the accessible-device scan. The scan performs
         // live network discovery on an explicitly named PC interface and changes nothing (OnlineObserve, every
         // mode, like compare_to_online); find_objects is a host computation over existing reads; the file exports
@@ -316,6 +324,9 @@ public static class OperationPolicyCatalog
         // of the item" (Siemens.Engineering.SafetyValidation.xml, V21): whether it stores a validity state in the project is not
         // documented, so it is classified conservatively as a write (security review 2026-11-03, U1): read-only refuses it.
         dict[Plc.Settings.PlcSafetyValidationMethods.CheckActivationTest] = OperationCapability.ProjectMutation;
+        // Package G: the UMC server reads contact the UMC server and change nothing (like a compare that reaches a device).
+        foreach (var method in Plc.Settings.PlcUmacMethods.UmcServerReads)
+            dict[method] = OperationCapability.OnlineObserve;
         // OPC UA server interfaces and access rules (issue #24): reads of the offline project; writes change it (export writes a caller file).
         foreach (var method in Plc.OpcUa.PlcOpcUaMethods.Read)
             dict[method] = OperationCapability.Observe;
@@ -329,6 +340,8 @@ public static class OperationPolicyCatalog
             dict[method] = OperationCapability.Observe;
         foreach (var method in PlcWebApiMethods.Control)
             dict[method] = OperationCapability.OnlineControl;
+        foreach (var method in Docs.SiemensDocsMethods.All)
+            dict[method] = OperationCapability.Observe;
 
         return dict;
     }

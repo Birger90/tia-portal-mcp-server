@@ -73,6 +73,9 @@ public sealed class PlcDownloadApplyOutcome
     public static PlcDownloadApplyOutcome SelectionUnavailable(string detail) => new(PlcDownloadPolicy.AbortReasons.SelectionUnavailable, detail);
 
     public static PlcDownloadApplyOutcome PasswordUnavailable(string detail) => new(PlcDownloadPolicy.AbortReasons.PasswordUnavailable, detail);
+
+    /// <summary>Audit T1: the password was not sent because the channel is not (known to be) secure.</summary>
+    public static PlcDownloadApplyOutcome InsecureCommunication(string detail) => new(PlcDownloadPolicy.AbortReasons.InsecureCommunication, detail);
 }
 
 /// <summary>

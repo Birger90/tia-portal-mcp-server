@@ -13,6 +13,9 @@ public static partial class PlcOperationCatalog
         specs[PlcDeviceDataMethods.DownloadToFolder] = Write(new[] { "directoryPath" }, new[] { "plcName", "rhSystem", "portalConfirmations", "overwrite" });
         specs[PlcDeviceDataMethods.SetMasterSecretOnline] = Write(new[] { "passwordVariable" }, new[] { "plcName", "portalConfirmations" });
         specs[PlcDeviceDataMethods.ResetMasterSecretOnline] = Write(Array.Empty<string>(), new[] { "plcName", "portalConfirmations" });
+        // Package G: ValueService of a DB (the PLC comes from blockPath).
+        specs[PlcDeviceDataMethods.LoadSnapshotAsActualValues] = Write(new[] { "blockPath" }, new[] { "portalConfirmations" });
+        specs[PlcDeviceDataMethods.LoadStartValuesAsActualValues] = Write(new[] { "blockPath" }, new[] { "portalConfirmations" });
         return specs;
     }
 

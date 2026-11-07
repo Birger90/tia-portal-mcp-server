@@ -54,10 +54,12 @@ public class OpennessWorkerClientIntegrationTests
     }
 
     private const string SafeReadTimeout =
-        "The TIA Openness worker did not complete the read before the timeout. No project mutation was requested. The worker session was discarded; retrying the read is safe.";
+        "The TIA Openness worker did not complete the read before the timeout. No project mutation was requested. The worker session was discarded; "
+        + "a retry does not change the project, but if TIA Portal hung on this read it may hang again: check that TIA Portal responds before retrying.";
 
     private const string SafeReadCrash =
-        "The TIA Openness worker stopped before returning the read result. No project mutation was requested. The worker will restart on the next worker call; retrying the read is safe.";
+        "The TIA Openness worker stopped before returning the read result. No project mutation was requested. The worker will restart on the next worker call. "
+        + TiaMcpServer.Contracts.Worker.EngineeringFailureHints.NonRecoverableRetry;
 
     private const string StateAffectingTimeout =
         "The TIA Openness worker timed out before completion was confirmed. The project state may have changed. Inspect current state before retrying.";

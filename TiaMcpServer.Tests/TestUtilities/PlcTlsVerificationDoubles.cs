@@ -68,6 +68,9 @@ namespace Siemens.Engineering.Online.Configurations
     {
         public bool PasswordSupplied { get; private set; }
 
+        /// <summary>Audit T1: documented IsSecureCommunication; secure unless a test says otherwise.</summary>
+        public bool IsSecureCommunication { get; set; } = true;
+
         public void SetPassword(System.Security.SecureString password) => PasswordSupplied = password.Length > 0;
     }
 

@@ -93,7 +93,7 @@ public static class HardwareModuleMethods
     public static IReadOnlyList<string> PublicRead { get; } = new[]
     {
         ListPlugLocations, FindModuleTypes, FindContainerTypes, ListIoAddresses, GetCustomIdentity, ListPortConnections, ListTransferAreas,
-    };
+    }.Concat(HardwareFeatureMethods.Read).ToArray();
 
     /// <summary>Every read worker method, the two internal planning reads included (<c>Observe</c>).</summary>
     public static IReadOnlyList<string> Read { get; } = PublicRead.Concat(new[] { ProbePlug, ReadAttributes }).ToArray();
@@ -105,7 +105,7 @@ public static class HardwareModuleMethods
         SetHardwareAttributes, SetIoAddress, SetCustomIdentity, RemoveCustomIdentity, ConnectPorts, DisconnectPorts,
         CreateTransferArea, UpdateTransferArea, DeleteTransferArea, DeleteIoSystem, DisconnectFromIoSystem,
         ExportCax, ImportCax,
-    };
+    }.Concat(HardwareFeatureMethods.Write).ToArray();
 
     public static IReadOnlyList<string> All { get; } = Read.Concat(Write).ToArray();
 

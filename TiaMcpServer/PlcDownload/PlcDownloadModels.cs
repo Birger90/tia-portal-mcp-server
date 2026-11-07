@@ -51,6 +51,9 @@ public sealed record PlcDownloadWriteItem : IOperationBatchItem
 
     /// <summary>The caller's <c>trustedCertificates</c> as given (validated and normalized by <see cref="PlcTlsTrustPolicy.NormalizeList"/>).</summary>
     public IReadOnlyList<string> TrustedCertificates { get; init; } = Array.Empty<string>();
+
+    /// <summary>Audit T1: <c>allowInsecurePasswordTransfer</c> (default false).</summary>
+    public bool AllowInsecurePasswordTransfer { get; init; }
 }
 
 /// <summary>
@@ -264,6 +267,10 @@ public sealed record PlcDownloadEffects(
     /// <summary>Issue #16: the R/H CPU (<c>primary</c> or <c>backup</c>) the download goes to; omitted for a normal download.</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public string? RhTarget { get; init; }
+
+    /// <summary>Audit T1: true when the caller allowed passwords over a non-secure connection; omitted otherwise.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public bool? AllowInsecurePasswordTransfer { get; init; }
 }
 
 /// <summary>

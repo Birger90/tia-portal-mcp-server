@@ -26,7 +26,7 @@ This reference covers the Openness V21 features this fork adds around the PLC on
 > real-DLL compile before any live test; the first live checks are listed under
 > [live acceptance checks](#live-acceptance-checks).
 
-Tool counts: 11 tools in read-only, 30 in read-write and 30 in full since `retrieve_project` (29 since the library tools, 27 when these tools were added; `plc_tia_online` and
+Tool counts: 13 tools in read-only, 32 in read-write and 32 in full since `siemens_docs` (31 since `tia_inbox`, 30 since `retrieve_project`, 29 since the library tools, 27 when these tools were added; `plc_tia_online` and
 `plc_station_upload` are the two writable tools added here; every other operation lives in
 `plc_read`/`plc_write`).
 
@@ -174,7 +174,7 @@ item, no prompt in read-write. Group paths use `folderPath` (`/` or omitted for 
 | `create_watch_table_group` | `folderPath` (the new group, e.g. `/Line/Cell`), optional `plcName` | `parent.Groups.Create(name)` | the parent must exist |
 | `delete_watch_table_group` | `folderPath` (the group), optional `plcName` | `PlcWatchAndForceTableUserGroup.Delete()` | the system group cannot be deleted; info guard lists the tables and groups removed |
 | `update_watch_table_content` / `update_force_table_content` | `tableName`, `content`, `expectedContentHash`, optional `plcName`, `folderPath` | `group.WatchTables.Import(file, ImportOptions.Override)` / `group.ForceTables.Import(...)` | `content` is the edited SimaticML from `get_*_table_content`; the hash is checked at planning and again by the worker before the import (`state_changed` when stale); before the import the document must name exactly the addressed table (one table element of the same kind and `AttributeList/Name`, shape taken from the worker's own export of that table, fail closed when the export is unrecognisable; DTDs refused), otherwise `validation_error` and nothing is imported; the import must also return exactly the addressed table, otherwise `postcondition_failed` (the project was changed) |
-| `update_program` | optional `plcName` | `PlcSoftware.UpdateProgram()` inside `TiaPortal.ExclusiveAccess` and a project `Transaction` (source a: "within the normal ExclusiveAccess/transaction workflow") | upgrades block instructions to the latest version the PLC firmware supports, offline; invoked by exact runtime lookup (its return type is undocumented); the returned object's public scalar members are read (`returnedMembers`, `returnedType`): a failing state, error-count or success member fails the call and leaves the transaction uncommitted (rolled back); a member that says success gives `outcome: "succeeded"`; nothing interpretable (including a void return) gives `outcome: "uninterpreted"` with a warning (committed, not verified: compile and inspect) |
+| `update_program` | optional `plcName` | `PlcSoftware.UpdateProgram()` inside `TiaPortal.ExclusiveAccess` and a project `Transaction` (source a: "within the normal ExclusiveAccess/transaction workflow") | upgrades block instructions to the latest version the PLC firmware supports, offline; invoked by exact runtime lookup (its return type is undocumented); the returned object's public scalar members are read (`returnedMembers`, `returnedType`): a failing state, error-count or success member fails the call and leaves the transaction uncommitted (rolled back); a member that says success gives `outcome: "succeeded"`; nothing interpretable (including a void return) gives `outcome: "uninterpreted"` with a warning (committed, not verified: compile and inspect); the commit is requested only when `Transaction.CanCommit` is true, otherwise the call fails and says the change was rolled back (audit T5, not live-tested) |
 
 Planning reads the PLC's watch-and-force table inventory once per call (only when an item needs it),
 resolves update/delete targets (`target_not_found`/`target_ambiguous`), applies earlier items so later
@@ -281,8 +281,15 @@ so both kinds of configuration land in one `configurationsSeen` list with one `a
   (`decision_not_applicable`), a non-member selection (`selection_unavailable`), an unset variable
   (`password_unavailable`), a throwing answer (`answer_rejected`; a lost Portal keeps `portal_lost`),
   an unanswerable or foreign type (`unsupported_configuration`), more than 100 configurations
-  (`configuration_limit_exceeded`), a TLS certificate not approved (`certificate_not_trusted`). After an
-  abort every later configuration is recorded and throws.
+  (`configuration_limit_exceeded`), a TLS certificate not approved (`certificate_not_trusted`), a password
+  configuration whose `IsSecureCommunication` is false or unreadable without `allowInsecurePasswordTransfer: true`
+  (`insecure_communication`, audit T1, not live-tested: the password is not sent; the flag is recorded as
+  `secureCommunication`; `go_online` and `plc_station_upload` take the opt-in, `compare_to_online`/`compare_hardware_to_online`
+  do not, see the left-out list). After an abort every later configuration is recorded and throws.
+- audit T2 (not live-tested): a selection configuration that would abort with `decision_missing`, `selection_unavailable`
+  or `decision_not_applicable`, or arrives after the abort, and whose live enum has the exact documented member
+  `NoAction` (e.g. `UploadMissingProducts`) is answered `NoAction` and recorded as (or after) the abort WITHOUT a throw,
+  like the refused TLS question (K27); the call still fails with the recorded abort. Everything else still throws.
 
 The abort record carries the `decisionKey`, `kind` and `availableSelections`, so a retry can supply the
 exact decision. No check (`true`) decisions are accepted (`validation_error` before anything runs): the
@@ -477,7 +484,8 @@ by `PlcOnlineReferenceStubTests`.
 | `TlsVerificationConfiguration.Certificates` (`Online.Security.VerificationCertificateComposition` of `VerificationCertificate`, enumerated) | Base | b, h | runtime lookup; name from the source's callback sample, composition and item type names in h, `IEnumerable` enumeration assumed (not enumerable fails closed) |
 | `VerificationCertificate.Certificate` → `X509Certificate2` (`RawData`, `Thumbprint`, `Subject`, `Issuer`, `NotBefore`, `NotAfter` are .NET members) | Base | b, h | runtime lookup; type from source ("exposing the target `X509Certificate2` through `Certificate`") |
 | `TlsVerificationConfiguration.CurrentSelection` of type `TlsVerificationConfigurationSelection`; members `Trusted`, `NonTrusted` set by name (`NonVerified` never) | Base | b, h | runtime lookup; property, type and members from source (callback sample and catalogue), type name in h; the property type's full name is compared, members checked with `Enum.IsDefined` |
-| `OnlineAuthenticationConfiguration`, `OnlineCredentials`, `UserType`, `AuthenticationType`, `IsSecureCommunication`, `EnableLegacyCommunication` | Base | b, h | not used (authentication aborts; `EnableLegacyCommunication` is never read or set) |
+| `IsSecureCommunication` of `OnlinePasswordConfiguration`/`UploadPasswordConfiguration` | Base | members.txt | runtime lookup (`PlcPasswordChannel`, audit T1): read before every `SetPassword`; false or unreadable without `allowInsecurePasswordTransfer` aborts `insecure_communication`; not live-tested |
+| `OnlineAuthenticationConfiguration`, `OnlineCredentials`, `UserType`, `AuthenticationType`, `OnlineAuthenticationConfiguration.IsSecureCommunication`, `EnableLegacyCommunication` | Base | b, h | not used (authentication aborts; `EnableLegacyCommunication` is never read or set) |
 | `OnlineConfigurationDelegate` = `void (OnlineConfiguration)`; `Online.Configurations.OnlineConfiguration` | Base | b, h | signature from source |
 | `ConnectionConfiguration.Modes`, `ConfigurationMode.Name/.PcInterfaces`, `ConfigurationPcInterface.Name/.Number/.TargetInterfaces`, `ConfigurationTargetInterface.Name` | Base | b, e, f | existing (plc_download) |
 | `ConfigurationPcInterface.Addresses` → `ConfigurationAddressComposition`; `.Create(string)` → `ConfigurationAddress` | Base | b, c, e | signature from source |
@@ -523,7 +531,11 @@ Parameter names in stub signatures are placeholders.
   the V21 XML names no implementer of `IHardwareCompareTarget`, so no other target is guessed.
 - **`GoOnline(ConfigurationAddress)`, `ApplyConfiguration(ConfigurationAddress)` (gateway/subnet
   paths), `RHOnlineProvider`** are documented but not used: the path is always the exact mode → PC
-  interface → target interface the download already uses.
+  interface → target interface the download already uses. Going online to an R/H primary or backup
+  (`RHOnlineProvider.GoOnlineToPrimary/GoOnlineToBackup`, `PrimaryState`/`BackupState`, audit N1) needs a new
+  `plc_tia_online` field and a path inventory from `RHOnlineProvider.Configuration` in `get_online_state`; it is left for a
+  later package. The worker's provider lookup (`RhSystemProviders`: CPU device item, then parents up to the `Device`,
+  audit T3) already covers `RHOnlineProvider` by name for it.
 - **Online authentication answers** (`OnlineAuthenticationConfiguration`, `OnlineCredentials`,
   `UserType`): no approved authentication policy exists for this tool, so these configurations abort with
   evidence. TLS trust is answered, but only from the user-approved `trustedCertificates` (see
@@ -545,6 +557,11 @@ Parameter names in stub signatures are placeholders.
   `UploadResult.WarningCount` is not documented and not reported.
 - **"Update offline from online" after a compare**: the sources document no such compare action;
   `UpdateProgram()` is the documented instruction upgrade and is exposed as exactly that.
+- **`allowInsecurePasswordTransfer` for `compare_to_online`/`compare_hardware_to_online`** (audit T1): a compare
+  password over a channel not reported secure aborts `insecure_communication` without an opt-in. The opt-in is left
+  out because the host's compare evidence check does not know the merged password list (it validates compare
+  evidence against no passwords), so a compare `password_set` entry is already rejected as `protocol_error`
+  (open, found while fixing T1). Use `plc_tia_online go_online` with the opt-in first if the user agrees.
 - **A `portalConfirmations` option for `compare_to_online`**: a read never accepts a TIA Portal dialog,
   so the compare always declines (and fails when it declined one).
 

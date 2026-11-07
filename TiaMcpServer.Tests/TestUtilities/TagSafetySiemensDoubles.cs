@@ -613,12 +613,21 @@ namespace Siemens.Engineering.SW.Units
     public sealed class PlcUnitGroup
     {
         public Composition<PlcUnit> Units { get; } = new();
+        public Composition<PlcSafetyUnit> SafetyUnits { get; } = new();
     }
-    public sealed class PlcUnit : NamedObject
+    /// <summary>V21: PlcUnitBase declares BlockGroup, TagTableGroup, TypeGroup, ExternalSourceGroup and Name; PlcUnit derives it.</summary>
+    public abstract class PlcUnitBase : NamedObject
     {
         public Blocks.PlcBlockSystemGroup BlockGroup { get; } = new();
         public Tags.PlcTagTableGroup TagTableGroup { get; } = new();
         public Types.PlcTypeGroup TypeGroup { get; } = new();
         public ExternalSources.PlcExternalSourceSystemGroup ExternalSourceGroup { get; } = new();
+    }
+    public sealed class PlcUnit : PlcUnitBase
+    {
+    }
+    /// <summary>Audit T4: a safety unit (PlcUnitSystemGroup.SafetyUnits); assumed to derive PlcUnitBase like PlcUnit.</summary>
+    public sealed class PlcSafetyUnit : PlcUnitBase
+    {
     }
 }

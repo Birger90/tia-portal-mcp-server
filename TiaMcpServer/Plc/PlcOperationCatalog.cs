@@ -22,7 +22,7 @@ public static partial class PlcOperationCatalog
 
     private static Spec Write(string[] required, string[] optional) => new(required, optional, true);
 
-    private static readonly IReadOnlyDictionary<string, Spec> Specs = WithSafetySpecs(WithProjectLanguageSpecs(WithBlockProtectionSpecs(WithSettingsSpecs(WithDeviceDataSpecs(WithOpcUaSpecs(WithLoadableSpecs(WithChangeDetectionSpecs(WithCompilationSettingsSpecs(WithSimaticSdSpecs(WithEditingSpecs(WithSourceFolderSpecs(WithSecuritySpecs(WithTechnologyObjectSpecs(WithAlarmSpecs(new Dictionary<string, Spec>(StringComparer.Ordinal)
+    private static readonly IReadOnlyDictionary<string, Spec> Specs = WithSafetySpecs(WithProjectLanguageSpecs(WithBlockProtectionSpecs(WithSettingsSpecs(WithDeviceDataSpecs(WithOpcUaSpecs(WithLoadableSpecs(WithChangeDetectionSpecs(WithCompilationSettingsSpecs(WithSimaticSdSpecs(WithEditingSpecs(WithSourceFolderSpecs(WithSecuritySpecs(WithTechnologyObjectSpecs(WithAlarmSpecs(WithHelpSpecs(new Dictionary<string, Spec>(StringComparer.Ordinal)
     {
         ["get_block_content"] = Read(new[] { "blockPath" }, new[] { "format", "withDependencies" }),
         ["get_type_content"] = Read(new[] { "typePath" }, new[] { "format", "withDependencies" }),
@@ -92,7 +92,7 @@ public static partial class PlcOperationCatalog
         ["copy_block"] = Write(new[] { "blockPath", "newName" }, new[] { "targetGroupPath", "number" }),
         ["move_block"] = Write(new[] { "blockPath", "targetGroupPath" }, Array.Empty<string>()),
         ["move_tag_table"] = Write(new[] { "tableName", "targetFolderPath" }, new[] { "plcName", "folderPath" }),
-    })))))))))))))));
+    }))))))))))))))));
 
     /// <summary>Wire name, getter and "is a nonblank value required when listed as required" for every string field.</summary>
     private static readonly (string Name, Func<PlcOperationRequest, string?> Get)[] StringFields = WithSecurityStringFields(WithTechnologyObjectStringFields(new (string Name, Func<PlcOperationRequest, string?> Get)[]
@@ -186,6 +186,7 @@ public static partial class PlcOperationCatalog
             .Concat(SettingsOtherFields())
             .Concat(OpcUaOtherFields())
             .Concat(DeviceDataOtherFields())
+            .Concat(HelpOtherFields())
             // The source/folder, alarm and technology object fields share overwrite, offset and limit: one entry per wire name.
             .DistinctBy(field => field.Item1)
             .ToArray();
@@ -376,6 +377,7 @@ public static partial class PlcOperationCatalog
         ValidateSettingsItem(operation, prefix, errors);
         ValidateOpcUaItem(operation, prefix, errors);
         ValidateDeviceDataItem(operation, prefix, errors);
+        ValidateHelpItem(operation, prefix, errors);
     }
 
     /// <summary>

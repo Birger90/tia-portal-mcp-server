@@ -221,11 +221,13 @@ public sealed class PlcDownloadReflectionAccessTests
     {
         var effects = Effects(Item(decisions: new[] { Select("ResetModule", "KeepActualValues") }));
         var (result, recorder) = Recorder(effects);
-        var reset = new ResetModule();
+        var reset = new ResetModule { CurrentSelection = ResetModuleSelections.DeleteAll };
 
-        Assert.Throws<PlcDownloadAbortedException>(() => recorder.PreDownload(reset));
+        // Audit T2: the documented NoAction is set instead of a throw; the abort is recorded.
+        recorder.PreDownload(reset);
 
         Assert.Equal(ResetModuleSelections.NoAction, reset.CurrentSelection);
+        Assert.Equal(("NoAction", Sources.Policy), (result.ConfigurationsSeen[^1].Selection, result.ConfigurationsSeen[^1].Source));
         var abort = result.Abort!;
         Assert.Equal((AbortReasons.SelectionUnavailable, "ResetModule", Kinds.Selection), (abort.Reason, abort.DecisionKey, abort.Kind));
         Assert.Equal(new[] { "DeleteAll", "NoAction" }, abort.AvailableSelections);
@@ -289,7 +291,7 @@ public sealed class PlcDownloadReflectionAccessTests
     {
         var effects = Effects(Item(decisions: new[] { Check("ResetModule"), Select("UpgradeTargetDevice", "Yes") }));
         var (result, recorder) = Recorder(effects);
-        Assert.Throws<PlcDownloadAbortedException>(() => recorder.PreDownload(new ResetModule()));
+        recorder.PreDownload(new ResetModule()); // Audit T2: answered NoAction, no throw.
         Assert.Equal(AbortReasons.DecisionNotApplicable, result.Abort!.Reason);
         Assert.Contains("Checked", result.Abort.Detail);
     }

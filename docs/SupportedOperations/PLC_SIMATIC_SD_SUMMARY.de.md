@@ -15,7 +15,7 @@ SIMATIC SD ist das Bausteindokumentformat von TIA Portal V21: `PlcBlock.ExportAs
 Siemens-V21-Skill `simatic-sd` (MIT, Siemens AG, `openness_development/skills/simatic-sd/SKILL.md`) nennt das „the
 correct path for adding LAD/FBD/SCL networks to existing blocks via Openness“. Diese Operationen machen daraus einen Bearbeitungsweg auf
 Netzwerkebene, sodass ein Agent LAD- (KOP), FBD- (FUP) und F-LAD/F-FBD-Logik ohne einen Umweg über SimaticML (FlgNet-XML)
-ändern kann. Es wurde kein Tool hinzugefügt (11/30/30 bleiben); jede Operation ist eine `plc_read`- oder `plc_write`-Operation.
+ändern kann. Es wurde kein Tool hinzugefügt (13/32/32 bleiben); jede Operation ist eine `plc_read`- oder `plc_write`-Operation.
 
 Für die LAD/FBD-Syntax selbst, mit Belegen pro Konstrukt, siehe [LAD und FBD als SIMATIC SD schreiben](../guides/lad-fbd-simatic-sd.de.md).
 

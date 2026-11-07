@@ -87,6 +87,7 @@
       Link="CrossReferences\CrossReferenceTargetResolver.cs" />
     <Compile Include="..\TiaMcpServer.OpennessWorker\Openness\Block\CompileReportProjection.cs"
       Link="Block\CompileReportProjection.cs" />
+    <Compile Include="..\TiaMcpServer.OpennessWorker\Openness\Plc\PlcUnits.cs" Link="Plc\PlcUnits.cs" />
     <Compile Include="..\TiaMcpServer.OpennessWorker\Openness\Block\BlockTargetResolver.cs"
       Link="Block\BlockTargetResolver.cs" />
     <Compile Include="..\TiaMcpServer.OpennessWorker\Openness\Block\ObNumberScanner.cs"
@@ -176,6 +177,7 @@
     <Compile Include="..\TiaMcpServer\Tools\StructuredToolResult.cs"
       Link="Host\StructuredToolResult.cs" />
     <Compile Include="..\TiaMcpServer\Tools\BatchReadTool.cs" Link="Host\BatchReadTool.cs" />
+    <Compile Include="..\TiaMcpServer\Tools\SchemaDescriptions.cs" Link="Host\SchemaDescriptions.cs" />
     <Compile Include="..\TiaMcpServer\Tools\ProjectReadTools.cs"
       Link="Host\ProjectReadTools.cs" />
     <Compile Include="..\TiaMcpServer\Tools\ProjectBindingTools.cs"
@@ -267,6 +269,7 @@
     <Compile Include="..\TiaMcpServer\Plc\OpcUa\*.cs" Link="Host\Plc\OpcUa\%(Filename)%(Extension)" />
     <Compile Include="..\TiaMcpServer\Plc\DeviceData\*.cs" Link="Host\Plc\DeviceData\%(Filename)%(Extension)" />
     <Compile Include="..\TiaMcpServer\Plc\V21Pitfalls\*.cs" Link="Host\Plc\V21Pitfalls\%(Filename)%(Extension)" />
+    <Compile Include="..\TiaMcpServer\Plc\Help\*.cs" Link="Host\Plc\Help\%(Filename)%(Extension)" />
     <Compile Include="..\TiaMcpServer\Plc\PlcAddressOccupancyReader.cs" Link="Host\Plc\PlcAddressOccupancyReader.cs" />
     <Compile Include="..\TiaMcpServer\Plc\PlcOperationRequest.SourcesFolders.cs" Link="Host\Plc\PlcOperationRequest.SourcesFolders.cs" />
     <Compile Include="..\TiaMcpServer\Plc\PlcOperationCatalog.SourcesFolders.cs" Link="Host\Plc\PlcOperationCatalog.SourcesFolders.cs" />
@@ -400,6 +403,9 @@
       Link="Block\BlockSourceGenerator.cs" />
     <Compile Include="..\TiaMcpServer.OpennessWorker\Openness\Block\ObFixtureStore.cs"
       Link="Block\ObFixtureStore.cs" />
+    <!-- Trimmed live responses of the Siemens documentation hosts (2026-11-03); provenance in SiemensDocs/SiemensDocsFixtures.cs. -->
+    <EmbeddedResource Include="SiemensDocs\Fixtures\*.json;SiemensDocs\Fixtures\*.html"
+      LogicalName="TiaMcpServer.SiemensDocsFixtures.%(Filename)%(Extension)" />
     <EmbeddedResource Include="..\TiaMcpServer.OpennessWorker\Openness\ObFixtures\*.xml"
       LogicalName="TiaMcpServer.ObFixtures.%(Filename)%(Extension)" />
     <Compile Include="..\TiaMcpServer.OpennessWorker\Openness\Block\BlockSourceValidator.cs"
@@ -496,6 +502,7 @@
     <Compile Include="..\TiaMcpServer\Library\*.cs" Link="Host\Library\%(Filename)%(Extension)" />
     <Compile Include="..\TiaMcpServer\PlcAnalysis\*.cs" Link="Host\PlcAnalysis\%(Filename)%(Extension)" />
     <Compile Include="..\TiaMcpServer\PlcAlarms\*.cs" Link="Host\PlcAlarms\%(Filename)%(Extension)" />
+    <Compile Include="..\TiaMcpServer\ClaudeInbox\*.cs" Link="Host\ClaudeInbox\%(Filename)%(Extension)" />
     <Compile Include="..\TiaMcpServer.FakeWorker\Plc\XlsxFixture.cs" Link="TestUtilities\XlsxFixture.cs" />
     <Compile Include="..\TiaMcpServer.FakeWorker\Plc\SimaticSdFixtures.cs" Link="TestUtilities\SimaticSdFixtures.cs" />
   </ItemGroup>
@@ -504,6 +511,7 @@
          environment (registry) adapter and the worker entry point stay out of the test build. -->
     <Compile Include="..\TiaMcpServer\PlcSim\*.cs" Link="Host\PlcSim\%(Filename)%(Extension)" />
     <Compile Include="..\TiaMcpServer\PlcWebApi\*.cs" Link="Host\PlcWebApi\%(Filename)%(Extension)" />
+    <Compile Include="..\TiaMcpServer\SiemensDocs\*.cs" Link="Host\SiemensDocs\%(Filename)%(Extension)" />
     <Compile Include="..\TiaMcpServer.PlcSimWorker\Operations\*.cs" Link="Linked\PlcSimWorker\Operations\%(Filename)%(Extension)" />
     <Compile Include="..\TiaMcpServer.PlcSimWorker\Runtime\*.cs"
       Exclude="..\TiaMcpServer.PlcSimWorker\Runtime\PlcSimMachineEnvironment.cs"

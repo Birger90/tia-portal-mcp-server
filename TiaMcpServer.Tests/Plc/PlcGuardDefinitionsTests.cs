@@ -67,6 +67,11 @@ public class PlcGuardDefinitionsTests
             [PlcGuardDefinitions.OpcUaLowersAccess] = WriteGuardSeverities.Info,
             [PlcGuardDefinitions.DownloadToFolderWritesFiles] = WriteGuardSeverities.Info,
             [PlcGuardDefinitions.MasterSecretOnline] = WriteGuardSeverities.Acknowledge,
+            // Package G.
+            [PlcGuardDefinitions.LoadsActualValuesOnline] = WriteGuardSeverities.Acknowledge,
+            [PlcGuardDefinitions.ProtectsProject] = WriteGuardSeverities.Acknowledge,
+            [PlcGuardDefinitions.ChangesMarkings] = WriteGuardSeverities.Info,
+            [PlcGuardDefinitions.LoadsCamData] = WriteGuardSeverities.Info,
             // Security review F8: automatic acceptance of syslog client certificates needs the human.
             [PlcGuardDefinitions.SyslogAutoAcceptsCertificates] = WriteGuardSeverities.Acknowledge,
         }, byId);

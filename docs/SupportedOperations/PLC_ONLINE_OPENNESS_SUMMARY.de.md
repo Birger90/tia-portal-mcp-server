@@ -26,7 +26,7 @@ Diese Referenz behandelt die Openness-V21-Funktionen, die dieser Fork rund um de
 > Übersetzung gegen die echten DLLs bestehen, bevor ein Live-Test stattfindet; die ersten Live-Prüfungen sind unter
 > [Live-Abnahmeprüfungen](#live-abnahmeprüfungen) aufgeführt.
 
-Tool-Anzahlen: 11 Tools in read-only, 30 in read-write und 30 in full seit `retrieve_project` (29 seit den Bibliotheks-Tools, 27, als diese Tools hinzukamen; `plc_tia_online` und
+Tool-Anzahlen: 13 Tools in read-only, 32 in read-write und 32 in full seit `siemens_docs` (31 seit `tia_inbox`, 30 seit `retrieve_project`, 29 seit den Bibliotheks-Tools, 27, als diese Tools hinzukamen; `plc_tia_online` und
 `plc_station_upload` sind die beiden hier hinzugefügten schreibfähigen Tools; jede andere Operation liegt in
 `plc_read`/`plc_write`).
 
@@ -176,7 +176,7 @@ Element, keine Rückfrage in read-write. Gruppenpfade verwenden `folderPath` (`/
 | `create_watch_table_group` | `folderPath` (die neue Gruppe, z. B. `/Line/Cell`), optional `plcName` | `parent.Groups.Create(name)` | die übergeordnete Gruppe muss existieren |
 | `delete_watch_table_group` | `folderPath` (die Gruppe), optional `plcName` | `PlcWatchAndForceTableUserGroup.Delete()` | die Systemgruppe kann nicht gelöscht werden; der Info-Guard führt die entfernten Tabellen und Gruppen auf |
 | `update_watch_table_content` / `update_force_table_content` | `tableName`, `content`, `expectedContentHash`, optional `plcName`, `folderPath` | `group.WatchTables.Import(file, ImportOptions.Override)` / `group.ForceTables.Import(...)` | `content` ist das bearbeitete SimaticML aus `get_*_table_content`; der Hash wird bei der Planung und erneut vom Worker vor dem Import geprüft (`state_changed`, wenn veraltet); vor dem Import muss das Dokument genau die adressierte Tabelle benennen (ein Tabellenelement derselben Art und `AttributeList/Name`, Form übernommen aus dem eigenen Export dieser Tabelle durch den Worker, geschlossenes Fehlschlagen, wenn der Export nicht erkennbar ist; DTDs abgelehnt), sonst `validation_error`, und nichts wird importiert; der Import muss außerdem genau die adressierte Tabelle liefern, sonst `postcondition_failed` (das Projekt wurde geändert) |
-| `update_program` | optional `plcName` | `PlcSoftware.UpdateProgram()` innerhalb von `TiaPortal.ExclusiveAccess` und einer Projekt-`Transaction` (Quelle a: "within the normal ExclusiveAccess/transaction workflow") | aktualisiert Bausteinanweisungen offline auf die neueste Version, die die PLC-Firmware unterstützt; aufgerufen per exaktem Laufzeit-Lookup (ihr Rückgabetyp ist undokumentiert); die öffentlichen skalaren Member des zurückgegebenen Objekts werden gelesen (`returnedMembers`, `returnedType`): ein fehlschlagendes Zustands-, Fehleranzahl- oder Erfolgs-Member lässt den Aufruf fehlschlagen und die Transaktion unbestätigt (zurückgerollt); ein Member, das Erfolg meldet, ergibt `outcome: "succeeded"`; nichts Interpretierbares (einschließlich einer void-Rückgabe) ergibt `outcome: "uninterpreted"` mit einer Warnung (bestätigt, nicht verifiziert: übersetzen und prüfen) |
+| `update_program` | optional `plcName` | `PlcSoftware.UpdateProgram()` innerhalb von `TiaPortal.ExclusiveAccess` und einer Projekt-`Transaction` (Quelle a: "within the normal ExclusiveAccess/transaction workflow") | aktualisiert Bausteinanweisungen offline auf die neueste Version, die die PLC-Firmware unterstützt; aufgerufen per exaktem Laufzeit-Lookup (ihr Rückgabetyp ist undokumentiert); die öffentlichen skalaren Member des zurückgegebenen Objekts werden gelesen (`returnedMembers`, `returnedType`): ein fehlschlagendes Zustands-, Fehleranzahl- oder Erfolgs-Member lässt den Aufruf fehlschlagen und die Transaktion unbestätigt (zurückgerollt); ein Member, das Erfolg meldet, ergibt `outcome: "succeeded"`; nichts Interpretierbares (einschließlich einer void-Rückgabe) ergibt `outcome: "uninterpreted"` mit einer Warnung (bestätigt, nicht verifiziert: übersetzen und prüfen); der Commit wird nur angefordert, wenn `Transaction.CanCommit` true ist, sonst scheitert der Aufruf und meldet, dass die Änderung zurückgerollt wurde (Audit T5, nicht live getestet) |
 
 Die Planung liest das Inventar der Beobachtungs- und Forcetabellen der PLC einmal pro Aufruf (nur, wenn ein Element es benötigt),
 löst Update-/Löschziele auf (`target_not_found`/`target_ambiguous`), wendet frühere Elemente an, sodass spätere
@@ -283,8 +283,17 @@ sodass beide Arten von Konfiguration in einer `configurationsSeen`-Liste mit ein
   (`decision_not_applicable`), eine Auswahl, die kein Member ist (`selection_unavailable`), eine nicht gesetzte Variable
   (`password_unavailable`), eine Antwort, die eine Ausnahme wirft (`answer_rejected`; ein verlorenes Portal behält `portal_lost`),
   ein nicht beantwortbarer oder fremder Typ (`unsupported_configuration`), mehr als 100 Konfigurationen
-  (`configuration_limit_exceeded`), ein nicht freigegebenes TLS-Zertifikat (`certificate_not_trusted`). Nach einem
+  (`configuration_limit_exceeded`), ein nicht freigegebenes TLS-Zertifikat (`certificate_not_trusted`), eine
+  Passwortkonfiguration, deren `IsSecureCommunication` false oder nicht lesbar ist, ohne `allowInsecurePasswordTransfer: true`
+  (`insecure_communication`, Audit T1, nicht live getestet: Das Passwort wird nicht gesendet; der Wert steht als
+  `secureCommunication` am Eintrag; `go_online` und `plc_station_upload` nehmen die Zustimmung an,
+  `compare_to_online`/`compare_hardware_to_online` nicht, siehe Liste des Ausgelassenen). Nach einem
   Abbruch wird jede spätere Konfiguration festgehalten und wirft eine Ausnahme.
+- Audit T2 (nicht live getestet): Eine Auswahlkonfiguration, die mit `decision_missing`, `selection_unavailable` oder
+  `decision_not_applicable` abbrechen würde oder nach dem Abbruch kommt und deren Live-Enum das exakte dokumentierte Member
+  `NoAction` hat (z. B. `UploadMissingProducts`), wird mit `NoAction` beantwortet und OHNE Werfen als (oder nach dem)
+  Abbruch festgehalten, wie die abgelehnte TLS-Frage (K27); der Aufruf scheitert trotzdem mit dem festgehaltenen Abbruch.
+  Alles andere wirft weiter.
 
 Der Abbruchdatensatz enthält `decisionKey`, `kind` und `availableSelections`, sodass eine Wiederholung die
 exakte Entscheidung liefern kann. Check-Entscheidungen (`true`) werden nicht akzeptiert (`validation_error`, bevor etwas läuft): Der
@@ -479,7 +488,8 @@ durch `PlcOnlineReferenceStubTests`.
 | `TlsVerificationConfiguration.Certificates` (`Online.Security.VerificationCertificateComposition` von `VerificationCertificate`, aufgezählt) | Base | b, h | Laufzeit-Lookup; Name aus dem Callback-Beispiel der Quelle, Namen von Composition- und Elementtyp in h, `IEnumerable`-Aufzählung angenommen (nicht aufzählbar schlägt geschlossen fehl) |
 | `VerificationCertificate.Certificate` → `X509Certificate2` (`RawData`, `Thumbprint`, `Subject`, `Issuer`, `NotBefore`, `NotAfter` sind .NET-Member) | Base | b, h | Laufzeit-Lookup; Typ aus der Quelle ("exposing the target `X509Certificate2` through `Certificate`") |
 | `TlsVerificationConfiguration.CurrentSelection` vom Typ `TlsVerificationConfigurationSelection`; Member `Trusted`, `NonTrusted` nach Namen gesetzt (`NonVerified` nie) | Base | b, h | Laufzeit-Lookup; Eigenschaft, Typ und Member aus der Quelle (Callback-Beispiel und Katalog), Typname in h; der vollständige Name des Eigenschaftstyps wird verglichen, Member mit `Enum.IsDefined` geprüft |
-| `OnlineAuthenticationConfiguration`, `OnlineCredentials`, `UserType`, `AuthenticationType`, `IsSecureCommunication`, `EnableLegacyCommunication` | Base | b, h | nicht verwendet (Authentifizierung bricht ab; `EnableLegacyCommunication` wird nie gelesen oder gesetzt) |
+| `IsSecureCommunication` von `OnlinePasswordConfiguration`/`UploadPasswordConfiguration` | Base | members.txt | Laufzeit-Lookup (`PlcPasswordChannel`, Audit T1): vor jedem `SetPassword` gelesen; false oder nicht lesbar ohne `allowInsecurePasswordTransfer` bricht mit `insecure_communication` ab; nicht live getestet |
+| `OnlineAuthenticationConfiguration`, `OnlineCredentials`, `UserType`, `AuthenticationType`, `OnlineAuthenticationConfiguration.IsSecureCommunication`, `EnableLegacyCommunication` | Base | b, h | nicht verwendet (Authentifizierung bricht ab; `EnableLegacyCommunication` wird nie gelesen oder gesetzt) |
 | `OnlineConfigurationDelegate` = `void (OnlineConfiguration)`; `Online.Configurations.OnlineConfiguration` | Base | b, h | Signatur aus der Quelle |
 | `ConnectionConfiguration.Modes`, `ConfigurationMode.Name/.PcInterfaces`, `ConfigurationPcInterface.Name/.Number/.TargetInterfaces`, `ConfigurationTargetInterface.Name` | Base | b, e, f | vorhanden (plc_download) |
 | `ConfigurationPcInterface.Addresses` → `ConfigurationAddressComposition`; `.Create(string)` → `ConfigurationAddress` | Base | b, c, e | Signatur aus der Quelle |
@@ -525,7 +535,11 @@ Parameternamen in Stub-Signaturen sind Platzhalter.
   umgesetzt (Issue #7); die V21-XML nennt keinen Umsetzer von `IHardwareCompareTarget`, daher wird kein anderes Ziel geraten.
 - **`GoOnline(ConfigurationAddress)`, `ApplyConfiguration(ConfigurationAddress)` (Gateway-/Subnetz-
   Pfade), `RHOnlineProvider`** sind dokumentiert, werden aber nicht verwendet: Der Pfad ist immer der exakte Modus → PC-
-  Schnittstelle → Zielschnittstelle, den bereits der Download verwendet.
+  Schnittstelle → Zielschnittstelle, den bereits der Download verwendet. Online gehen zur R/H-Primär- oder Reserve-CPU
+  (`RHOnlineProvider.GoOnlineToPrimary/GoOnlineToBackup`, `PrimaryState`/`BackupState`, Audit N1) braucht ein neues Feld in
+  `plc_tia_online` und ein Pfadinventar aus `RHOnlineProvider.Configuration` in `get_online_state`; das bleibt einem späteren
+  Paket. Die Provider-Suche des Workers (`RhSystemProviders`: CPU-Geräteelement, dann Elternobjekte bis zum `Device`,
+  Audit T3) deckt `RHOnlineProvider` dafür bereits per Name ab.
 - **Antworten auf Online-Authentifizierung** (`OnlineAuthenticationConfiguration`, `OnlineCredentials`,
   `UserType`): Für dieses Tool existiert keine freigegebene Authentifizierungs-Policy, daher brechen diese Konfigurationen mit
   Belegen ab. TLS-Vertrauen wird beantwortet, aber nur aus den vom Benutzer freigegebenen `trustedCertificates` (siehe
@@ -547,6 +561,12 @@ Parameternamen in Stub-Signaturen sind Platzhalter.
   `UploadResult.WarningCount` ist nicht dokumentiert und wird nicht gemeldet.
 - **"Offline aus online aktualisieren" nach einem Vergleich**: Die Quellen dokumentieren keine solche Vergleichsaktion;
   `UpdateProgram()` ist die dokumentierte Aktualisierung der Anweisungen und wird genau als solche angeboten.
+- **`allowInsecurePasswordTransfer` für `compare_to_online`/`compare_hardware_to_online`** (Audit T1): Ein
+  Vergleichspasswort über einen nicht als sicher gemeldeten Kanal bricht ohne Zustimmung mit `insecure_communication` ab.
+  Die Zustimmung fehlt hier, weil die Host-Prüfung der Vergleichsnachweise die zusammengeführte Passwortliste nicht kennt
+  (sie prüft Vergleichsnachweise gegen keine Passwörter), sodass ein `password_set`-Eintrag eines Vergleichs schon jetzt
+  als `protocol_error` abgewiesen wird (offen, beim Beheben von T1 gefunden). Stimmt der Benutzer zu, zuerst
+  `plc_tia_online go_online` mit der Zustimmung verwenden.
 - **Eine Option `portalConfirmations` für `compare_to_online`**: Ein Lesevorgang stimmt einem TIA-Portal-Dialog nie zu,
   daher lehnt der Vergleich immer ab (und schlägt fehl, wenn er einen abgelehnt hat).
 

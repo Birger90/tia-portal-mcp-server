@@ -4,6 +4,8 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
+  <Project Path="TiaMcpServer.AddIn/TiaMcpServer.AddIn.csproj" />
+  <Project Path="TiaMcpServer.ClaudeBridge/TiaMcpServer.ClaudeBridge.csproj" />
   <Project Path="TiaMcpServer.Contracts/TiaMcpServer.Contracts.csproj" />
   <Project Path="TiaMcpServer.FakeWorker/TiaMcpServer.FakeWorker.csproj" />
   <Project Path="TiaMcpServer.OpennessWorker/TiaMcpServer.OpennessWorker.csproj" />

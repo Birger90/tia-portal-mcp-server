@@ -299,7 +299,8 @@ public sealed class PlcDownloadPayloadContractTests
         {
             PlcDownloadPolicy.AbortReasons.DecisionNotApplicable => Effects(Item(decisions: new[] { Check("DataBlockReinitialization") })),
             PlcDownloadPolicy.AbortReasons.SelectionUnavailable => Effects(Item(decisions: new[] { Select("DataBlockReinitialization", "KeepActualValues") })),
-            PlcDownloadPolicy.AbortReasons.PasswordUnavailable => Effects(Item(passwords: new[] { Password("ModuleWriteAccessPassword", "PLC_PW") })),
+            PlcDownloadPolicy.AbortReasons.PasswordUnavailable or PlcDownloadPolicy.AbortReasons.InsecureCommunication
+                => Effects(Item(passwords: new[] { Password("ModuleWriteAccessPassword", "PLC_PW") })),
             _ => Effects(),
         };
         var result = Aborted(effects);
@@ -330,6 +331,12 @@ public sealed class PlcDownloadPayloadContractTests
             case PlcDownloadPolicy.AbortReasons.PasswordUnavailable:
                 Retype(Configurations + "ModuleWriteAccessPassword", Configurations + "ModuleWriteAccessPassword", PlcDownloadPolicy.Kinds.Password);
                 abort.Detail = "Environment variable 'PLC_PW' is not set or is empty in the worker process.";
+                break;
+            case PlcDownloadPolicy.AbortReasons.InsecureCommunication:
+                // Audit T1: IsSecureCommunication false, no allowInsecurePasswordTransfer: the password was not sent.
+                Retype(Configurations + "ModuleWriteAccessPassword", Configurations + "ModuleWriteAccessPassword", PlcDownloadPolicy.Kinds.Password);
+                entry.SecureCommunication = false;
+                abort.Detail = "IsSecureCommunication is false; the password was not sent.";
                 break;
             case PlcDownloadPolicy.AbortReasons.DecisionRejected:
                 // A built-in default was attempted and its setter threw.
@@ -477,7 +484,7 @@ public sealed class PlcDownloadPayloadContractTests
         Assert.Equal(PlcDownloadPolicy.AbortReasons.All.Order(StringComparer.Ordinal), new[]
         {
             "certificate_not_trusted", "configuration_limit_exceeded", "decision_not_applicable", "decision_rejected", "decision_required",
-            "password_unavailable", "selection_unavailable", "unsupported_configuration",
+            "insecure_communication", "password_unavailable", "selection_unavailable", "unsupported_configuration",
         });
     }
 
@@ -507,7 +514,7 @@ public sealed class PlcDownloadPayloadContractTests
             Phase = PlcDownloadPolicy.Phases.PreDownload, Type = Configurations + "ModuleWriteAccessPassword",
             CanonicalType = Configurations + "ModuleWriteAccessPassword", DecisionKey = "ModuleWriteAccessPassword",
             Kind = PlcDownloadPolicy.Kinds.Password, Decision = PlcDownloadPolicy.Decisions.PasswordSet,
-            Source = PlcDownloadPolicy.Sources.Caller, PasswordVariable = "PLC_PW",
+            Source = PlcDownloadPolicy.Sources.Caller, PasswordVariable = "PLC_PW", SecureCommunication = true,
         });
         result.ConfigurationsSeen.Insert(3, Selected(PlcDownloadPolicy.Phases.PreDownload, PlcDownloadPolicy.ConfigurationTypes.TargetForSoftware,
             "CPU", PlcDownloadPolicy.Sources.Default, "CPU", "PlcSimulationAdvanced"));
@@ -521,6 +528,26 @@ public sealed class PlcDownloadPayloadContractTests
         var decoded = PlcDownloadPayloadContract.DecodeResult(Payload(DecidedResult(effects)), effects, requireDownloadResult: true);
         Assert.Equal(new[] { "caller", "caller", "caller", "default", "default" }, decoded.ConfigurationsSeen.Select(seen => seen.Source));
         Assert.Equal("PLC_PW", decoded.ConfigurationsSeen[2].PasswordVariable);
+    }
+
+    [Fact]
+    public void PasswordSentOverANonSecureChannel_IsAcceptedOnlyWithTheOptIn()
+    {
+        // Audit T1: a password_set entry whose IsSecureCommunication is false or unread needs allowInsecurePasswordTransfer.
+        var effects = DecidedEffects();
+        var insecure = DecidedResult(effects);
+        insecure.ConfigurationsSeen[2].SecureCommunication = false;
+        Assert.ThrowsAny<JsonException>(() => PlcDownloadPayloadContract.DecodeResult(Payload(insecure), effects, requireDownloadResult: true));
+        var unread = DecidedResult(effects);
+        unread.ConfigurationsSeen[2].SecureCommunication = null;
+        Assert.ThrowsAny<JsonException>(() => PlcDownloadPayloadContract.DecodeResult(Payload(unread), effects, requireDownloadResult: true));
+
+        var allowed = effects with { AllowInsecurePasswordTransfer = true };
+        Assert.False(PlcDownloadPayloadContract.DecodeResult(Payload(insecure), allowed, requireDownloadResult: true).ConfigurationsSeen[2].SecureCommunication);
+        // The flag belongs to password entries only.
+        var misplaced = DecidedResult(effects);
+        misplaced.ConfigurationsSeen[0].SecureCommunication = true;
+        Assert.ThrowsAny<JsonException>(() => PlcDownloadPayloadContract.DecodeResult(Payload(misplaced), effects, requireDownloadResult: true));
     }
 
     [Theory]

@@ -546,6 +546,19 @@ internal sealed class HmiWriteRoundtripScenario
                 _runtimeSettings[(w.SettingsSection is null ? string.Empty : w.SettingsSection + ".") + w.PropertyName] = w.Value!;
                 outcome.AppliedProperties.Add(w.PropertyName!);
                 return Ok(outcome);
+            // Package G stand-ins (no Siemens evidence): screens resize, logs "DataLog_1"/"AlarmLog_1", OPC UA alarm type "OpcUaAlarm_1".
+            case HmiUnifiedConfigurationMethods.ResizeScreen:
+                outcome.AppliedProperties.AddRange(["ResizeScreen", "size 800x600 -> 1920x1080"]);
+                return Ok(outcome);
+            case HmiUnifiedConfigurationMethods.SetLogDuration:
+                if (!Same(w.ObjectName, w.PropertyName!.StartsWith("AlarmLog", StringComparison.Ordinal) ? "AlarmLog_1" : "DataLog_1"))
+                    return Fail("target_not_found", $"No log '{w.ObjectName}' was found. Nothing was changed.");
+                outcome.AppliedProperties.AddRange([w.PropertyName.EndsWith("SegmentTimePeriod", StringComparison.Ordinal) ? "SetSegmentDuration" : "SetLogDuration", $"readBack {w.Value}"]);
+                return Ok(outcome);
+            case HmiUnifiedConfigurationMethods.SetOpcUaAlarmTypeNode:
+                if (!Same(w.ObjectName, "OpcUaAlarm_1")) return Fail("target_not_found", $"No OPC UA alarm type '{w.ObjectName}' was found. Nothing was changed.");
+                outcome.AppliedProperties.AddRange(["SetNodeIdAndConnection", $"readBack NodeId {w.Value}, Connection {w.Connection}"]);
+                return Ok(outcome);
             case HmiUnifiedConfigurationMethods.CreatePlantView:
                 if (_plantViews.ContainsKey(w.PlantViewName!)) return Rejected("The value must be unique.", outcome);
                 _plantViews[w.PlantViewName!] = [];

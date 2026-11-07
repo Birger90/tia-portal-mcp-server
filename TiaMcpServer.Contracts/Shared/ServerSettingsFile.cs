@@ -1,5 +1,6 @@
 using System.Text.Json;
 using TiaMcpServer.Contracts.Safety;
+using TiaMcpServer.Contracts.Shared.ClaudeBridge;
 
 namespace TiaMcpServer.Contracts.Shared;
 
@@ -9,13 +10,17 @@ public sealed class ServerSettings
     /// <summary>No setting at all (no file, or a file with only the version).</summary>
     public static readonly ServerSettings Empty = new(null);
 
-    public ServerSettings(McpAccessMode? accessMode)
+    public ServerSettings(McpAccessMode? accessMode, ClaudeBridgeSettings? claudeBridge = null)
     {
         AccessMode = accessMode;
+        ClaudeBridge = claudeBridge;
     }
 
     /// <summary>The access mode chosen in the password manager, or null when it is not set (the server then uses its default).</summary>
     public McpAccessMode? AccessMode { get; }
+
+    /// <summary>The Claude bridge settings (version 2), or null when not set. Only the bridge reads them; the server ignores them.</summary>
+    public ClaudeBridgeSettings? ClaudeBridge { get; }
 }
 
 /// <summary>A server settings file that is not accepted; the message never repeats a value from the file.</summary>
@@ -61,17 +66,21 @@ public sealed class ServerSettingsReadResult
 /// <c>accessMode</c> is optional (omitted: not set) and is one of the canonical names <c>read-only</c>, <c>read-write</c>,
 /// <c>full</c> (<see cref="McpAccessModeNames"/>), spelled exactly. A <c>--access-mode</c> argument or
 /// <c>TIA_MCP_ACCESS_MODE</c> takes precedence over it. An invalid file refuses startup.
+/// Version 2 adds the optional closed object <c>claudeBridge</c> (<see cref="ClaudeBridgeSettings"/>, read only by the
+/// Claude bridge); the server reads versions 1 and 2, and the writer writes version 1 when no bridge settings are set.
 /// </summary>
 public static class ServerSettingsFile
 {
     public const string EnvironmentVariable = "TIA_MCP_SETTINGS";
     public const string DirectoryName = PasswordMapFile.DirectoryName;
     public const string FileName = "settings.json";
-    public const int Version = 1;
+    public const int Version = 2;
+    public const int MinVersion = 1;
     public const string AccessModeMember = "accessMode";
 
     private const string VersionMember = "version";
-    private static readonly string[] RootMembers = { VersionMember, AccessModeMember };
+    private static readonly string[] RootMembersV1 = { VersionMember, AccessModeMember };
+    private static readonly string[] RootMembersV2 = { VersionMember, AccessModeMember, ClaudeBridgeSettings.Member };
 
     /// <exception cref="ServerSettingsException">The text is not a valid version-1 settings file.</exception>
     public static ServerSettings Parse(string json)
@@ -90,18 +99,19 @@ public static class ServerSettingsFile
         {
             var root = document.RootElement;
             if (root.ValueKind != JsonValueKind.Object)
-                throw new ServerSettingsException($"The server settings file must be a JSON object with \"{VersionMember}\": {Version}.");
+                throw new ServerSettingsException($"The server settings file must be a JSON object with \"{VersionMember}\": {MinVersion} or {Version}.");
             // The version first, so a file of a later version is named as such rather than for its new members.
             if (!root.TryGetProperty(VersionMember, out var version) || version.ValueKind != JsonValueKind.Number || !version.TryGetInt32(out var number))
-                throw new ServerSettingsException($"The server settings file needs \"{VersionMember}\": {Version}.");
-            if (number != Version)
-                throw new ServerSettingsException($"The server settings file has version {number}; this server reads only version {Version}. Update the server, or save the settings again with the TiaMcp Passwortverwaltung of this server.");
+                throw new ServerSettingsException($"The server settings file needs \"{VersionMember}\": {MinVersion} or {Version}.");
+            if (number is < MinVersion or > Version)
+                throw new ServerSettingsException($"The server settings file has version {number}; this server reads only versions {MinVersion} and {Version}. Update the server, or save the settings again with the TiaMcp Passwortverwaltung of this server.");
+            var rootMembers = number == 1 ? RootMembersV1 : RootMembersV2;
 
             var seen = new HashSet<string>(StringComparer.Ordinal);
             foreach (var member in root.EnumerateObject())
             {
-                if (!RootMembers.Contains(member.Name, StringComparer.Ordinal))
-                    throw new ServerSettingsException($"The server settings file is refused: it has an unknown member (allowed in version {Version}: {string.Join(", ", RootMembers)}).");
+                if (!rootMembers.Contains(member.Name, StringComparer.Ordinal))
+                    throw new ServerSettingsException($"The server settings file is refused: it has an unknown member (allowed in version {number}: {string.Join(", ", rootMembers)}).");
                 if (!seen.Add(member.Name))
                     throw new ServerSettingsException($"The server settings file is refused: it repeats the member \"{member.Name}\".");
             }
@@ -114,19 +124,24 @@ public static class ServerSettingsFile
                 accessMode = parsed;
             }
 
-            return new ServerSettings(accessMode);
+            ClaudeBridgeSettings? bridge = null;
+            if (root.TryGetProperty(ClaudeBridgeSettings.Member, out var bridgeElement))
+                bridge = ClaudeBridgeSettings.Parse(bridgeElement);
+
+            return new ServerSettings(accessMode, bridge);
         }
     }
 
-    /// <summary>The settings as JSON (version 1; an unset member is omitted), checked by parsing it again.</summary>
+    /// <summary>The settings as JSON (version 1, or 2 with bridge settings; an unset member is omitted), checked by parsing it again.</summary>
     public static string Serialize(ServerSettings settings)
     {
         using var stream = new MemoryStream();
         using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
         {
             writer.WriteStartObject();
-            writer.WriteNumber(VersionMember, Version);
+            writer.WriteNumber(VersionMember, settings.ClaudeBridge is null ? MinVersion : Version);
             if (settings.AccessMode is { } mode) writer.WriteString(AccessModeMember, McpAccessModeNames.ToName(mode));
+            settings.ClaudeBridge?.Write(writer);
             writer.WriteEndObject();
         }
 

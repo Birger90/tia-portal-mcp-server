@@ -25,7 +25,7 @@ This reference covers the two library tools this fork adds:
 > fails closed with `unsupported_capability` when the installed V21 does not expose it, and every one must be
 > exercised by the [live acceptance checks](#live-acceptance-checks) before the tools are relied on.
 
-Tool counts: 11 tools in read-only, 30 in read-write and 30 in full (`library_read` is the eleventh
+Tool counts: 13 tools in read-only, 32 in read-write and 32 in full since `siemens_docs` (12/31/31 since `tia_inbox`, 11/30/30 before; `library_read` is the eleventh
 read-only tool, `library_write` the twenty-ninth writable one).
 
 ## Why two tools
@@ -151,6 +151,12 @@ that walk without a snapshot, so changes between pages can shift entries.
 attributes (`GetAttributeInfos`/`GetAttribute`, at most 20) and no identical-state filtering is offered.
 `update_check` messages are projected the same way from their named members (`Description`, `MessageParts`
 as text, nested `Messages`; 8 levels, 500 messages).
+
+**Libraries without a type folder (K82, not live-tested).** Live on V21 `get_library_tree` (content `all`) on the system
+library "Documentation templates" failed with an unhandled `TargetException`; most likely its `ILibrary.TypeFolder` is
+null. The tree now lists no types for such a library, reports `complete: false` with the reason in `omission` and still
+walks the master copies; a `folderPath` below the root fails `target_not_found` ("no type folder"). Every required
+library member read on a null owner now fails `worker_operation_failed` with the member name instead of a `TargetException`.
 
 ## `library_write` operations
 

@@ -18,7 +18,7 @@ installed STEP 7 Safety option and may be absent.
 > signatures, read-backs) is acceptance evidence. Every fail-safe write carries this notice in its guard, its prompt and
 > its result.
 
-The surface stays 11/30/30: the operations belong to `plc_read` and `plc_write` because the safety program is PLC
+The surface stays 13/32/32: the operations belong to `plc_read` and `plc_write` because the safety program is PLC
 software. Method names are in `PlcSafetyMethods` (Contracts), parameters in `WorkerRequest.PlcSafety`, dispatch in
 `TiaMcpServer.OpennessWorker/Program.PlcSafety.cs`, host code in `TiaMcpServer/Plc/Safety/`.
 
@@ -136,6 +136,19 @@ What the server does (verified offline only):
 Not covered: `move_block` and `copy_block` (a move imports into another group and deletes the original; whether TIA
 Portal keeps the group reference then is untested, and the round trip runs in its own transaction), and imports
 through `vci_write`. Check `get_safety_administration` after those. The automatic route has not run live as one call.
+
+## Safety units in the general reads (audit T4, not live-tested)
+
+Before, only `get_safety_administration`/`list_safety_blocks` read `PlcUnitSystemGroup.SafetyUnits`; every general walker
+iterated `Units` only, so on an F-CPU with fail-safe software units the F-program was missing from `browse_project_tree`,
+`plc_read`/`plc_write` block and type resolution, tag comments, external sources and `read_cross_references`. These
+walkers now use `PlcUnits.All` (worker `Openness/Plc/PlcUnits.cs`): `Units`, then `SafetyUnits` (members.txt, read by
+reflection; the reference stubs do not declare it), each used through `PlcUnitBase` (`BlockGroup`, `TagTableGroup`,
+`TypeGroup`, `ExternalSourceGroup`, `Name`). A safety unit is shown and addressed like a software unit
+(`<PLC>/Units/<name>`, node type `SoftwareUnit`), as `list_safety_blocks` already did. A `SafetyUnits` read failure is
+reported (tree: `skipped`; tag comments: `messages`) and the standard units stay readable. Writes into a safety unit still
+pass the fail-safe gates (`plc_safety_login_required`, acceptance guards); `generate_loadable` refuses a safety unit name
+(its documented overload takes `PlcUnit`); the folder and container writes (`PlcSourceFolderTree.Unit`) stay standard-unit only.
 
 ## Guards, confirmation and audit
 

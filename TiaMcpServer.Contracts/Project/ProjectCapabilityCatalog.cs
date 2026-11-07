@@ -125,6 +125,8 @@ public static class ProjectCapabilityCatalog
         if (PlcSimMethods.IsPlcSimMethod(method)) return null;
         // S7-1500 Web API methods act on a configured controller from the host, never on a project.
         if (PlcWebApi.PlcWebApiMethods.IsWebApiMethod(method)) return null;
+        // Siemens documentation reads act on public documentation hosts from the host, never on a project.
+        if (Docs.SiemensDocsMethods.IsDocsMethod(method)) return null;
         if (method == "hmi_write" || HmiWriteMethods.All.Contains(method, StringComparer.Ordinal)) return "hmi_write";
         if (method.StartsWith("hmi_", StringComparison.Ordinal) && method != "hmi_read") return "hmi_read";
         // Granular block editing methods are plc_read / plc_write operations and are gated as those tools.

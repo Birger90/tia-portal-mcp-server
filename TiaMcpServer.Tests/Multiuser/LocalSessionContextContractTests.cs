@@ -26,7 +26,7 @@ public sealed class LocalSessionContextContractTests
             .Select(e => (e.GetProperty("operation").GetString()!, e.GetProperty("applicability").GetString()!))
             .ToList();
         var actual = ProjectCapabilityCatalog.Describe(kind).Select(c => (c.Operation, c.Applicability)).ToList();
-        Assert.Equal(115, expected.Count);
+        Assert.Equal(118, expected.Count);
         Assert.Equal(expected, actual);
     }
 

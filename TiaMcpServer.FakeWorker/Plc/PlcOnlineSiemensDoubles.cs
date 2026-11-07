@@ -19,6 +19,9 @@ namespace Siemens.Engineering.Upload.Configurations
 
     public class ModuleReadAccessPassword
     {
+        /// <summary>Audit T1: documented IsSecureCommunication ("Is secure communication used."); the stand-in reports a secure channel.</summary>
+        public bool IsSecureCommunication { get; set; } = true;
+
         public void SetPassword(SecureString password)
         {
             if (password is null || password.Length == 0) throw new ArgumentException("An empty password was supplied.");
@@ -30,6 +33,9 @@ namespace Siemens.Engineering.Online.Configurations
 {
     public class OnlinePasswordConfiguration
     {
+        /// <summary>Audit T1: documented IsSecureCommunication ("Is secure communication used."); the stand-in reports a secure channel.</summary>
+        public bool IsSecureCommunication { get; set; } = true;
+
         public void SetPassword(SecureString password)
         {
             if (password is null || password.Length == 0) throw new ArgumentException("An empty password was supplied.");

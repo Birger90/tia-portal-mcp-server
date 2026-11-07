@@ -8,7 +8,7 @@ installed TIA Portal V21. The FakeWorker fixture models object access only and i
 Siemens behavior. Run the [live acceptance list](#live-acceptance-list) on a disposable project
 before relying on these operations.
 
-The operations extend existing tools; they added no tool (the counts were 10/27/27, 11/30/30 since the library tools):
+The operations extend existing tools; they added no tool (the counts were 10/27/27, 11/30/30 since the library tools, 12/31/31 since `tia_inbox`, 13/32/32 since `siemens_docs`):
 
 | Tool | Operations added |
 |---|---|
@@ -259,6 +259,9 @@ PROFINET cabling between ports: `list_port_connections` (`network_read`, every m
   identity without a device name; a null `TypeIdentifier` is now the `""` path segment `read_hardware_config` also reports (the
   selector resolver treats null and `""` alike), and an item whose selector cannot be read is null (`interfaceOwner`, partner
   `port`) or, for the port itself, the device name and item name without a path, each with a message. Not live-tested.
+- **Non-port items (K83, not live-tested).** TIA Portal V21 lists `NetworkPort` among the services of every device item (CPU, card
+  reader, display, OPC UA, DP and PN interfaces) but returns it only on ports. The read no longer adds one message per such item:
+  one top-level message counts them and names at most 10. An explicitly named connect/disconnect item still gets its own message.
 - **Writes.** `connect_ports` and `disconnect_ports` take `target` (the port device item) and `partner` (the other port device item,
   kind `deviceItem`). Planning reads `list_port_connections` of the target: a target without the port service fails
   `unsupported_capability` before any change; the effect carries `currentSettings.connected` and `linkedPorts`. An existing link
@@ -494,8 +497,10 @@ the probe against the installed V21 PublicAPI checks the declared return and par
   implemented.
 - "Change device" of a whole station: no documented `Device.ChangeType`; change the head/CPU item
   with `change_device_item_type`.
-- Extension-rack `ImConnection`, PSC export, telecontrol data points, front-panel logo, GSD
-  `GetPrmData`/`SetPrmData`: not in the requested scope.
+- PSC export, front-panel logo, GSD `GetPrmData`/`SetPrmData`: not in the requested scope. The extension-rack
+  `ImConnection`, telecontrol data point files, subnets of a node, the IO controller of a connector, the PC interface
+  assignment, module description updates and communication connections were added by package G (see the
+  [V21 API completion reference](V21_API_COMPLETION_SUMMARY.md#hardware-features-network_read--network_write)).
 - Moving a tag natively: no documented member (see `move_tag`); `move_tag` re-creates it.
 - Placing 64-bit and wider types with `find_free_address` (LReal, LWord, LInt, ULInt, LTOD, DT,
   LDT, DTL): no I/Q/M spelling for those widths is documented in the sources. Existing tags of those

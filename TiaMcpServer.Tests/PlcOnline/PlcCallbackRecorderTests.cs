@@ -15,13 +15,57 @@ public sealed class PlcCallbackRecorderTests
     private static readonly Dictionary<string, string?> Environment = new(StringComparer.Ordinal) { ["PLC_SECRET"] = "s3cret", ["EMPTY"] = "" };
 
     private static PlcCallbackRecorder Recorder(IEnumerable<(string Type, string Selection)>? decisions = null,
-        IEnumerable<(string Type, string Variable)>? passwords = null, Func<Exception, bool>? isFatal = null)
+        IEnumerable<(string Type, string Variable)>? passwords = null, Func<Exception, bool>? isFatal = null, bool allowInsecure = false)
         => new(decisions?.Select(d => new PlcCallbackDecisionInfo { Type = d.Type, Selection = d.Selection }).ToArray(),
             passwords?.Select(p => new PlcCallbackPasswordInfo { Type = p.Type, Variable = p.Variable }).ToArray(),
             new PlcCallbackReflectionAccess(PlcCallbackPolicy.UploadConfigurationsNamespace,
                 configuration => configuration is UploadMissingProducts ? "Products are missing." : null,
                 variable => Environment.GetValueOrDefault(variable)),
-            isFatal);
+            isFatal, allowInsecurePasswordTransfer: allowInsecure);
+
+    [Fact]
+    public void Password_OverANonSecureChannel_IsNotSent_UnlessTheCallerAllowedIt()
+    {
+        // Audit T1: IsSecureCommunication false -> no SetPassword, abort insecure_communication (no password or variable in the detail).
+        var refused = Recorder(passwords: new[] { ("ModuleReadAccessPassword", "PLC_SECRET") });
+        var insecure = new ModuleReadAccessPassword { IsSecureCommunication = false };
+        var thrown = Assert.Throws<PlcCallbackAbortedException>(() => refused.Handle(insecure));
+        Assert.Equal(0, insecure.PasswordLength);
+        Assert.Equal(PlcCallbackPolicy.AbortReasons.InsecureCommunication, refused.Abort!.Reason);
+        Assert.Contains("allowInsecurePasswordTransfer", thrown.Message);
+        Assert.DoesNotContain("PLC_SECRET", refused.Abort.Detail);
+        var seen = Assert.Single(refused.Seen);
+        Assert.Equal(PlcCallbackPolicy.Decisions.Aborted, seen.Decision);
+        Assert.False(seen.SecureCommunication);
+
+        var allowed = Recorder(passwords: new[] { ("ModuleReadAccessPassword", "PLC_SECRET") }, allowInsecure: true);
+        var sent = new ModuleReadAccessPassword { IsSecureCommunication = false };
+        allowed.Handle(sent);
+        Assert.Equal(6, sent.PasswordLength);
+        Assert.Equal(PlcCallbackPolicy.Decisions.PasswordSet, Assert.Single(allowed.Seen).Decision);
+        Assert.False(allowed.Seen[0].SecureCommunication);
+
+        var secure = Recorder(passwords: new[] { ("ModuleReadAccessPassword", "PLC_SECRET") });
+        secure.Handle(new ModuleReadAccessPassword());
+        Assert.True(Assert.Single(secure.Seen).SecureCommunication);
+    }
+
+    [Fact]
+    public void Password_InsecureAbortAndOptIn_PassTheHostContract()
+    {
+        var passwords = new[] { new PlcCallbackPasswordInfo { Type = "ModuleReadAccessPassword", Variable = "PLC_SECRET" } };
+        var refused = Recorder(passwords: new[] { ("ModuleReadAccessPassword", "PLC_SECRET") });
+        Assert.Throws<PlcCallbackAbortedException>(() => refused.Handle(new ModuleReadAccessPassword { IsSecureCommunication = false }));
+        TiaMcpServer.PlcOnline.PlcOnlinePayloadContract.ValidateCallbacks(refused.Seen, refused.Abort, Array.Empty<PlcCallbackDecisionInfo>(), passwords);
+
+        var allowed = Recorder(passwords: new[] { ("ModuleReadAccessPassword", "PLC_SECRET") }, allowInsecure: true);
+        allowed.Handle(new ModuleReadAccessPassword { IsSecureCommunication = false });
+        TiaMcpServer.PlcOnline.PlcOnlinePayloadContract.ValidateCallbacks(allowed.Seen, null, Array.Empty<PlcCallbackDecisionInfo>(), passwords,
+            allowInsecurePasswordTransfer: true);
+        // Without the opt-in the same evidence is a contract breach.
+        Assert.ThrowsAny<System.Text.Json.JsonException>(() =>
+            TiaMcpServer.PlcOnline.PlcOnlinePayloadContract.ValidateCallbacks(allowed.Seen, null, Array.Empty<PlcCallbackDecisionInfo>(), passwords));
+    }
 
     [Fact]
     public void Selection_IsAnsweredOnlyByTheCallersDecision()
@@ -50,15 +94,19 @@ public sealed class PlcCallbackRecorderTests
         var recorder = Recorder();
         var configuration = new UploadMissingProducts { CurrentSelection = UploadMissingProductsSelections.TryUpload };
 
-        var thrown = Assert.Throws<PlcCallbackAbortedException>(() => recorder.Handle(configuration));
+        // Audit T2: the documented NoAction is set and the abort recorded without a throw from the callback.
+        recorder.Handle(configuration);
 
-        Assert.Equal(UploadMissingProductsSelections.TryUpload, configuration.CurrentSelection);
+        Assert.Equal(UploadMissingProductsSelections.NoAction, configuration.CurrentSelection);
         var abort = recorder.Abort!;
         Assert.Equal(PlcCallbackPolicy.AbortReasons.DecisionMissing, abort.Reason);
         Assert.Equal("UploadMissingProducts", abort.DecisionKey);
         Assert.Equal(new[] { "NoAction", "TryUpload" }, abort.AvailableSelections);
-        Assert.Contains("NoAction, TryUpload", thrown.Message);
-        Assert.Equal(PlcCallbackPolicy.Decisions.Aborted, Assert.Single(recorder.Seen).Decision);
+        Assert.Contains("NoAction, TryUpload", PlcCallbackRecorder.AbortMessage(abort));
+        Assert.Contains("answered NoAction", abort.Detail);
+        var seen = Assert.Single(recorder.Seen);
+        Assert.Equal((PlcCallbackPolicy.Decisions.Selected, "NoAction"), (seen.Decision, seen.Selection));
+        TiaMcpServer.PlcOnline.PlcOnlinePayloadContract.ValidateCallbacks(recorder.Seen, abort, Array.Empty<PlcCallbackDecisionInfo>(), Array.Empty<PlcCallbackPasswordInfo>());
     }
 
     [Theory]
@@ -70,10 +118,10 @@ public sealed class PlcCallbackRecorderTests
         var recorder = Recorder(new[] { ("UploadMissingProducts", selection) });
         var configuration = new UploadMissingProducts { CurrentSelection = UploadMissingProductsSelections.TryUpload };
 
-        Assert.Throws<PlcCallbackAbortedException>(() => recorder.Handle(configuration));
+        recorder.Handle(configuration); // Audit T2: answered NoAction, no throw.
 
         Assert.Equal(PlcCallbackPolicy.AbortReasons.SelectionUnavailable, recorder.Abort!.Reason);
-        Assert.Equal(UploadMissingProductsSelections.TryUpload, configuration.CurrentSelection);
+        Assert.Equal(UploadMissingProductsSelections.NoAction, configuration.CurrentSelection);
     }
 
     [Fact]
@@ -113,7 +161,9 @@ public sealed class PlcCallbackRecorderTests
         Assert.Equal(PlcCallbackPolicy.AbortReasons.DecisionNotApplicable, selectionForPassword.Abort!.Reason);
 
         var passwordForSelection = Recorder(passwords: new[] { ("UploadMissingProducts", "PLC_SECRET") });
-        Assert.Throws<PlcCallbackAbortedException>(() => passwordForSelection.Handle(new UploadMissingProducts()));
+        var selection = new UploadMissingProducts { CurrentSelection = UploadMissingProductsSelections.TryUpload };
+        passwordForSelection.Handle(selection); // Audit T2: answered NoAction, no throw.
+        Assert.Equal(UploadMissingProductsSelections.NoAction, selection.CurrentSelection);
         Assert.Equal(PlcCallbackPolicy.AbortReasons.DecisionNotApplicable, passwordForSelection.Abort!.Reason);
     }
 
@@ -152,11 +202,16 @@ public sealed class PlcCallbackRecorderTests
         Assert.Throws<PlcCallbackAbortedException>(() => recorder.Handle(new UploadNotice()));
         var later = new UploadMissingProducts { CurrentSelection = UploadMissingProductsSelections.TryUpload };
 
-        Assert.Throws<PlcCallbackAbortedException>(() => recorder.Handle(later));
+        // Audit T2: a later selection with a documented NoAction is answered NoAction without a throw (never the caller's answer).
+        recorder.Handle(later);
+        Assert.Throws<PlcCallbackAbortedException>(() => recorder.Handle(new UploadNotice()));
 
-        Assert.Equal(UploadMissingProductsSelections.TryUpload, later.CurrentSelection);
-        Assert.Equal(2, recorder.Seen.Count);
-        Assert.All(recorder.Seen, seen => Assert.Equal(PlcCallbackPolicy.Decisions.Aborted, seen.Decision));
+        Assert.Equal(UploadMissingProductsSelections.NoAction, later.CurrentSelection);
+        Assert.Equal(3, recorder.Seen.Count);
+        Assert.Equal(new[] { PlcCallbackPolicy.Decisions.Aborted, PlcCallbackPolicy.Decisions.Selected, PlcCallbackPolicy.Decisions.Aborted },
+            recorder.Seen.Select(seen => seen.Decision));
+        TiaMcpServer.PlcOnline.PlcOnlinePayloadContract.ValidateCallbacks(recorder.Seen, recorder.Abort,
+            new[] { new PlcCallbackDecisionInfo { Type = "UploadMissingProducts", Selection = "NoAction" } }, Array.Empty<PlcCallbackPasswordInfo>());
         Assert.EndsWith("UploadNotice", recorder.Abort!.Type);
         Assert.Equal(new[] { "UploadMissingProducts" }, recorder.UnusedKeys());
     }

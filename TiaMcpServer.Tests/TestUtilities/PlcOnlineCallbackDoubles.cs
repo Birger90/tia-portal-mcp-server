@@ -24,6 +24,9 @@ namespace Siemens.Engineering.Upload.Configurations
     {
         public int PasswordLength { get; private set; }
 
+        /// <summary>Audit T1: documented IsSecureCommunication; secure unless a test says otherwise.</summary>
+        public bool IsSecureCommunication { get; set; } = true;
+
         public void SetPassword(SecureString password) => PasswordLength = password.Length;
     }
 

@@ -37,6 +37,7 @@ public static class HardwareModulePayloadContract
         HardwareModuleMethods.ExportCax => typeof(HardwareCaxExportResultInfo),
         HardwareModuleMethods.ImportCax => typeof(HardwareCaxImportResultInfo),
         HardwareModuleMethods.ExportIoMap => typeof(IoMapExportResultInfo),
+        var feature when HardwareFeatureMethods.IsFeature(feature) => typeof(HardwareFeatureResultInfo),
         _ => throw new ArgumentOutOfRangeException(nameof(operation), operation, "Not a hardware-module operation."),
     };
 
@@ -209,6 +210,18 @@ public static class HardwareModulePayloadContract
             foreach (var (list, member) in new[] { (value.DevicesBefore, "devicesBefore"), (value.DevicesAfter, "devicesAfter"), (value.AddedDevices, "addedDevices"),
                 (value.RemovedDevices, "removedDevices"), (value.Messages, "messages") })
                 RejectNulls(list, member);
+        }).Element,
+        var feature when HardwareFeatureMethods.IsFeature(feature) => CanonicalJson.NormalizeWorkerPayload<HardwareFeatureResultInfo>(payload, value =>
+        {
+            if (value.Operation != operation.Operation) throw new JsonException("The hardware feature result contradicts the request.");
+            ValidateIdentity(value.Target, "target", operation.Target);
+            RejectNulls(value.Calls, "calls");
+            RejectNulls(value.Values, "values");
+            RejectNulls(value.Items, "items");
+            RejectNulls(value.Messages, "messages");
+            if (value.ReadBack is not ("matched" or "notAvailable" or "unreadable")) throw new JsonException("'readBack' is not a known state.");
+            if (feature == HardwareFeatureMethods.ExportTelecontrolDataPoints && (value.FilePath != operation.FilePath || value.FileSha256 is not { Length: 64 }))
+                throw new JsonException("The data point export result does not name the written file.");
         }).Element,
         HardwareModuleMethods.ExportIoMap => CanonicalJson.NormalizeWorkerPayload<IoMapExportResultInfo>(payload, value =>
         {

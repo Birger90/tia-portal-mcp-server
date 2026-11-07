@@ -55,6 +55,19 @@ internal sealed partial class HmiWorkingState
                 }
 
                 break;
+            case "resize_screen":
+                target = Identity("Screen", r.ScreenName!);
+                Change("size", null, "device display size");
+                break;
+            case "set_log_duration":
+                target = Identity("Log", $"{r.PropertyName}/{r.ObjectName}");
+                Change(r.PropertyName!, null, r.Value);
+                break;
+            case "set_opcua_alarm_type_node":
+                target = Identity("OpcUaAlarmType", r.ObjectName!);
+                Change("nodeId", null, r.Value);
+                Change("connection", null, r.Connection);
+                break;
             default:
                 var path = r.Operation == "create_plant_view_node" ? (r.NodePath is null ? r.NodeName! : r.NodePath + "/" + r.NodeName) : r.NodePath!;
                 target = Identity("PlantViewNode", $"{r.PlantViewName}/{path}");

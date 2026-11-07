@@ -137,7 +137,7 @@ siehe [docs/development/building.md](docs/development/building.md), für den MCP
 - Neue Schreiboperationen bauen auf der abgesicherten Pipeline auf (`Safety/Pipeline`), mit `dryRun`,
   Guards, Verifikation und Audit. Keine Tokens, keine eigene Parallel-Mechanik.
 - Ein neues Werkzeug ist selten nötig: Neue Fähigkeiten kommen als Operationen in bestehende Werkzeuge
-  (`plc_read`, `plc_write`, `network_read` …). Die Werkzeugzahl (11/30/30) ändert sich nur mit gutem Grund.
+  (`plc_read`, `plc_write`, `network_read` …). Die Werkzeugzahl (13/32/32) ändert sich nur mit gutem Grund.
 
 ### Dokumentation
 

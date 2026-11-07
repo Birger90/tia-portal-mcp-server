@@ -1,0 +1,86 @@
+{
+ "title": "TIA Portal Openness: API for automation of engineering workflows",
+ "lang": "en-US",
+ "id": "gpR5ZkKnLSuzVoGX1ovoKg",
+ "originId": "TIAPortalOpennessenUS_21.00.00.00_release",
+ "baseId": "TIAPortalOpennessenUS_21.00.00.00_release",
+ "lastEdition": "2026-04-01",
+ "lastPublication": "2026-04-01T09:48:21.999000",
+ "clusterId": "TIAPortalOpenness",
+ "editorialType": "BOOK",
+ "khubVersion": "5.1.3",
+ "openMode": "FLUIDTOPICS",
+ "prettyUrl": "/go/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows",
+ "readerUrl": "/r/en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows",
+ "rightsApiEndpoint": "/api/khub/maps/gpR5ZkKnLSuzVoGX1ovoKg/rights",
+ "topicsApiEndpoint": "/api/khub/maps/gpR5ZkKnLSuzVoGX1ovoKg/topics",
+ "attachmentsApiEndpoint": "/api/khub/maps/gpR5ZkKnLSuzVoGX1ovoKg/attachments",
+ "metadata": [
+  {
+   "key": "Product",
+   "label": "Product",
+   "values": [
+    "TIAPortal"
+   ]
+  },
+  {
+   "key": "Language",
+   "label": "Language",
+   "values": [
+    "en-US"
+   ]
+  },
+  {
+   "key": "SoftwareVersion",
+   "label": "Software Version",
+   "values": [
+    "21.00.00.00"
+   ]
+  },
+  {
+   "key": "tia:SoftwareVersionFilter",
+   "label": "Version",
+   "values": [
+    "V21"
+   ]
+  },
+  {
+   "key": "ft:title",
+   "label": "ft:title",
+   "values": [
+    "TIA Portal Openness: API for automation of engineering workflows"
+   ]
+  },
+  {
+   "key": "ft:locale",
+   "label": "ft:locale",
+   "values": [
+    "en-US"
+   ]
+  },
+  {
+   "key": "ft:clusterId",
+   "label": "ft:clusterId",
+   "values": [
+    "TIAPortalOpenness"
+   ]
+  },
+  {
+   "key": "ft:lastPublication",
+   "label": "ft:lastPublication",
+   "values": [
+    "2026-04-01T09:48:21.999000"
+   ]
+  },
+  {
+   "key": "ft:prettyUrl",
+   "label": "ft:prettyUrl",
+   "values": [
+    "en-us/v21/tia-portal-openness-api-for-automation-of-engineering-workflows"
+   ]
+  }
+ ],
+ "fingerprint": "1e51afaa25c0e38eea2704726ea85493",
+ "pbkConfidential": false,
+ "translationError": false
+}

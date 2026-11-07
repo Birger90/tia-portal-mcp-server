@@ -185,7 +185,10 @@ internal sealed class McpProtocolTestHarness : IAsyncDisposable
             accessPolicy, plcWebApiWorld, new JsonlWriteAuditSink(
                 auditDirectory ?? Path.Combine(Path.GetTempPath(), "tia-plconline-audit-" + Guid.NewGuid().ToString("N"))),
             TiaMcpServer.Tests.PlcWebApi.FakePlcWebApiWorld.Environment));
+        // siemens_docs reads the recorded documentation responses through the real client; no network.
+        collection.AddSingleton(TiaMcpServer.Tests.SiemensDocs.SiemensDocsFixtures.Service(mode: accessMode));
         collection.AddSingleton(new TiaMcpServer.Vci.VciBreadcrumbLocation(Path.Combine(Path.GetTempPath(), "vci-test-" + Guid.NewGuid().ToString("N") + ".json")));
+        collection.AddSingleton(new TiaMcpServer.ClaudeInbox.ClaudeInboxLocation(Path.Combine(Path.GetTempPath(), "tia-inbox-test-" + Guid.NewGuid().ToString("N"))));
         collection.AddSingleton(sp => new WriteExecution(
             new OpennessWriteBindingGate(sp.GetRequiredService<OpennessWorkerClient>()),
             new JsonlWriteAuditSink(auditDirectory), WriteGuardRegistration.ProductionCatalog(), TimeProvider.System));

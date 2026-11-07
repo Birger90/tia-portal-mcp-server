@@ -89,6 +89,9 @@ internal static class HmiUnifiedConfiguration
             M.CreatePlantViewNode => CreatePlantViewNode(project, software, write),
             M.DeletePlantViewNode => DeletePlantViewNode(project, software, write),
             M.SetPlantObjectInterfaceProperty => SetPlantObjectInterfaceProperty(project, software, write),
+            M.ResizeScreen => ResizeScreen(software, write),
+            M.SetLogDuration => SetLogDuration(software, write),
+            M.SetOpcUaAlarmTypeNode => SetOpcUaAlarmTypeNode(software, write),
             _ => throw new WorkerOperationException(WorkerFailureCategories.ValidationError, $"Unsupported HMI worker method '{method}'."),
         };
 
@@ -346,6 +349,79 @@ internal static class HmiUnifiedConfiguration
 
         throw new WorkerOperationException(WorkerFailureCategories.ApiMemberMissing,
             $"No {M.PlantViewsProviderType} was found among the services of the HMI software or the project ({string.Join("; ", reasons)}). V21 documents the type but not its owner; plant views need the WinCC Unified plant model option. Nothing was changed.");
+    }
+
+    // ---- package G ---------------------------------------------------------------------------------------
+
+    private static HmiWriteOutcomeInfo ResizeScreen(HmiSoftware software, HmiWriteRequestInfo write)
+    {
+        var screen = HmiScreenWriter.Screen(software, write.ScreenName, write.GroupPath);
+        var resize = HmiScreenWriter.Bind(screen, "ResizeScreen", Type.EmptyTypes);
+        var outcome = new HmiWriteOutcomeInfo { ObjectName = write.ScreenName! };
+        var messages = new List<string>();
+        var before = $"{Optional(screen, "Width", messages) ?? "?"}x{Optional(screen, "Height", messages) ?? "?"}";
+        try
+        {
+            Set(outcome, "ResizeScreen", () => HmiScreenWriter.Invoke(resize, screen));
+            outcome.AppliedProperties.Add($"size {before} -> {Optional(screen, "Width", messages) ?? "?"}x{Optional(screen, "Height", messages) ?? "?"}");
+            return outcome;
+        }
+        catch (Exception ex) when (ex is EngineeringException or WorkerOperationException) { throw Failure(ex, outcome); }
+    }
+
+    private static HmiWriteOutcomeInfo SetLogDuration(HmiSoftware software, HmiWriteRequestInfo write)
+    {
+        var name = HmiScreenWriter.Required(write.ObjectName, "objectName");
+        var parts = HmiScreenWriter.Required(write.PropertyName, "propertyName").Split('.');
+        var logs = Value(software, parts[0] == "AlarmLog" ? "AlarmLogs" : "DataLogs")
+            ?? throw new WorkerOperationException(WorkerFailureCategories.WorkerOperationFailed, $"HmiSoftware.{parts[0]}s returned null.");
+        var log = Items(logs).FirstOrDefault(l => Text(l, "Name") == name)
+            ?? throw new WorkerOperationException(WorkerFailureCategories.TargetNotFound, $"No {parts[0]} '{name}' was found. Nothing was changed.");
+        var segment = parts[1] == "SegmentTimePeriod";
+        var owner = Value(log, segment ? "Segment" : "Settings")
+            ?? throw new WorkerOperationException(WorkerFailureCategories.WorkerOperationFailed, $"{parts[0]} '{name}' has no {(segment ? "Segment" : "Settings")}.");
+        var duration = Value(owner, parts[1])
+            ?? throw new WorkerOperationException(WorkerFailureCategories.WorkerOperationFailed, $"{parts[0]} '{name}' has no {parts[1]}.");
+        var numbers = HmiScreenWriter.Required(write.Value, "value").Split(':').Select(p => uint.Parse(p, System.Globalization.CultureInfo.InvariantCulture)).ToList();
+        while (numbers.Count < 5) numbers.Add(0);
+        var setter = HmiScreenWriter.Bind(duration, segment ? "SetSegmentDuration" : "SetLogDuration", new[] { typeof(uint), typeof(uint), typeof(uint), typeof(uint), typeof(uint) });
+        var reader = HmiScreenWriter.Bind(duration, segment ? "GetStringSegmentDuration" : "GetStringLogDuration", Type.EmptyTypes);
+        var outcome = new HmiWriteOutcomeInfo { ObjectName = name };
+        try
+        {
+            var before = HmiScreenWriter.Invoke(reader, duration)?.ToString();
+            Set(outcome, segment ? "SetSegmentDuration" : "SetLogDuration", () => HmiScreenWriter.Invoke(setter, duration, numbers.Cast<object>().ToArray()));
+            var parts2 = new[] { "Days", "Hours", "Minutes", "Seconds", "Ticks" };
+            for (var index = 0; index < parts2.Length; index++)
+                if (Value(duration, parts2[index]) is uint actual && actual != numbers[index])
+                    throw new WorkerOperationException(WorkerFailureCategories.PostconditionFailed,
+                        $"{parts[1]}.{parts2[index]} of {parts[0]} '{name}' reads {actual} after the set (requested {numbers[index]}).");
+            outcome.AppliedProperties.Add($"readBack {before} -> {HmiScreenWriter.Invoke(reader, duration)}");
+            return outcome;
+        }
+        catch (Exception ex) when (ex is EngineeringException or WorkerOperationException) { throw Failure(ex, outcome); }
+    }
+
+    private static HmiWriteOutcomeInfo SetOpcUaAlarmTypeNode(HmiSoftware software, HmiWriteRequestInfo write)
+    {
+        var name = HmiScreenWriter.Required(write.ObjectName, "objectName");
+        var types = Value(software, "OpcUaAlarmTypes") ?? throw new WorkerOperationException(WorkerFailureCategories.WorkerOperationFailed, "HmiSoftware.OpcUaAlarmTypes returned null.");
+        var alarmType = Items(types).FirstOrDefault(t => Text(t, "Name") == name)
+            ?? throw new WorkerOperationException(WorkerFailureCategories.TargetNotFound, $"No OPC UA alarm type '{name}' was found. Nothing was changed.");
+        var set = HmiScreenWriter.Bind(alarmType, "SetNodeIdAndConnection", new[] { typeof(string), typeof(string) });
+        var outcome = new HmiWriteOutcomeInfo { ObjectName = name };
+        try
+        {
+            Set(outcome, "SetNodeIdAndConnection", () => HmiScreenWriter.Invoke(set, alarmType, write.Value!, write.Connection!));
+            var messages = new List<string>();
+            var node = Optional(alarmType, "NodeId", messages);
+            var connection = Optional(alarmType, "Connection", messages);
+            if (node is not null && node != write.Value)
+                throw new WorkerOperationException(WorkerFailureCategories.PostconditionFailed, $"NodeId of OPC UA alarm type '{name}' reads '{node}' after the set.");
+            outcome.AppliedProperties.Add(node is null ? "readBack unavailable (no NodeId property)" : $"readBack NodeId {node}, Connection {connection}");
+            return outcome;
+        }
+        catch (Exception ex) when (ex is EngineeringException or WorkerOperationException) { throw Failure(ex, outcome); }
     }
 
     private static object? Value(object owner, string name)

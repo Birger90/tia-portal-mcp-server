@@ -64,6 +64,7 @@ public sealed class PlcOnlineConnectionWriteDomain
             + (effect.PasswordKeys.Count == 0
                 ? "Any password prompt aborts the connection."
                 : $"Password prompts are answered only for {ConfirmationText.Line(string.Join(", ", effect.PasswordKeys))} from the named environment variables.")
+            + TiaMcpServer.PlcDownload.PlcDownloadWriteDomain.PasswordChannelSentence(effect.PasswordKeys.Count > 0, effect.AllowInsecurePasswordTransfer == true)
             + TiaMcpServer.PlcDownload.PlcDownloadWriteDomain.TrustSentence(effect.TrustedCertificates, "connection")
             + " Any other prompt aborts. "
             + PortalConfirmationSentence(effect.PortalConfirmations);
@@ -109,9 +110,9 @@ public sealed class PlcOnlineConnectionWriteDomain
         if (item.Action == PlcOnlineConnectionActions.GoOffline)
         {
             if (item.PcInterface is not null || item.TargetInterface is not null || item.Passwords.Count > 0 || item.Mode is not null
-                || item.TrustedCertificates is not null)
+                || item.TrustedCertificates is not null || item.AllowInsecurePasswordTransfer)
                 return Invalid("go_offline takes only plcName, timeoutSeconds, portalConfirmations and dryRun; mode, pcInterface, targetInterface, passwords "
-                    + "and trustedCertificates apply to go_online.");
+                    + "and trustedCertificates apply to go_online (so does allowInsecurePasswordTransfer).");
             return WriteValidation.Valid();
         }
 
@@ -193,6 +194,7 @@ public sealed class PlcOnlineConnectionWriteDomain
             Passwords = item.Passwords.ToList(),
             PortalConfirmations = planned.PortalConfirmations,
             TrustedCertificates = planned.TrustedCertificates.ToList(),
+            AllowInsecurePasswordTransfer = planned.AllowInsecurePasswordTransfer == true,
         });
     }
 
@@ -209,7 +211,7 @@ public sealed class PlcOnlineConnectionWriteDomain
     {
         PlcOnlineActionResultInfo Decode(string payload)
             => PlcOnlinePayloadContract.DecodeOnlineAction(payload, planned.Action, planned.PlcName, planned.DeviceName, planned.Path, passwords,
-                planned.PortalConfirmations, planned.TrustedCertificates);
+                planned.PortalConfirmations, planned.TrustedCertificates, planned.AllowInsecurePasswordTransfer == true);
 
         if (!result.Success)
         {

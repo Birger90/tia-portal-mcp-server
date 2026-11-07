@@ -21,6 +21,7 @@ public sealed class PlcOnlineCatalogTests
         foreach (var mode in new[] { McpAccessMode.ReadOnly, McpAccessMode.ReadWrite, McpAccessMode.Full })
             Assert.True(OperationPolicyCatalog.IsCapabilityAllowed(mode, OperationCapability.OnlineObserve));
         Assert.Equal(new[] { PlcOnlineMethods.CompareToOnline, PlcOnlineMethods.CompareHardwareToOnline, TiaMcpServer.Contracts.Plc.PlcSourceFolderMethods.ScanAccessibleDevices }
+            .Concat(TiaMcpServer.Contracts.Plc.Settings.PlcUmacMethods.UmcServerReads) // package G: the UMC server reads
             .OrderBy(name => name, StringComparer.Ordinal), OperationPolicyCatalog.AllOperationNames
             .Where(name => OperationPolicyCatalog.GetCapability(name) == OperationCapability.OnlineObserve).OrderBy(name => name, StringComparer.Ordinal));
         Assert.True(OperationPolicyCatalog.RequiresExpectedSessionIdentity(PlcOnlineMethods.CompareHardwareToOnline));

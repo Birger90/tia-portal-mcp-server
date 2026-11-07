@@ -27,7 +27,7 @@ Netzwerkoperationen und den aktuellen abgesicherten kanonischen Vertrag. Die his
 ## Unterstützte Operationen
 
 Phase 4 fügt dem bestehenden Tool `network_write` genau drei Schreiboperationen hinzu. Es wurde kein neues MCP-Tool
-hinzugefügt. Die aktuelle Oberfläche umfasst 11 Tools in read-only und 30 in jedem schreibfähigen Modus. `network_write` ist in read-write und full verfügbar.
+hinzugefügt. Die aktuelle Oberfläche umfasst 13 Tools in read-only und 32 in jedem schreibfähigen Modus. `network_write` ist in read-write und full verfügbar.
 
 | Operation | Zweck | Erforderliche Request-Felder |
 |---|---|---|

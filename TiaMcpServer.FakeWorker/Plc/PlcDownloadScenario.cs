@@ -138,6 +138,11 @@ sealed class PlcDownloadScenario(PlcDownloadScenario.Outcome outcome)
                 plcDownloadOutcome: WorkerJson.SerializePayload(result));
         }
 
+        // Audit T2: an unanswered selection answered NoAction returns normally; the recorded abort decides, like the worker.
+        if (result.Abort is not null)
+            throw new WorkerOperationException(WorkerFailureCategories.WorkerOperationFailed, PlcDownloadPolicy.AbortMessage(result.Abort),
+                plcDownloadOutcome: WorkerJson.SerializePayload(result));
+
         var confirmations = new PlcDownloadPortalConfirmationLog();
         if (outcome == Outcome.PortalConfirmation)
             confirmations.Record("Siemens.Engineering.ConfirmationEventArgs", "Do you want to continue?",

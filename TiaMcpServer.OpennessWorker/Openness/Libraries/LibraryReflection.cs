@@ -103,6 +103,10 @@ internal static class LibraryReflection
     /// <summary>A required property, read on the documented declaring type (never a derived shadow).</summary>
     public static object? Required(object target, Type declaringType, string name, string documented)
     {
+        // K82: a null owner made PropertyInfo.GetValue throw an unhandled TargetException ("non-static method requires a target").
+        if (target is null)
+            throw new WorkerOperationException(WorkerFailureCategories.WorkerOperationFailed,
+                $"{documented} cannot be read: TIA Portal returned no owning object (null). Nothing was changed.");
         var property = LibraryRuntimeBinding.Property(declaringType, name, out var error) ?? throw Missing(error, documented);
         try
         {
