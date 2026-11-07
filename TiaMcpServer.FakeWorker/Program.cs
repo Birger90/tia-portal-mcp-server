@@ -139,6 +139,7 @@ var silentTechnologyObjects = new TechnologyObjectScenario(silent: true);
 var plcSecurity = new PlcSecurityScenario(withUnprotect: true);
 var plcChangeDetection = new PlcChangeDetectionScenario();
 var plcSettings = new PlcSettingsScenario();
+var plcSettingsStandalone = new PlcSettingsScenario { Standalone = true };
 var plcSecurityNoUnprotect = new PlcSecurityScenario(withUnprotect: false);
 var plcSecurityControlUnavailable = new PlcSecurityScenario(withUnprotect: true, controlRetrievable: false);
 var programAnalysis = new ProgramAnalysisScenario();
@@ -983,6 +984,9 @@ while ((line = Console.In.ReadLine()) is not null)
             break;
         case "plc-settings":
             Respond(plcSettings.Handle(line));
+            break;
+        case "plc-settings-standalone":
+            Respond(plcSettingsStandalone.Handle(line));
             break;
         case "plc-security-no-unprotect":
             Respond(plcSecurityNoUnprotect.Handle(line));

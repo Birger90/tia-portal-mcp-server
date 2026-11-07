@@ -18,7 +18,12 @@ public static partial class PlcSettingsRun
     private static PlcSettingsReadInfo ReadObjects(string method, PlcSettingsContext? context, PlcSettingsReadInfo result, PlcSettingsRequestInfo info)
     {
         if (context is null) return result;
-        var section = new PlcSettingsSectionInfo { Name = method, Service = PlcSettingsCatalog.Find(method)?.Service, Owner = PlcSettingsNames.ProjectOwner };
+        // K92: a markings read needs a bound Multiuser local session; a standalone project fails the item (unsupported_capability)
+        // instead of returning an unavailable section.
+        if (method is M.GetMarkings or M.GetMarkState && context.LocalSession is null)
+            throw new RuntimeBindingException(WorkerFailureCategories.UnsupportedCapability, NoLocalSession + " Nothing was read.");
+        // The owner is named only once the service was found (the host contract rejects an owner on a section that is not offered).
+        var section = new PlcSettingsSectionInfo { Name = method, Service = PlcSettingsCatalog.Find(method)?.Service };
         result.Project.Add(section);
         try
         {
@@ -30,6 +35,7 @@ public static partial class PlcSettingsRun
                     section.Service = "Siemens.Engineering.Multiuser.MarkingService";
                     var markings = Call(RequireMethod(service, "GetMarkings", Type.EmptyTypes, "MarkingService.GetMarkings()"), service);
                     section.Offered = true;
+                    section.Owner = PlcSettingsNames.ProjectOwner;
                     foreach (var name in new[] { "AllMarkings", "ConflictedMarkings" })
                         section.Collections.Add(Collection(context, name, () => markings is null ? null : Get(markings, name), "MarkedObject", new[] { "MarkedObject", "MarkState" },
                             special: (marking, property) => property == "MarkedObject" ? RuntimeServiceValues.Project(context.DescribeObject(Get(marking, "MarkedObject"))) : null));
@@ -42,6 +48,7 @@ public static partial class PlcSettingsRun
                     var target = context.ResolveObject(Required(info.ObjectPath, "objectPath"));
                     var (state, markable) = MarkState(service, target);
                     section.Offered = true;
+                    section.Owner = PlcSettingsNames.ProjectOwner;
                     section.Properties.Add(new PlcSettingPropertyInfo { Name = "Object", Value = RuntimeServiceValues.Project(context.DescribeObject(target)) });
                     section.Properties.Add(new PlcSettingPropertyInfo { Name = "MarkState", Value = RuntimeServiceValues.Project(state) });
                     section.Properties.Add(new PlcSettingPropertyInfo { Name = "IsMarkable", Value = RuntimeServiceValues.Project(markable) });
@@ -99,6 +106,7 @@ public static partial class PlcSettingsRun
             section.Unavailable = RuntimeServiceValues.Bound($"{exception.GetType().Name}: {exception.Message}");
         }
 
+        if (!section.Offered) section.Owner = null;
         return result;
     }
 
@@ -126,8 +134,10 @@ public static partial class PlcSettingsRun
         section.Service = null;
         section.Owner = context.DescribeObject(target);
         section.Offered = true;
-        var names = new List<string>();
-        if (composition is not null) names.Add(composition);
+        // K94: each composition's EngineeringCompositionInfo.Type is listed too (null when a name was given), so a member that is
+        // one object (PlcSoftware.BlockGroup is a PlcSystemBlockGroup) can be told from a composition of many.
+        var names = new List<(string Name, string? Type)>();
+        if (composition is not null) names.Add((composition, null));
         else
         {
             var infos = InvokeInterface(target, "IEngineeringObject", "GetCompositionInfos", Type.EmptyTypes, Array.Empty<object>());
@@ -139,14 +149,15 @@ public static partial class PlcSettingsRun
                     break;
                 }
 
-                if (info is not null && ReadText(info, "Name") is { } name) names.Add(name);
+                if (info is not null && ReadText(info, "Name") is { } name) names.Add((name, OptionalText(info, "Type")));
             }
         }
 
         var list = new PlcSettingsCollectionInfo { Name = "Compositions" };
-        foreach (var name in names)
+        foreach (var (name, type) in names)
         {
             var item = new PlcSettingsItemInfo { Key = name };
+            if (type is not null) item.Properties.Add(new PlcSettingPropertyInfo { Name = "Type", Value = RuntimeServiceValues.Project(type) });
             item.Collections.Add(CreationCollection(context, "CreationInfos",
                 () => InvokeInterface(target, "IEngineeringObject", "GetCreationInfos", new[] { typeof(string) }, new object[] { name })));
             if (composition is not null)
@@ -172,6 +183,19 @@ public static partial class PlcSettingsRun
                 + string.Join("|", Enumerate(Get(p!, "SupportedTypes")).Select(t => t is Type type ? type.FullName : t?.ToString())))) ),
             _ => null,
         });
+
+    /// <summary>Like <see cref="ReadText"/>, null when the member is missing or unreadable (an extra detail, never a failure).</summary>
+    private static string? OptionalText(object target, string name)
+    {
+        try
+        {
+            return ReadText(target, name);
+        }
+        catch (RuntimeBindingException)
+        {
+            return null;
+        }
+    }
 
     private static string? ReadText(object target, string name)
     {
@@ -316,11 +340,13 @@ public static partial class PlcSettingsRun
 
     private static object MarkingService(PlcSettingsContext context)
     {
-        var session = context.LocalSession ?? throw new RuntimeBindingException(WorkerFailureCategories.UnsupportedCapability,
-            "Markings exist only in a Multiuser local session (LocalSession.MarkingService); the bound project is no local session. Nothing was changed.");
+        var session = context.LocalSession ?? throw new RuntimeBindingException(WorkerFailureCategories.UnsupportedCapability, NoLocalSession + " Nothing was changed.");
         return Get(session, "MarkingService")
             ?? throw new RuntimeBindingException(WorkerFailureCategories.UnsupportedCapability, "LocalSession.MarkingService returned null. Nothing was changed.");
     }
+
+    private const string NoLocalSession =
+        "Markings exist only in a Multiuser local session (LocalSession.MarkingService); the bound project is a standalone project, not a local session.";
 
     private static (string? State, object? Markable) MarkState(object service, object target)
     {

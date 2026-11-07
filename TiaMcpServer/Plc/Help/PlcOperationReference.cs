@@ -9,8 +9,11 @@ using TiaMcpServer.Contracts.Plc;
 
 namespace TiaMcpServer.Plc;
 
-/// <summary>One field of a described operation: its wire name and its full documentation.</summary>
-public sealed record PlcOperationFieldDescription(string Name, bool Required, string? Description);
+/// <summary>
+/// One field of a described operation: its wire name and its documentation for that operation. <paramref name="Trimmed"/> is
+/// true when parts of the field's shared description that name only other operations were left out (K93).
+/// </summary>
+public sealed record PlcOperationFieldDescription(string Name, bool Required, string? Description, bool Trimmed = false);
 
 /// <summary>One operation as describe_operations returns it.</summary>
 public sealed record PlcOperationDescription(
@@ -41,9 +44,10 @@ public sealed record PlcOperationDescribeResult(
 /// they were shortened. Computed from <see cref="PlcOperationCatalog"/> (fields), the <see cref="DescriptionAttribute"/> of
 /// every <see cref="PlcOperationRequest"/> field (field rules) and the reference texts <see cref="ReadTool"/> and
 /// <see cref="WriteTool"/> (operation rules). The texts are split into segments at top-level "; " and ". " boundaries and
-/// grouped into sections (a "Header (...): " segment opens one); an operation gets every segment that names it and the
-/// segments of those sections that name no operation, and a section that names no operation is a tool-wide rule. Pure,
-/// Siemens-free; reads nothing from TIA Portal.
+/// grouped into sections (a "Header (...): " segment or one of <see cref="SectionStarts"/> opens one); an operation gets every
+/// segment that names it and, as section notes, the segments naming no operation that belong to it (<see cref="NoteOwners"/>:
+/// a clause continuing one of its segments, or a sentence of a section that names it); a section that names no operation is a
+/// tool-wide rule. Pure, Siemens-free; reads nothing from TIA Portal.
 /// </summary>
 internal static partial class PlcOperationReference
 {
@@ -58,6 +62,14 @@ internal static partial class PlcOperationReference
         "expectedContentHash is the contentHash from a plc_read",
         "A same-table update_tag rename collision",
         "An export or read that TIA Portal refuses for a block",
+        // K93: paragraphs added one after another without a capitalised header; each is its own section, so its notes
+        // (e.g. the TLS fingerprint advice of get_cpu_certificates) are not attached to the operations before it.
+        "Program analysis, computed from the block inventory",
+        "create_instance_db (blockPath, instanceOfName",
+        "get_umc_server_user (name, optional userKind",
+        "get_umac (optional plcName; issue #12",
+        "get_cpu_certificates (optional plcName; issue #14",
+        "get_safety_validation (issue #25",
     };
 
     /// <summary>Segments that look like a header but continue the section before them.</summary>
@@ -132,8 +144,8 @@ internal static partial class PlcOperationReference
     {
         if (!PlcOperationCatalog.TryGetFields(name, out var required, out var optional, out var isWrite))
             throw new ArgumentException($"'{name}' is no PLC operation.", nameof(name));
-        var fields = required.Select(field => new PlcOperationFieldDescription(field, true, FieldDescription(field)))
-            .Concat(optional.Select(field => new PlcOperationFieldDescription(field, false, FieldDescription(field))))
+        var fields = required.Select(field => DescribeField(field, true, name))
+            .Concat(optional.Select(field => DescribeField(field, false, name)))
             .ToArray();
         var reference = new List<string>();
         var notes = new List<string>();
@@ -141,20 +153,69 @@ internal static partial class PlcOperationReference
         // operations (a read named as a write's evidence source), which is context, not the operation's own rules.
         foreach (var section in isWrite ? WriteSections.Value : ReadSections.Value)
         {
-            var named = false;
             for (var i = 0; i < section.Segments.Count; i++)
-            {
-                if (!section.Names[i].Contains(name, StringComparer.Ordinal)) continue;
-                named = true;
-                reference.Add(section.Segments[i]);
-            }
-
-            if (!named) continue;
-            for (var i = 0; i < section.Segments.Count; i++)
-                if (section.Names[i].Count == 0) notes.Add(section.Segments[i]);
+                if (section.Names[i].Contains(name, StringComparer.Ordinal)) reference.Add(section.Segments[i]);
+                else if (section.Names[i].Count == 0 && NoteOwners(section, i).Contains(name, StringComparer.Ordinal)) notes.Add(section.Segments[i]);
         }
 
         return new PlcOperationDescription(name, isWrite ? "plc_write" : "plc_read", required, optional, fields, reference, notes);
+    }
+
+    /// <summary>
+    /// K93: the operations a segment that names none belongs to. A clause after "; " continues the clause before it, so it
+    /// belongs to the operations that clause (or the first naming clause of the chain) names, e.g. "verified by re-export ..."
+    /// after set_network_text. A new sentence (after ". ") states a rule of its whole section, e.g. "Every fail-safe item fires
+    /// the acknowledge guard ...", and belongs to every operation the section names.
+    /// </summary>
+    private static IReadOnlyList<string> NoteOwners(Section section, int index)
+    {
+        for (var i = index - 1; i >= 0 && section.Segments[i].EndsWith(';'); i--)
+            if (section.Names[i].Count > 0) return section.Names[i];
+        return section.Names.SelectMany(names => names).Distinct(StringComparer.Ordinal).ToArray();
+    }
+
+    private static PlcOperationFieldDescription DescribeField(string field, bool required, string operation)
+    {
+        var full = FieldDescription(field);
+        if (full is null) return new(field, required, null);
+        var trimmed = FieldDescriptionFor(full, operation);
+        return new(field, required, trimmed, !string.Equals(trimmed, full, StringComparison.Ordinal));
+    }
+
+    /// <summary>Shorthands like add/update/delete_interface_member or get/set_prodiag_assignment, which name operations only in part.</summary>
+    private static readonly Regex OperationShorthand = new(@"\b[a-z]+(?:/[a-z]+)*/[a-z]+_[a-z_]+", RegexOptions.CultureInvariant);
+
+    /// <summary>Words by which a segment speaks of operations it does not name (every technology object operation except ...).</summary>
+    private static readonly Regex GroupWords = new(@"\b(?:every|all|any|each|other|except|reads|writes)\b", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+
+    /// <summary>
+    /// K93: a field description shared by many operations, reduced to what concerns <paramref name="operation"/>: its segments
+    /// (split like the reference texts) that name the operation or name no operation. A segment that names only other
+    /// operations is left out, unless a shorthand in it (a/b/c_name) expands to the operation or it speaks of a group of
+    /// operations (every, all, except, ...), where leaving it out could drop a rule that applies.
+    /// </summary>
+    internal static string FieldDescriptionFor(string description, string operation)
+    {
+        var kept = Segments(description).Where(segment =>
+        {
+            var named = NamedOperations(segment);
+            return named.Count == 0 || named.Contains(operation, StringComparer.Ordinal) || GroupWords.IsMatch(segment)
+                || OperationShorthand.Matches(segment).Any(match => ExpandShorthand(match.Value).Contains(operation, StringComparer.Ordinal));
+        }).ToArray();
+        if (kept.Length == 0) return description;
+        var text = string.Join(" ", kept);
+        // A kept clause that ended a list with ";" is now the end of the text.
+        return text.EndsWith(';') ? text[..^1] + "." : text;
+    }
+
+    /// <summary>add/update/delete_interface_member: add_interface_member, update_interface_member, delete_interface_member.</summary>
+    internal static IReadOnlyList<string> ExpandShorthand(string shorthand)
+    {
+        var parts = shorthand.Split('/');
+        var last = parts[^1];
+        var separator = last.IndexOf('_');
+        var rest = last[(separator + 1)..];
+        return parts[..^1].Select(prefix => prefix + "_" + rest).Append(last).ToArray();
     }
 
     /// <summary>The segments of the sections that name no operation.</summary>

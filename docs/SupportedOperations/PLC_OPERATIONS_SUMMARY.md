@@ -98,8 +98,12 @@ The full text moved to `plc_read` `describe_operations` (`Observe`, every access
 `describe_operations` items needs no bound project):
 
 - `operationNames` (1–3 names per item, several items per call): per operation its `tool`, `requiredFields`,
-  `optionalFields`, `fields` (each field's full documentation), `reference` (every segment of the former tool
-  description that names the operation) and `sectionNotes` (the segments of those sections that name no operation).
+  `optionalFields`, `fields` (each field's documentation for this operation: the parts of a shared field description
+  that name only other operations are left out and `trimmed` is true; a part that speaks of a group of operations, such
+  as "every technology object operation except ...", or a shorthand such as `add/update/delete_interface_member` that
+  covers the operation stays), `reference` (every segment of the former tool description that names the operation) and
+  `sectionNotes` (segments that name no operation and belong to it: a clause after "; " continuing one of its segments,
+  or a sentence of a paragraph that names it; K93: a note is no longer attached to every operation of a long paragraph).
 - without `operationNames`: `index`, every PLC read and write operation with its fields as one text
   (`"blockPath; optional: format, withDependencies"`).
 - always: `readToolRules` and `writeToolRules` (the tool-wide rules) and `referenceDocument`, this page.

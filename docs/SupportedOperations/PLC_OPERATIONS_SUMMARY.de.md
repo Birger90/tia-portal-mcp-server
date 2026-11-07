@@ -99,8 +99,13 @@ Der vollständige Text liegt jetzt bei `plc_read` `describe_operations` (`Observ
 aus `describe_operations`-Einträgen braucht kein gebundenes Projekt):
 
 - `operationNames` (1–3 Namen je Eintrag, mehrere Einträge je Aufruf): je Operation `tool`, `requiredFields`,
-  `optionalFields`, `fields` (die vollständige Beschreibung jedes Felds), `reference` (jeder Abschnitt der bisherigen
-  Werkzeugbeschreibung, der die Operation nennt) und `sectionNotes` (die Abschnitte dieser Teile, die keine Operation nennen).
+  `optionalFields`, `fields` (die Beschreibung jedes Felds für diese Operation: Teile einer gemeinsamen Feldbeschreibung,
+  die nur andere Operationen nennen, fallen weg und `trimmed` ist true; ein Teil, der von einer Gruppe von Operationen
+  spricht, etwa „every technology object operation except ...“, oder eine Kurzform wie `add/update/delete_interface_member`,
+  die die Operation umfasst, bleibt), `reference` (jeder Abschnitt der bisherigen Werkzeugbeschreibung, der die Operation
+  nennt) und `sectionNotes` (Abschnitte, die keine Operation nennen und zu ihr gehören: ein Satzteil nach „; “, der einen
+  ihrer Abschnitte fortsetzt, oder ein Satz eines Absatzes, der sie nennt; K93: eine Notiz hängt nicht mehr an jeder
+  Operation eines langen Absatzes).
 - ohne `operationNames`: `index`, jede PLC-Lese- und Schreiboperation mit ihren Feldern als ein Text
   (`"blockPath; optional: format, withDependencies"`).
 - immer: `readToolRules` und `writeToolRules` (die werkzeugweiten Regeln) und `referenceDocument`, diese Seite.

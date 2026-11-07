@@ -1,8 +1,12 @@
 using System.Text.Json;
 using TiaMcpServer.Contracts.Plc.Settings;
 using TiaMcpServer.Contracts.Safety;
+using TiaMcpServer.Contracts.Json;
 using TiaMcpServer.Contracts.Shared;
+using TiaMcpServer.Contracts.Worker;
+using TiaMcpServer.OperationBatches;
 using TiaMcpServer.Plc;
+using TiaMcpServer.Worker;
 using Xunit;
 
 namespace TiaMcpServer.Tests.Plc.Settings;
@@ -67,6 +71,7 @@ public sealed partial class PlcSettingsMcpTests
         Assert.Equal("True", Property(Section(Item(found, 0).GetProperty("result").GetProperty("project"), "find_object_by_identifier"), "Found"));
         var (creation, _) = await session.ReadAsync(new { operationId = "c", operation = "get_creation_infos", objectPath = "block:PLC_1/Main" });
         Assert.Contains("Name (mandatory): System.String", creation.GetRawText(), StringComparison.Ordinal);
+        Assert.Contains("Siemens.Engineering.FakeComposition", creation.GetRawText(), StringComparison.Ordinal);
         var (tags, _) = await session.ReadAsync(new { operationId = "t", operation = "get_linked_tags", objectPath = "channel:Station_1/DI 16x24VDC/Digital/Input/0" });
         Assert.Contains("%I0.0", tags.GetRawText(), StringComparison.Ordinal);
 
@@ -88,5 +93,167 @@ public sealed partial class PlcSettingsMcpTests
         {
             Directory.Delete(directory, recursive: true);
         }
+    }
+
+    // ----- K92: the worker's own payload through the host's declared result contract, standalone and Multiuser -----
+
+    /// <summary>What the worker answers: the engine's read serialized as on the wire, or its refusal as a failed call.</summary>
+    private static WorkerCallResult WorkerAnswer(string method, PlcSettingsContext context, PlcSettingsRequestInfo info)
+    {
+        try
+        {
+            return WorkerCallResult.Ok(WorkerJson.SerializePayload(PlcSettingsRun.Read(method, Array.Empty<PlcSettingsContext>(), context, info)));
+        }
+        catch (RuntimeBindingException exception)
+        {
+            return WorkerCallResult.Fail(exception.Category, exception.Message);
+        }
+    }
+
+    private static StructuredOperationItem HostProjection(string method, PlcSettingsContext context, PlcSettingsRequestInfo info, string? objectPath = null)
+        => PlcPayloadContract.Project(new PlcOperationRequest { OperationId = "r", Operation = method, ObjectPath = objectPath }, WorkerAnswer(method, context, info), _ => { });
+
+    [Theory]
+    [InlineData("get_markings", null)]
+    [InlineData("get_mark_state", "block:PLC_1/FC_Zaehlen")]
+    public void Objects_Standalone_MarkingReadsAreUnsupportedCapability_NotProtocolError(string method, string? objectPath)
+    {
+        var context = new PlcSettingsContext { ResolveObject = _ => new object(), EngineeringRoot = new object() };
+        var item = HostProjection(method, context, new PlcSettingsRequestInfo { ObjectPath = objectPath }, objectPath);
+        Assert.Equal(OperationBatchStatus.Failed, item.Status);
+        Assert.Equal(WorkerFailureCategories.UnsupportedCapability, item.Failure!.Category);
+        Assert.Contains("Multiuser local session", item.Failure.Message, StringComparison.Ordinal);
+        Assert.Contains("standalone project", item.Failure.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("get_object_identifier", "block:PLC_1/Main")]
+    [InlineData("find_object_by_identifier", null)]
+    [InlineData("get_linked_tags", "channel:S/M/Digital/Input/0")]
+    public void Objects_UnofferedServiceSection_PassesTheHostContract(string method, string? objectPath)
+    {
+        // No service is listed: the section is unavailable and names no owner (the host contract rejects an owner on an unoffered section).
+        var context = new PlcSettingsContext { ResolveObject = _ => new object(), EngineeringRoot = new object() };
+        var item = HostProjection(method, context, new PlcSettingsRequestInfo { ObjectPath = objectPath, Name = "id:x" }, objectPath);
+        Assert.True(item.Status == OperationBatchStatus.Succeeded, item.Failure?.Message);
+        var section = Section(item.Result!.Value.GetProperty("project"), method);
+        Assert.False(section.GetProperty("offered").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, section.GetProperty("owner").ValueKind);
+        Assert.False(string.IsNullOrEmpty(section.GetProperty("unavailable").GetString()));
+    }
+
+    [Fact]
+    public void Objects_LocalSession_MarkingReadsPassTheHostContract()
+    {
+        var block = new MarkTarget("Main");
+        var context = new PlcSettingsContext
+        {
+            ResolveObject = _ => block, EngineeringRoot = new object(), LocalSession = new MarkSession(block),
+            DescribeObject = value => value is MarkTarget target ? $"PlcBlock '{target.Name}'" : "(null)",
+        };
+        var markings = HostProjection("get_markings", context, new PlcSettingsRequestInfo());
+        Assert.True(markings.Status == OperationBatchStatus.Succeeded, markings.Failure?.Message);
+        var section = Section(markings.Result!.Value.GetProperty("project"), "get_markings");
+        Assert.True(section.GetProperty("offered").GetBoolean());
+        Assert.Equal(PlcSettingsNames.ProjectOwner, section.GetProperty("owner").GetString());
+        Assert.Equal(1, section.GetProperty("collections")[0].GetProperty("items").GetArrayLength());
+
+        var state = HostProjection("get_mark_state", context, new PlcSettingsRequestInfo { ObjectPath = "block:PLC_1/Main" }, "block:PLC_1/Main");
+        Assert.True(state.Status == OperationBatchStatus.Succeeded, state.Failure?.Message);
+        Assert.Equal("IsMarkedByMe", Property(Section(state.Result!.Value.GetProperty("project"), "get_mark_state"), "MarkState"));
+    }
+
+    [Fact]
+    public void Objects_CreationInfos_OfASingleObjectMember_AreEmptyAndNameTheMemberType()
+    {
+        // K94 (live V21: plc:PLC_1 listed BlockGroup ... WatchAndForceTableGroup, each with no creation infos): an empty list is
+        // passed on as TIA Portal returned it, with the composition's EngineeringCompositionInfo.Type beside it.
+        var context = new PlcSettingsContext { ResolveObject = _ => new SingleMemberObject(), EngineeringRoot = new object() };
+        var item = HostProjection("get_creation_infos", context, new PlcSettingsRequestInfo { ObjectPath = "plc:PLC_1" }, "plc:PLC_1");
+        Assert.True(item.Status == OperationBatchStatus.Succeeded, item.Failure?.Message);
+        var composition = Section(item.Result!.Value.GetProperty("project"), "get_creation_infos").GetProperty("collections")[0].GetProperty("items")[0];
+        Assert.Equal("BlockGroup", composition.GetProperty("key").GetString());
+        Assert.Equal(typeof(MarkTarget).FullName, Property(composition, "Type"));
+        Assert.Equal(0, composition.GetProperty("collections")[0].GetProperty("items").GetArrayLength());
+    }
+
+    public sealed class CompositionInfoStandIn(string name, Type type)
+    {
+        public string Name { get; } = name;
+
+        public Type Type { get; } = type;
+    }
+
+    public sealed class SingleMemberObject
+    {
+        public IList<CompositionInfoStandIn> GetCompositionInfos() => new[] { new CompositionInfoStandIn("BlockGroup", typeof(MarkTarget)) };
+
+        public IList<object> GetCreationInfos(string compositionName) => Array.Empty<object>();
+    }
+
+    [Fact]
+    public async Task Objects_StandaloneProject_ThroughTheTools()
+    {
+        await using var session = await Session.StartAsync(McpAccessMode.ReadWrite, "plc-settings-standalone");
+        var (read, _) = await session.ReadAsync(
+            new { operationId = "a", operation = "get_markings" },
+            new { operationId = "b", operation = "get_mark_state", objectPath = "block:PLC_1/Main" },
+            new { operationId = "c", operation = "get_object_identifier", objectPath = "block:PLC_1/Main" });
+        foreach (var index in new[] { 0, 1 })
+        {
+            var failure = Item(read, index).GetProperty("failure");
+            Assert.Equal("unsupported_capability", failure.GetProperty("category").GetString());
+            Assert.Contains("Multiuser local session", failure.GetProperty("message").GetString(), StringComparison.Ordinal);
+        }
+
+        Assert.Equal("id:Main", Property(Section(Item(read, 2).GetProperty("result").GetProperty("project"), "get_object_identifier"), "Identifier"));
+        var (marked, _) = await session.WriteAsync(false, new { operationId = "m", operation = "mark_objects", objectPaths = new[] { "block:PLC_1/Main" } });
+        Assert.Equal("unsupported_capability", Item(marked, 0).GetProperty("failure").GetProperty("category").GetString());
+    }
+
+    public enum MarkState
+    {
+        None,
+        IsMarkedByMe,
+    }
+
+    public sealed class MarkTarget(string name)
+    {
+        public string Name { get; } = name;
+    }
+
+    public sealed class MarkSession(MarkTarget marked)
+    {
+        public MarkingStandIn MarkingService { get; } = new(marked);
+    }
+
+    public sealed class MarkingStandIn(MarkTarget marked)
+    {
+        public MarkingsStandIn GetMarkings() => new() { AllMarkings = { new MarkingStandInItem { MarkedObject = marked, MarkState = MarkState.IsMarkedByMe } } };
+
+        public MarkStateInfoStandIn GetMarkStateInfo(object target) => new() { MarkState = ReferenceEquals(target, marked) ? MarkState.IsMarkedByMe : MarkState.None, IsMarkable = true };
+
+        public bool IsMarkable(object target) => target is MarkTarget;
+    }
+
+    public sealed class MarkingsStandIn
+    {
+        public List<MarkingStandInItem> AllMarkings { get; } = new();
+
+        public List<MarkingStandInItem> ConflictedMarkings { get; } = new();
+    }
+
+    public sealed class MarkingStandInItem
+    {
+        public object? MarkedObject { get; init; }
+
+        public MarkState MarkState { get; init; }
+    }
+
+    public sealed class MarkStateInfoStandIn
+    {
+        public MarkState MarkState { get; init; }
+
+        public bool IsMarkable { get; init; }
     }
 }

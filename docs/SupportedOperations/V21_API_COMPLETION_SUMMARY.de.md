@@ -64,7 +64,7 @@ Beleg: V21 `Siemens.Engineering.Base.xml`: `Multiuser.LocalSession.MarkingServic
 (`Markings.AllMarkings`, `.ConflictedMarkings`; `Marking.MarkedObject`, `.MarkState`), `.GetMarkStateInfo(IEngineeringObject)`
 (`MarkStateInfo.IsMarkable`, `.MarkState`), `.IsMarkable(IEngineeringObject)`, `.MarkObjects(IEnumerable<IEngineeringObject>)`,
 `.UnmarkObjects(...)`, Enum `MarkState` (`None`, `IsMarkedByMe`, `IsMarkedByOthers`, `IsUptoDate`); `ObjectIdentifierProvider.GetIdentifier(IEngineeringObject)`
-und `.Find(String)`; `IEngineeringObject.GetCompositionInfos()` (`EngineeringCompositionInfo.Name`), `.GetCreationInfos(String)`,
+und `.Find(String)`; `IEngineeringObject.GetCompositionInfos()` (`EngineeringCompositionInfo.Name`, `.Type`), `.GetCreationInfos(String)`,
 `.GetComposition(String)`, `IEngineeringComposition.GetCreationInfos()` (`EngineeringCreationInfo.Type`, `.ParameterInfos`;
 `EngineeringCreationParameterInfo.Name`, `.IsMandatory`, `.SupportedTypes`); `Siemens.Engineering.Step7.xml`: `SW.PlcTagProvider.GetLinkedTags()`
 („Service provider for obtaining Plc Tag from Channel“), `Motion.CamDataSupport.LoadCamData(FileInfo, CamDataFormatSeparator)`,
@@ -80,16 +80,17 @@ werden über die dokumentierte `Siemens.Engineering`-Schnittstelle aufgerufen.
 Objektpfade (exakte Namen): `project`, `plc:PLC`, `block:BAUSTEINPFAD`, `type:TYPPFAD`, `tagTable:PLC/TABELLE` (eindeutig über den Namen in
 der PLC), `device:GERÄT`, `deviceItem:GERÄT/BAUGRUPPE` (eindeutig unterhalb des Geräts), `technologyObject:PLC/NAME`,
 `channel:GERÄT/BAUGRUPPE/TYP/IOTYP/NUMMER` (wie `Channel.Type`, `IoType`, `Number` gelesen werden). Nicht gefunden ist `target_not_found`,
-mehrere Treffer `target_ambiguous`.
+mehrere Treffer `target_ambiguous`. Ein nicht gelisteter Dienst lässt den Abschnitt der Operation `offered: false` mit `unavailable` und ohne
+`owner` (K92: ein Besitzer an einem solchen Abschnitt ließ den Host die ganze Antwort als `protocol_error` verwerfen).
 
 | Operation | Felder | Fähigkeit, Guards | Siemens-Aufrufe | Ergebnis / Rücklesen |
 | --- | --- | --- | --- | --- |
-| `plc_read get_markings` | keine | `Observe`; eine gebundene lokale Multiuser-Sitzung (sonst ist der Abschnitt nicht verfügbar) | `LocalSession.MarkingService.GetMarkings()` | `AllMarkings`, `ConflictedMarkings`: Objekt, `MarkState` |
+| `plc_read get_markings` | keine | `Observe`; eine gebundene lokale Multiuser-Sitzung (ein Einzelprojekt lässt den Eintrag mit `unsupported_capability` scheitern, K92) | `LocalSession.MarkingService.GetMarkings()` | `AllMarkings`, `ConflictedMarkings`: Objekt, `MarkState` |
 | `plc_read get_mark_state` | `objectPath` | wie oben | `GetMarkStateInfo`, `IsMarkable` | `MarkState`, `IsMarkable`, `IsMarkableCheck` |
 | `plc_write mark_objects`, `unmark_objects` | `objectPaths` (1-100, ohne Wiederholung) | `ProjectMutation`, Info-Guard `plc_changes_markings`; ein Einzelprojekt ist `unsupported_capability` | `MarkObjects`/`UnmarkObjects` mit einer Liste des dokumentierten Elementtyps | `MarkState` jedes Objekts zurückgelesen: `IsMarkedByMe` nach dem Markieren, etwas anderes nach dem Entmarkieren (sonst `postcondition_failed`). Nichts wird eingecheckt |
 | `plc_read get_object_identifier` | `objectPath` | `Observe` | `ObjectIdentifierProvider.GetIdentifier` | `Identifier` |
 | `plc_read find_object_by_identifier` | `name` (die Kennung) | `Observe` | `ObjectIdentifierProvider.Find(String)` | `Found`, das Objekt |
-| `plc_read get_creation_infos` | `objectPath`, optional `name` (eine Komposition) | `Observe` | `GetCompositionInfos()`, `GetCreationInfos(name)` je Komposition (höchstens 100); mit `name` auch `GetComposition(name)` und deren `GetCreationInfos()` | je Komposition: jeder erzeugbare Typ mit seinen Parametern (Pflicht, unterstützte Typen): das allgemeine „was kann hier erzeugt werden“ |
+| `plc_read get_creation_infos` | `objectPath`, optional `name` (eine Komposition) | `Observe` | `GetCompositionInfos()`, `GetCreationInfos(name)` je Komposition (höchstens 100); mit `name` auch `GetComposition(name)` und deren `GetCreationInfos()` | je Komposition ihr `Type` (`EngineeringCompositionInfo.Type`) und jeder erzeugbare Typ mit seinen Parametern (Pflicht, unterstützte Typen): das allgemeine „was kann hier erzeugt werden“. Die Liste kann leer sein: unter V21 nannte `plc:PLC` die sieben Member `BlockGroup`, `ExternalSourceGroup`, `PlcAlarmTextlistGroup`, `TagTableGroup`, `TechnologicalObjectGroup`, `TypeGroup`, `WatchAndForceTableGroup`, jeden ohne Erzeugungsinfos (live 2026-11-07, K94; es sind einzelne Systemgruppen von `PlcSoftware`, keine Kompositionen vieler Objekte, was der Grund sein kann; Ursache nicht bestätigt). Eine leere Liste wird so weitergegeben, wie TIA Portal sie liefert |
 | `plc_read get_linked_tags` | `objectPath` `channel:...` | `Observe` | `PlcTagProvider.GetLinkedTags()` des Kanals | `Name`, `LogicalAddress`, `DataTypeName`, `TagTable` jeder PLC-Variablen |
 | `plc_write save_cam_data` | `objectPath` `technologyObject:...`, `filePath`; optional `camFormat` (`MCD` Standard, `Scout`, `PointList` mit `samplePoints` 1-1.000.000, `Binary`), `camSeparator` (`Comma` Standard, `Tab`), `overwrite` | `ProjectMutation` (eine Aufruferdatei); mit `overwrite:true` Info-Guard `plc_export_overwrites_file` | `SaveCamData` / `SaveCamDataPointList` / `SaveCamDataBinary` in eine bereitgestellte Datei neben dem Ziel | `file`: an den Zielort verschoben und neu gehasht |
 | `plc_write load_cam_data` | `objectPath`, `filePath` (eine vorhandene Datei); optional `camFormat` (`MCD`, `Scout`, `Binary`), `camSeparator` | `ProjectMutation`, Info-Guard `plc_loads_cam_data` | `LoadCamData(FileInfo, CamDataFormatSeparator)` / `LoadCamDataBinary(FileInfo)` | trusted: kein dokumentierter Member vergleicht die Kurvenscheibe mit der Datei (zur Prüfung erneut exportieren) |

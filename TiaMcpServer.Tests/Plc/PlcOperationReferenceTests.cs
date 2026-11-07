@@ -117,6 +117,82 @@ public class PlcOperationReferenceTests
     }
 
     [Fact]
+    public void WriteToolRules_DoNotContradictTheAcknowledgeGuardPrompt()
+    {
+        // K93: "No confirmation prompt is sent." came from the first plc_write (before acknowledge guards asked the human).
+        var rules = PlcOperationReference.Describe(null).WriteToolRules;
+        Assert.DoesNotContain("No confirmation prompt is sent.", rules);
+        var prompt = Assert.Single(rules, rule => rule.StartsWith("No confirmation prompt", StringComparison.Ordinal));
+        Assert.Contains("unless an acknowledge guard fires", prompt);
+        Assert.Contains("read-write asks the human once", prompt);
+        Assert.Contains("full satisfies it by policy", prompt);
+    }
+
+    [Theory]
+    [InlineData("get_markings")]
+    [InlineData("get_mark_state")]
+    [InlineData("get_object_identifier")]
+    [InlineData("find_object_by_identifier")]
+    [InlineData("get_creation_infos")]
+    [InlineData("get_linked_tags")]
+    [InlineData("get_umc_server_user")]
+    [InlineData("get_umac")]
+    public void SectionNotes_DoNotCarryTheCertificateOrValidationNotesOfOtherOperations(string operation)
+    {
+        // K93: these notes belong to get_cpu_certificates and check_activation_test, listed after them in the same paragraph.
+        var notes = PlcOperationReference.DescribeOne(operation).SectionNotes;
+        Assert.DoesNotContain(notes, note => note.Contains("TLS") || note.Contains("trustedCertificates") || note.Contains("trusts a certificate")
+            || note.Contains("CheckValidity") || note.Contains("consistency check"));
+    }
+
+    [Fact]
+    public void SectionNotes_StayWithTheirOwnOperations()
+    {
+        var certificates = PlcOperationReference.DescribeOne("get_cpu_certificates").SectionNotes;
+        Assert.Contains(certificates, note => note.Contains("trustedCertificates"));
+        Assert.Contains(PlcOperationReference.DescribeOne("check_activation_test").SectionNotes, note => note.Contains("consistency check"));
+        // A clause after "; " continues its own operation: set_network_text's verification is not create_db_snapshot's.
+        Assert.Contains(PlcOperationReference.DescribeOne("set_network_text").SectionNotes, note => note.Contains("check networkText"));
+        Assert.DoesNotContain(PlcOperationReference.DescribeOne("update_db_member").SectionNotes, note => note.Contains("check networkText"));
+        Assert.DoesNotContain(PlcOperationReference.DescribeOne("rename_members").SectionNotes, note => note.Contains("check tagComments"));
+        // The SD network notes are not rename_block's, and program analysis is not get_block_content's.
+        Assert.DoesNotContain(PlcOperationReference.DescribeOne("rename_block").SectionNotes, note => note.Contains(".s7res"));
+        Assert.Contains(PlcOperationReference.DescribeOne("insert_network").SectionNotes, note => note.Contains(".s7res"));
+        Assert.DoesNotContain(PlcOperationReference.DescribeOne("get_block_content").SectionNotes, note => note.Contains("A relationship is used only"));
+        Assert.Contains(PlcOperationReference.DescribeOne("get_call_tree").SectionNotes, note => note.Contains("A relationship is used only"));
+        // A sentence of a section is every named operation's rule (the safety rules of the fail-safe paragraph).
+        Assert.Contains(PlcOperationReference.DescribeOne("revoke_safety_password").SectionNotes, note => note.Contains("never replaces the safety acceptance"));
+    }
+
+    [Fact]
+    public void FieldDescriptions_KeepOnlyWhatConcernsTheOperation()
+    {
+        var snapshot = PlcOperationReference.DescribeOne("load_snapshot_as_actual_values").Fields.Single(field => field.Name == "blockPath");
+        Assert.True(snapshot.Trimmed);
+        Assert.StartsWith("PLC block path, e.g. PLC_1/Main", snapshot.Description);
+        Assert.DoesNotContain("rename_block_group", snapshot.Description);
+        Assert.DoesNotContain("get_prodiag_fb", snapshot.Description);
+        Assert.DoesNotContain("interface_member", snapshot.Description);
+        var member = PlcOperationReference.DescribeOne("add_interface_member").Fields.Single(field => field.Name == "blockPath");
+        Assert.Contains("add/update/delete_interface_member take blockPath or typePath", member.Description);
+        var technologyObject = PlcOperationReference.DescribeOne("create_technology_object").Fields.Single(field => field.Name == "name");
+        Assert.Contains("for every technology object operation except", technologyObject.Description);
+        var creation = PlcOperationReference.DescribeOne("get_creation_infos").Fields.Single(field => field.Name == "name");
+        Assert.Contains("one composition's name", creation.Description);
+        Assert.DoesNotContain("analyze_change_impact", creation.Description);
+        Assert.Equal(new[] { "get_prodiag_assignment", "set_prodiag_assignment" }, PlcOperationReference.ExpandShorthand("get/set_prodiag_assignment"));
+        // Nothing that names the operation is ever left out.
+        foreach (var name in AllOperations)
+            foreach (var field in PlcOperationReference.DescribeOne(name).Fields)
+            {
+                var full = PlcOperationReference.FieldDescription(field.Name)!;
+                Assert.All(PlcOperationReference.Segments(full).Where(segment => PlcOperationReference.NamesOperation(segment, name)),
+                    segment => Assert.Contains(segment.TrimEnd(';'), field.Description));
+                Assert.Equal(field.Description != full, field.Trimmed);
+            }
+    }
+
+    [Fact]
     public void Index_ListsEveryOperationWithItsFieldsAndTheToolWideRules()
     {
         var index = PlcOperationReference.Describe(null);

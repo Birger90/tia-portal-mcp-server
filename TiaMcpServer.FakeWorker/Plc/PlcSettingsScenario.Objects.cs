@@ -12,6 +12,9 @@ namespace TiaMcpServer.FakeWorker.Plc
 {
     sealed partial class PlcSettingsScenario
     {
+        /// <summary>Scenario plc-settings-standalone: the bound container is a standalone project (no local session, no markings).</summary>
+        public bool Standalone { get; init; }
+
         private readonly Siemens.Engineering.Multiuser.LocalSessionStandIn _localSession = new();
         private readonly Dictionary<string, Siemens.Engineering.FakeObject> _objects = new(StringComparer.Ordinal)
         {
@@ -31,8 +34,8 @@ namespace TiaMcpServer.FakeWorker.Plc
             }
 
             context.EngineeringRoot = _project;
-            // The fake project doubles as a Multiuser local session (the standalone refusal is unit-tested on PlcSettingsRun).
-            context.LocalSession = _localSession;
+            // The fake project doubles as a Multiuser local session; scenario plc-settings-standalone binds a standalone project (K92).
+            context.LocalSession = Standalone ? null : _localSession;
             context.ResolveObject = path => path == "project" ? _project
                 : _objects.TryGetValue(path, out var found) ? found
                 : throw new RuntimeBindingException(WorkerFailureCategories.TargetNotFound, $"No object '{path}' in the fake project. Nothing was changed.");
