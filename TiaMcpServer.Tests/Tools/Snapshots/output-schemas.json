@@ -8675,7 +8675,10 @@
                                 "type": "integer"
                               },
                               "typeIdentifier": {
-                                "type": "string"
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
                               }
                             },
                             "additionalProperties": false

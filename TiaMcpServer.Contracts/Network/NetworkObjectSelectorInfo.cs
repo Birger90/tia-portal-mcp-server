@@ -5,7 +5,10 @@ namespace TiaMcpServer.Contracts.Network;
 /// <summary>
 /// One segment of a path through a device's item hierarchy.
 /// Used in <see cref="NetworkObjectSelectorInfo.ItemPath"/> when targeting a device item.
-/// Carries four pieces of evidence so a resolver can locate the item by position, name, or type.
+/// Index, name and position number are required evidence; the type identifier is optional (K95):
+/// TIA reports none for built-in items such as a CPU's interfaces, ports, card reader or display, and
+/// the item is still unambiguous by its sibling index. When a type identifier is carried it is an
+/// extra consistency constraint compared against the live item.
 /// </summary>
 public sealed class DeviceItemPathSegmentInfo
 {
@@ -18,8 +21,11 @@ public sealed class DeviceItemPathSegmentInfo
     /// <summary>Position number of the module at this level of the device hierarchy.</summary>
     public int PositionNumber { get; set; }
 
-    /// <summary>Type identifier of the module at this level of the device hierarchy.</summary>
-    public string TypeIdentifier { get; set; } = string.Empty;
+    /// <summary>
+    /// Type identifier of the item at this level, or null when TIA reports none (built-in interfaces,
+    /// ports and similar sub-items). Written as an explicit null.
+    /// </summary>
+    public string? TypeIdentifier { get; set; }
 }
 
 /// <summary>
@@ -85,4 +91,25 @@ public sealed class NetworkObjectSelectorInfo
 
     /// <summary>Local connection identifier. Optional for communicationConnection kind.</summary>
     public string? LocalConnectionId { get; set; }
+}
+
+/// <summary>
+/// Shared rule for the optional type identifier of a <see cref="DeviceItemPathSegmentInfo"/> (K95):
+/// null and "" both mean "TIA reports none"; a nonblank value is an extra constraint that must equal
+/// the live item's type identifier. Index, name and position number stay the required evidence.
+/// </summary>
+public static class DeviceItemPathTypeIdentifier
+{
+    /// <summary>Maps null, "" and whitespace-only text to null; keeps any other value unchanged.</summary>
+    public static string? Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
+
+    /// <summary>True when the value was supplied as text that is not empty but only whitespace.</summary>
+    public static bool IsInvalid(string? value) => !string.IsNullOrEmpty(value) && string.IsNullOrWhiteSpace(value);
+
+    /// <summary>
+    /// True when the requested segment value is satisfied by the live item's type identifier: no
+    /// requested value constrains nothing; a requested value must equal the live value ordinally.
+    /// </summary>
+    public static bool Matches(string? requested, string? live)
+        => Normalize(requested) is not { } wanted || string.Equals(wanted, live, StringComparison.Ordinal);
 }

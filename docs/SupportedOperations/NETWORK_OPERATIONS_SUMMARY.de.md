@@ -167,7 +167,7 @@ Standardänderungen von C-9 und die kombinierte Qualifizierung sind getrennt.
 
 | Art | Erforderliche Selektoridentität | Zusätzliche Verifizierungsnachweise |
 |---|---|---|
-| `deviceItem` | `deviceName`, nicht leerer `itemPath` | Jedes Pfadsegment trägt den nullbasierten Geschwister-`index`, `name`, `positionNumber` und `typeIdentifier`. |
+| `deviceItem` | `deviceName`, nicht leerer `itemPath` | Jedes Pfadsegment trägt den nullbasierten Geschwister-`index`, `name` und `positionNumber` (Pflicht) und einen optionalen `typeIdentifier`. Für eingebaute Elemente wie die PROFINET-/DP-Schnittstellen einer CPU, ihre Ports, den Kartenleser, das Display, OPC UA und Kanal-Unterelemente meldet TIA keine Typkennung; ihre Segmente tragen `typeIdentifier: null`, sie sind auswählbar, und eine Anfrage darf `null` oder `""` angeben oder das Feld weglassen. Ein nicht leerer `typeIdentifier` ist eine zusätzliche Bedingung und muss mit dem des Elements übereinstimmen (K95; nicht live getestet). |
 | `networkInterface` | `deviceName`, nicht leerer `itemPath` | Optionale `interfaceName`, `interfaceType` und `interfaceOperatingMode` werden verifiziert, wenn vorhanden. |
 | `node` | `deviceName`, `nodeId` | Die Discovery kann zusätzlich `itemPath` plus `nodeIndex` liefern; diese beiden Felder werden zusammen geliefert und verifizieren die besitzende Schnittstelle und die Geschwisterposition. |
 | `subnet` | `subnetId` | Der exakte Bezeichner wird vor der Inspektion erneut gelesen. |

@@ -261,7 +261,8 @@ public static class HardwareModulePayloadContract
     private static bool SameIdentity(HardwareObjectIdentityInfo left, HardwareObjectIdentityInfo right)
         => string.Equals(left.DeviceName, right.DeviceName, StringComparison.Ordinal) && left.ItemPath.Count == right.ItemPath.Count
             && left.ItemPath.Zip(right.ItemPath).All(pair => pair.First.Index == pair.Second.Index && pair.First.Name == pair.Second.Name
-                && pair.First.PositionNumber == pair.Second.PositionNumber && pair.First.TypeIdentifier == pair.Second.TypeIdentifier);
+                && pair.First.PositionNumber == pair.Second.PositionNumber
+                && DeviceItemPathTypeIdentifier.Normalize(pair.First.TypeIdentifier) == DeviceItemPathTypeIdentifier.Normalize(pair.Second.TypeIdentifier));
 
     private static void ValidateIdentity(HardwareObjectIdentityInfo identity, string member, NetworkObjectTarget? requested)
     {
@@ -278,7 +279,8 @@ public static class HardwareModulePayloadContract
             var expected = requestedPath![i];
             var actual = identity.ItemPath[i];
             if (expected.Index != actual.Index || expected.Name != actual.Name || expected.PositionNumber != actual.PositionNumber
-                || expected.TypeIdentifier != actual.TypeIdentifier)
+                // K95: a requested type identifier is an optional constraint on the live item's.
+                || !DeviceItemPathTypeIdentifier.Matches(expected.TypeIdentifier, actual.TypeIdentifier))
                 throw new JsonException($"'{member}.itemPath[{i}]' contradicts the request.");
         }
     }
@@ -288,8 +290,9 @@ public static class HardwareModulePayloadContract
         if (path is null) throw new JsonException($"'{member}' is required.");
         foreach (var segment in path)
         {
-            if (segment is null || segment.Index < 0 || segment.PositionNumber < 0 || string.IsNullOrWhiteSpace(segment.Name))
-                throw new JsonException($"'{member}[]' requires a nonnegative index and position and a nonblank name.");
+            if (segment is null || segment.Index < 0 || segment.PositionNumber < 0 || string.IsNullOrWhiteSpace(segment.Name)
+                || DeviceItemPathTypeIdentifier.IsInvalid(segment.TypeIdentifier))
+                throw new JsonException($"'{member}[]' requires a nonnegative index and position, a nonblank name and a null or nonblank type identifier.");
         }
     }
 

@@ -384,6 +384,43 @@ public sealed class HardwareModuleServiceTests
     }
 
     /// <summary>
+    /// K95 (live 2026-11-07, CPU 1516-3 PN/DP V2.9): a sub-item whose TypeIdentifier is null is selected by index, name and
+    /// position with a segment typeIdentifier of null or "" (or a typed parent segment without one); a nonblank type
+    /// identifier the item does not have is refused, and a wrong name at the index is refused as before.
+    /// </summary>
+    [Theory]
+    [InlineData(null, null, true)]
+    [InlineData("", null, true)]
+    [InlineData(null, "omitParentType", true)]
+    [InlineData("System:Sub", null, false)]
+    [InlineData(null, "wrongName", false)]
+    public void ListIoAddresses_SubItemWithoutTypeIdentifierIsSelectable(string? segmentType, string? variant, bool resolves)
+    {
+        var (f, sub) = WithSubItemAddresses();
+        var di = Segment(0, f.Di);
+        if (variant == "omitParentType") di.TypeIdentifier = null;
+        var target = new HardwareObjectSelectorInfo
+        {
+            DeviceName = "PLC_1",
+            ItemPath = new()
+            {
+                Segment(0, f.Rack), di,
+                new DeviceItemPathSegmentInfo { Index = 0, Name = variant == "wrongName" ? "Other" : sub.Name, PositionNumber = sub.PositionNumber, TypeIdentifier = segmentType },
+            },
+        };
+        if (!resolves)
+        {
+            var ex = Fails(() => HardwareModuleService.ListIoAddresses(f.Project, new HardwareModuleRequestInfo { Target = target }));
+            Assert.Equal(WorkerFailureCategories.TargetEvidenceMismatch, ex.FailureCategory);
+            return;
+        }
+
+        var result = HardwareModuleService.ListIoAddresses(f.Project, new HardwareModuleRequestInfo { Target = target });
+        Assert.Equal(10, Assert.Single(result.Addresses).StartAddress);
+        Assert.Null(result.Target.ItemPath[2].TypeIdentifier);
+    }
+
+    /// <summary>
     /// K39 (live V21 2026-11-02, S7-1200 and ET 200SP): three "is not supported" messages per address. An attribute the
     /// address does not list in GetAttributeInfos is not read, and the call reports it once.
     /// </summary>

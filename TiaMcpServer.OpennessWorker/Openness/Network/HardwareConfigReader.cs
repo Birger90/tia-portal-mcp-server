@@ -212,7 +212,7 @@ public static class HardwareConfigReader
             () => item.PositionNumber,
             $"Device item '{itemDescription}' position number");
         NetworkObjectDiscoveryEvidence.AddReadMessage(messages, itemName);
-        NetworkObjectDiscoveryEvidence.AddReadMessage(messages, typeIdentifier, reportNull: false);
+        NetworkObjectDiscoveryEvidence.AddOptionalReadMessage(messages, typeIdentifier);
         NetworkObjectDiscoveryEvidence.AddReadMessage(messages, positionNumber);
 
         var segment = new DeviceItemPathSegmentInfo
@@ -220,14 +220,15 @@ public static class HardwareConfigReader
             Index = siblingIndex,
             Name = itemName.IsUsable ? itemName.Value : string.Empty,
             PositionNumber = positionNumber.IsUsable ? positionNumber.Value : -1,
-            TypeIdentifier = typeIdentifier.IsUsable ? typeIdentifier.Value : string.Empty,
+            // K95: optional selector evidence. Built-in items (interfaces, ports, card reader, display, channel
+            // sub-items) read TypeIdentifier null live; the segment carries null and the item stays selectable.
+            TypeIdentifier = typeIdentifier.IsUsable ? typeIdentifier.Value : null,
         };
         var itemPath = parentPath.Concat(new[] { segment }).ToList();
         var pathDiagnostics = CombineDiagnostics(
             parentPathDiagnostics,
             itemName.Diagnostic,
-            positionNumber.Diagnostic,
-            typeIdentifier.Diagnostic);
+            positionNumber.Diagnostic);
         var selectorDiagnostics = CombineDiagnostics(pathDiagnostics, deviceName.Diagnostic);
 
         var itemInfo = new DeviceItemInfo

@@ -105,6 +105,20 @@ public class NetworkSelectorFactoryTests
             () => NetworkSelectorFactory.DeviceItem("PLC_1", new[] { segment }));
     }
 
+    /// <summary>K95: built-in interfaces and ports have no type identifier; the selector is built with null.</summary>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public void DeviceItem_AcceptsAMissingTypeIdentifierAsNull(string? typeIdentifier)
+    {
+        var selector = NetworkSelectorFactory.DeviceItem("PLC_1", new[]
+        {
+            new DeviceItemPathSegmentInfo { Index = 0, Name = "PROFINET interface_1", PositionNumber = 32768, TypeIdentifier = typeIdentifier },
+        });
+
+        Assert.Null(Assert.Single(selector.ItemPath!).TypeIdentifier);
+    }
+
     [Fact]
     public void DeviceItem_RejectsNullPathSegment()
     {

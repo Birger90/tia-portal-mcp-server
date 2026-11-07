@@ -423,9 +423,9 @@ internal static partial class HardwareModuleService
                     Index = found,
                     Name = level.Name,
                     PositionNumber = level.PositionNumber,
-                    // K77: integrated items (interfaces, ports) read TypeIdentifier null live; the segment carries "" like
-                    // read_hardware_config's path segments, and the selector resolver treats null and "" alike.
-                    TypeIdentifier = level.TypeIdentifier ?? string.Empty,
+                    // K77/K95: integrated items (interfaces, ports) read TypeIdentifier null live; the segment carries null
+                    // like read_hardware_config's path segments, and the selector resolver accepts null, absent and "".
+                    TypeIdentifier = DeviceItemPathTypeIdentifier.Normalize(level.TypeIdentifier),
                 });
                 siblings = level.DeviceItems;
             }
@@ -469,7 +469,7 @@ internal static partial class HardwareModuleService
         Index = segment.Index,
         Name = segment.Name,
         PositionNumber = segment.PositionNumber,
-        TypeIdentifier = segment.TypeIdentifier,
+        TypeIdentifier = DeviceItemPathTypeIdentifier.Normalize(segment.TypeIdentifier),
     };
 
     private static string Describe(HardwareObjectIdentityInfo identity)

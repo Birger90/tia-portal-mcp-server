@@ -528,7 +528,7 @@ public static class NetworkObjectSelectorResolver
             }
 
             string name;
-            string typeIdentifier;
+            string? typeIdentifier;
             int positionNumber;
             try
             {
@@ -543,8 +543,9 @@ public static class NetworkObjectSelectorResolver
             }
 
             if (!string.Equals(name, requestedSegment.Name, StringComparison.Ordinal)
-                // K77: a null TypeIdentifier (integrated interfaces and ports) is the "" segment read_hardware_config reports.
-                || !string.Equals(typeIdentifier ?? string.Empty, requestedSegment.TypeIdentifier ?? string.Empty, StringComparison.Ordinal)
+                // K95: index, name and position number identify the item; a requested type identifier is an extra
+                // constraint. Built-in interfaces and ports report a null TypeIdentifier and are selected without one.
+                || !DeviceItemPathTypeIdentifier.Matches(requestedSegment.TypeIdentifier, typeIdentifier)
                 || requestedSegment.PositionNumber != positionNumber)
             {
                 return DeviceItemMatch.Fail(EvidenceMismatch(
@@ -555,7 +556,7 @@ public static class NetworkObjectSelectorResolver
             {
                 Index = requestedSegment.Index,
                 Name = name,
-                TypeIdentifier = typeIdentifier ?? string.Empty,
+                TypeIdentifier = DeviceItemPathTypeIdentifier.Normalize(typeIdentifier),
                 PositionNumber = positionNumber,
             });
             siblings = selected.DeviceItems;

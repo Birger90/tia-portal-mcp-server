@@ -70,21 +70,53 @@ public static partial class PlcSettingsRun
 
                 var createGroup = RequireMethod(composition, "CreateOfflineUmcUserGroup", Type.EmptyTypes, "UmcUserGroupComposition.CreateOfflineUmcUserGroup()");
                 var groupName = info.Name;
-                var before = Elements(composition, "UmcUserGroups").Count;
+                // K96 (live 2026-11-07, build 986928f): the call created the group with TIA's default name (Group_1), but a count
+                // comparison of the composition enumerated before and after the call failed, so the item stopped before SetName.
+                // The returned group is renamed first; the read-back then looks the group up by its actual name in a freshly read
+                // UmacConfigurator.UmcUserGroups (Find(String)), never by counting.
                 var created = Call(createGroup, composition)
                     ?? throw new RuntimeBindingException(WorkerFailureCategories.PostconditionFailed, "UmcUserGroupComposition.CreateOfflineUmcUserGroup() returned null. Inspect it with plc_read get_umac.");
                 result.Calls.Add("UmcUserGroupComposition.CreateOfflineUmcUserGroup()");
-                Exists(result, "group", true, Elements(composition, "UmcUserGroups").Count == before + 1, "A new offline UMC user group", null);
+                var defaultName = Get(created, "Name") as string;
                 if (groupName is not null)
                 {
                     var rename = RequireMethod(created, "SetName", new[] { typeof(string) }, "UmcUserGroup.SetName(String)");
-                    Call(rename, created, groupName);
+                    try
+                    {
+                        Call(rename, created, groupName);
+                    }
+                    catch (Exception exception) when (context.Recoverable(exception))
+                    {
+                        // The group exists under TIA's name; say which, so it can be renamed or deleted.
+                        throw new RuntimeBindingException(WorkerFailureCategories.EngineeringRejected,
+                            $"UmcUserGroup.SetName(\"{groupName}\") was rejected: {exception.Message} The group was created as '{defaultName ?? "(unreadable name)"}' and keeps that name. Inspect it with plc_read get_umac.");
+                    }
+
                     result.Calls.Add($"UmcUserGroup.SetName(\"{groupName}\")");
-                    Exists(result, "name", true, Find(composition, typeof(string), groupName, "UmcUserGroups.Find(String)") is not null, $"Offline UMC user group '{groupName}'", null);
                 }
 
-                result.Target = $"offline UMC user group '{groupName ?? context.NameOf(created) ?? "(unnamed)"}'";
-                if (context.NameOf(created) is { } createdName) result.Items.Add(createdName);
+                var actualName = Get(created, "Name") as string;
+                result.Target = $"offline UMC user group '{actualName ?? groupName ?? "(unnamed)"}'";
+                if (actualName is not null) result.Items.Add(actualName);
+                var fresh = Get(configurator, "UmcUserGroups")
+                    ?? throw new RuntimeBindingException(WorkerFailureCategories.WorkerOperationFailed, "UmacConfigurator.UmcUserGroups returned null after the call; the new group is not read back. Inspect it with plc_read get_umac.");
+                if (actualName is null)
+                    throw new RuntimeBindingException(WorkerFailureCategories.PostconditionFailed,
+                        "UmcUserGroupComposition.CreateOfflineUmcUserGroup() returned a group whose Name is unreadable, so it cannot be read back; the group may exist. Inspect it with plc_read get_umac.");
+
+                Exists(result, "group", true, Find(fresh, typeof(string), actualName, "UmcUserGroups.Find(String)") is not null, $"Offline UMC user group '{actualName}'", null);
+                if (groupName is not null)
+                {
+                    result.Changes.Add(new PlcSettingChangeInfo
+                    {
+                        Name = "name", Requested = groupName, Before = RuntimeServiceValues.Project(defaultName), After = RuntimeServiceValues.Project(actualName),
+                        Matched = string.Equals(actualName, groupName, StringComparison.Ordinal),
+                    });
+                    if (!string.Equals(actualName, groupName, StringComparison.Ordinal))
+                        throw new RuntimeBindingException(WorkerFailureCategories.PostconditionFailed,
+                            $"UmcUserGroup.SetName(\"{groupName}\") returned, but the group reads '{actualName}' afterwards. Inspect it with plc_read get_umac.");
+                }
+
                 return true;
             }
             case M.ImportUmcUser:

@@ -47,7 +47,7 @@ public static class NetworkWorkerInvoker
                 Name = segment.Name,
                 PositionNumber = segment.PositionNumber ?? throw new InvalidOperationException(
                     "Validated network interface owner segment is missing positionNumber."),
-                TypeIdentifier = segment.TypeIdentifier,
+                TypeIdentifier = DeviceItemPathTypeIdentifier.Normalize(segment.TypeIdentifier),
             }).ToList(),
             ItemPath = target.ItemPath is null
                 ? null
@@ -61,7 +61,7 @@ public static class NetworkWorkerInvoker
                         PositionNumber = segment.PositionNumber
                             ?? throw new InvalidOperationException(
                                 "Validated network selector path segment is missing positionNumber."),
-                        TypeIdentifier = segment.TypeIdentifier,
+                        TypeIdentifier = DeviceItemPathTypeIdentifier.Normalize(segment.TypeIdentifier),
                     })
                     .ToList(),
             InterfaceName = target.InterfaceName,

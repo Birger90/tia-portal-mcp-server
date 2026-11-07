@@ -57,6 +57,22 @@ public sealed class HardwareReadMessageTests
     }
 
     [Fact]
+    public void AddOptionalReadMessage_NullAndBlankAreOrdinary_UnreadableReportsWithoutClaimingNoSelector()
+    {
+        // K95: TIA reports no type identifier for built-in interfaces and ports; the selector is built without it.
+        var messages = new List<string>();
+
+        NetworkObjectDiscoveryEvidence.AddOptionalReadMessage(messages, NetworkObjectDiscoveryEvidence.ReadString(null, TypeIdentifierField));
+        NetworkObjectDiscoveryEvidence.AddOptionalReadMessage(messages, NetworkObjectDiscoveryEvidence.ReadString(" ", TypeIdentifierField));
+        Assert.Empty(messages);
+
+        NetworkObjectDiscoveryEvidence.AddOptionalReadMessage(messages, NetworkObjectDiscoveryEvidence.UnreadableString(TypeIdentifierField));
+        var message = Assert.Single(messages);
+        Assert.EndsWith("could not be read; the selector carries no type identifier.", message, StringComparison.Ordinal);
+        Assert.DoesNotContain("selector not available", message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void PageMaterialization_DeduplicatesMessagesOrdinally()
     {
         var materialized = HardwarePageCandidateMaterialization.ForDevice(
@@ -72,7 +88,7 @@ public sealed class HardwareReadMessageTests
         var source = ReadWorkerSource("HardwareConfigReader.cs");
 
         Assert.Contains("result.Messages = result.Messages.Distinct(StringComparer.Ordinal).ToList();", source, StringComparison.Ordinal);
-        Assert.Contains("NetworkObjectDiscoveryEvidence.AddReadMessage(messages, typeIdentifier, reportNull: false);", source, StringComparison.Ordinal);
+        Assert.Contains("NetworkObjectDiscoveryEvidence.AddOptionalReadMessage(messages, typeIdentifier);", source, StringComparison.Ordinal);
         Assert.DoesNotContain("private static void AddReadMessage", source, StringComparison.Ordinal);
     }
 

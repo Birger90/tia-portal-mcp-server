@@ -287,7 +287,8 @@ namespace Siemens.Engineering.Umac
         // Package G: the fake keeps groups as UmcUser stand-ins (Name, SetName, Delete on this list).
         public UmcUser CreateOfflineUmcUserGroup()
         {
-            var group = new UmcUser(_owner, "UmcUserGroup_" + (Items.Count + 1));
+            // K96 (live 2026-11-07): TIA names the new group Group_N; the caller's name is set afterwards with SetName.
+            var group = new UmcUser(_owner, "Group_" + (Items.Count + 1));
             Items.Add(group);
             return group;
         }

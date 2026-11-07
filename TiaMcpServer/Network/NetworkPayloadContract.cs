@@ -835,7 +835,11 @@ public static class NetworkPayloadContract
                 throw new JsonException($"'{prefix}.itemPath[].positionNumber' must not be negative.");
             }
 
-            RequireSelectorText(segment.TypeIdentifier, $"{prefix}.itemPath[].typeIdentifier", kind);
+            // K95: optional (null when TIA reports none, e.g. built-in interfaces and ports).
+            if (DeviceItemPathTypeIdentifier.IsInvalid(segment.TypeIdentifier))
+            {
+                throw new JsonException($"'{prefix}.itemPath[].typeIdentifier' must be null or nonblank for kind '{kind}'.");
+            }
         }
     }
 

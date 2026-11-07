@@ -142,8 +142,15 @@ public sealed class HardwareModuleUnitTests
         {
             r.Target = Rack;
             r.PositionNumber = 1;
-            r.Destination = DeviceItem((0, "Rack_0", 0, ""));
+            r.Destination = DeviceItem((0, "Rack_0", 0, "  "));
         })));
+        // K95: built-in interfaces and ports have no type identifier; "" (as list_port_connections used to report) means none.
+        Assert.DoesNotContain("typeIdentifier", Errors(Item("copy_device_item", r =>
+        {
+            r.Target = Rack;
+            r.PositionNumber = 1;
+            r.Destination = DeviceItem((0, "Rack_0", 0, ""));
+        })) ?? string.Empty);
     }
 
     [Theory]

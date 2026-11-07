@@ -125,7 +125,7 @@ public sealed class PortTopologyTests
         }
     }
 
-    private static object Segment(int index, string name, int position, string type) => new { index, name, positionNumber = position, typeIdentifier = type };
+    private static object Segment(int index, string name, int position, string? type) => new { index, name, positionNumber = position, typeIdentifier = type };
 
     private static object PortItem(int index, string name, int position) => new
     {
@@ -133,7 +133,8 @@ public sealed class PortTopologyTests
         itemPath = new[]
         {
             Segment(0, "Rack_0", 0, "System:Rack.S71500"), Segment(0, "PLC_1", 1, "OrderNumber:6ES7 516-3AN01-0AB0/V2.8"),
-            Segment(0, "PROFINET interface_1", 32768, "System:InterfacePN"), Segment(index, name, position, "System:PortPN"),
+            // K95: built-in interfaces and ports have no type identifier: null for the interface, the member left out for the port.
+            Segment(0, "PROFINET interface_1", 32768, null), new { index, name, positionNumber = position },
         },
     };
 
@@ -195,5 +196,50 @@ public sealed class PortTopologyTests
         var notPort = await CallAsync(harness, "network_write", new object[] { new { operationId = "q", operation = "connect_ports", target = Dq, partner = PortItem(0, "Port_1", 32769) } });
         Assert.Equal("error", notPort.GetProperty("phase").GetString());
         Assert.Equal("unsupported_capability", notPort.GetProperty("error").GetProperty("category").GetString());
+    }
+    /// <summary>
+    /// K95 (live 2026-11-07, CPU 1516-3 PN/DP V2.9): built-in interfaces and ports report no type identifier. The port and
+    /// interfaceOwner identities of list_port_connections and the selectors of read_hardware_config carry typeIdentifier null,
+    /// are selectable, and feed back unchanged as targets; a nonblank type identifier that the item does not have is refused.
+    /// </summary>
+    [Fact]
+    public async Task Mcp_ItemsWithoutTypeIdentifier_RoundTripFromReadsIntoTargets()
+    {
+        using var audit = new TempAuditDirectory();
+        await using var harness = await McpProtocolTestHarness.StartProductionSurfaceAsync(McpAccessMode.ReadWrite, audit.Path, "hardware-modules");
+
+        var list = await CallAsync(harness, "network_read", new object[] { new { operationId = "l", operation = "list_port_connections", target = new { kind = "device", deviceName = "PLC_1" } } });
+        var first = Item(list).GetProperty("result").GetProperty("ports")[0];
+        var port = first.GetProperty("port");
+        var owner = first.GetProperty("interfaceOwner");
+        Assert.All(port.GetProperty("itemPath").EnumerateArray().Skip(2), segment => Assert.Equal(JsonValueKind.Null, segment.GetProperty("typeIdentifier").ValueKind));
+        Assert.Equal(JsonValueKind.Null, owner.GetProperty("itemPath")[2].GetProperty("typeIdentifier").ValueKind);
+
+        // The read identities, fed back verbatim (typeIdentifier null), select the port and its interface.
+        var portTarget = new { kind = "deviceItem", deviceName = port.GetProperty("deviceName").GetString(), itemPath = port.GetProperty("itemPath") };
+        var ownerTarget = new { kind = "deviceItem", deviceName = owner.GetProperty("deviceName").GetString(), itemPath = owner.GetProperty("itemPath") };
+        var byPort = await CallAsync(harness, "network_read", new object[] { new { operationId = "p", operation = "list_port_connections", target = portTarget } });
+        Assert.Equal("Port_1", Item(byPort).GetProperty("result").GetProperty("ports")[0].GetProperty("port").GetProperty("name").GetString());
+        var byOwner = await CallAsync(harness, "network_read", new object[] { new { operationId = "o", operation = "list_port_connections", target = ownerTarget } });
+        Assert.Equal(2, Item(byOwner).GetProperty("result").GetProperty("ports").GetArrayLength());
+
+        // read_hardware_config reports the same items selectable, with a selector whose segment has typeIdentifier null.
+        var config = await CallAsync(harness, "network_read", new object[] { new { operationId = "h", operation = "read_hardware_config" } });
+        var x1 = Item(config).GetProperty("result").GetProperty("devices")[0].GetProperty("items")[0].GetProperty("items")[0].GetProperty("items")[0];
+        Assert.Equal("PROFINET interface_1", x1.GetProperty("name").GetString());
+        Assert.True(x1.GetProperty("selectable").GetBoolean());
+        var selector = x1.GetProperty("selector");
+        Assert.Equal(JsonValueKind.Null, selector.GetProperty("itemPath")[2].GetProperty("typeIdentifier").ValueKind);
+        var bySelector = await CallAsync(harness, "network_read", new object[] { new { operationId = "s", operation = "list_port_connections", target = selector } });
+        Assert.Equal(2, Item(bySelector).GetProperty("result").GetProperty("ports").GetArrayLength());
+
+        // A nonblank type identifier stays a consistency constraint: the interface has none, so this one is refused.
+        var wrong = new
+        {
+            kind = "deviceItem", deviceName = "PLC_1",
+            itemPath = new[] { Segment(0, "Rack_0", 0, "System:Rack.S71500"), Segment(0, "PLC_1", 1, "OrderNumber:6ES7 516-3AN01-0AB0/V2.8"), Segment(0, "PROFINET interface_1", 32768, "System:InterfacePN") },
+        };
+        var refused = await CallAsync(harness, "network_read", new object[] { new { operationId = "w", operation = "list_port_connections", target = wrong } });
+        Assert.Equal("target_evidence_mismatch", Item(refused).GetProperty("failure").GetProperty("category").GetString());
     }
 }

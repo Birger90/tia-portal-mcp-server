@@ -161,7 +161,8 @@ public sealed class NetworkSystemsTests
         itemPath = new[]
         {
             Segment(0, "Rack_0", 0, "System:Rack.S71500"), Segment(0, "PLC_1", 1, "OrderNumber:6ES7 516-3AN01-0AB0/V2.8"),
-            Segment(index, name, position, "System:InterfacePN"),
+            // K95: the built-in interface has no type identifier; "" is accepted like null.
+            Segment(index, name, position, ""),
         },
     };
 

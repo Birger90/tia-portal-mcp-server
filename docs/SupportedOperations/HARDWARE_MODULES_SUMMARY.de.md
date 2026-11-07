@@ -38,7 +38,10 @@ Hardware-Baugruppen-Elemente benennen ihr Objekt mit `target`:
 
 - `{ "kind": "deviceItem", "deviceName", "itemPath": [{ index, name, positionNumber, typeIdentifier }, ...] }`
   — der Selektor, den `read_hardware_config` und `list_network_objects` liefern; aufgelöst über den exakten
-  Indexpfad und gegen alle vier Nachweisfelder verifiziert (kein Rückfall auf den Namen allein);
+  Indexpfad und gegen `name` und `positionNumber` verifiziert, gegen `typeIdentifier`, wenn er angegeben ist
+  (kein Rückfall auf den Namen allein). `typeIdentifier` ist optional: eingebaute Elemente (Schnittstellen,
+  Ports, Kartenleser, Display, Kanal-Unterelemente einer CPU) haben keinen, werden mit `typeIdentifier: null`
+  gemeldet und sind auswählbar; eine Anfrage darf `null` oder `""` angeben oder ihn weglassen (K95, nicht live getestet);
 - `{ "kind": "device", "deviceName" }` — nur für `list_plug_locations`, `plug_device_item` (den
   Container), `set_hardware_attributes` und die Custom-Identity-Operationen, und für `destination`.
 
@@ -258,8 +261,9 @@ PROFINET-Verkabelung zwischen Ports: `list_port_connections` (`network_read`, je
   Port-Dienst ihm gleicht (`object.Equals`); `port` ist null, wenn keines passt (z. B. ein Port eines anderen Projekts).
   `connectedPortsState` ist `unreadable`, wenn `ConnectedPorts` fehlt oder einen behebbaren Fehler wirft. K77 (live am 2026-11-03,
   CPU 1516-3 PN/DP): der Aufruf scheiterte mit `protocol_error`, weil integrierte Schnittstellen und Ports `TypeIdentifier` null
-  lesen und der Worker dann eine Identität ohne Gerätenamen schickte; ein `TypeIdentifier` null ist jetzt das Pfadsegment `""`,
-  das auch `read_hardware_config` meldet (der Selektor-Auflöser behandelt null und `""` gleich), und ein Element, dessen Selektor
+  lesen und der Worker dann eine Identität ohne Gerätenamen schickte; ein `TypeIdentifier` null ist jetzt das Pfadsegment
+  `typeIdentifier: null`, das auch `read_hardware_config` meldet (K95: der Selektor akzeptiert null, `""` oder kein Feld, sodass
+  `port` und `interfaceOwner` als Ziel zurückgegeben werden können), und ein Element, dessen Selektor
   nicht lesbar ist, ist null (`interfaceOwner`, Partner-`port`) bzw. beim Port selbst Gerätename und Elementname ohne Pfad, jeweils
   mit Hinweis. Nicht live getestet.
 - **Geräteelemente ohne Port (K83, nicht live getestet).** TIA Portal V21 listet `NetworkPort` unter den Diensten jedes

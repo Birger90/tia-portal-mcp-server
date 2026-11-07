@@ -93,14 +93,14 @@ public static class NetworkObjectIndexReader
                 Index = siblingIndex,
                 Name = itemName.IsUsable ? itemName.Value : string.Empty,
                 PositionNumber = positionNumber.IsUsable ? positionNumber.Value : -1,
-                TypeIdentifier = typeIdentifier.IsUsable ? typeIdentifier.Value : string.Empty,
+                // K95: optional selector evidence; built-in interfaces and ports read null and stay selectable.
+                TypeIdentifier = typeIdentifier.IsUsable ? typeIdentifier.Value : null,
             };
             var itemPath = parentPath.Concat(new[] { segment }).ToList();
             var pathDiagnostics = CombineDiagnostics(
                 parentPathDiagnostics,
                 itemName.Diagnostic,
-                positionNumber.Diagnostic,
-                typeIdentifier.Diagnostic);
+                positionNumber.Diagnostic);
             var itemKey = PathKey(deviceName.IsUsable ? deviceName.Value : null, itemPath);
 
             if (requestedKinds.Contains(NetworkObjectKinds.DeviceItem))

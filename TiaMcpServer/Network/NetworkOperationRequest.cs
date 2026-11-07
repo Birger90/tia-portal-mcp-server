@@ -251,8 +251,8 @@ public sealed class NetworkDeviceItemPathSegment
     [Description("Position number of the module at this level of the device hierarchy.")]
     public int? PositionNumber { get; set; }
 
-    [Description("Type identifier of the module at this level of the device hierarchy.")]
-    public string TypeIdentifier { get; set; } = string.Empty;
+    [Description("Optional type identifier of the item at this level, as read_hardware_config reports it. Null, absent or empty when TIA reports none (built-in interfaces, ports, card reader, display); when nonblank it must match the live item.")]
+    public string? TypeIdentifier { get; set; }
 }
 
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
@@ -262,7 +262,7 @@ public sealed class NetworkInterfacePathSegment
     public string Name { get; set; } = string.Empty;
     [Description("Position number at this owner-path level; required and nonnegative.")]
     public int? PositionNumber { get; set; }
-    [Description("Optional captured type identifier used as an extra consistency constraint; nonblank when supplied.")]
+    [Description("Optional captured type identifier used as an extra consistency constraint when nonblank; null, absent or empty means none (built-in interfaces and ports have none).")]
     public string? TypeIdentifier { get; set; }
 }
 

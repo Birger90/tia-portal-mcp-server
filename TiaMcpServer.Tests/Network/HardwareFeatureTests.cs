@@ -17,12 +17,12 @@ namespace TiaMcpServer.Tests.Network;
 [Collection("Mcp protocol serial")]
 public sealed class HardwareFeatureTests
 {
-    private static object Segment(int index, string name, int position, string type) => new { index, name, positionNumber = position, typeIdentifier = type };
+    private static object Segment(int index, string name, int position, string? type) => new { index, name, positionNumber = position, typeIdentifier = type };
 
     private static object Interface(int index, string name, int position) => new
     {
         kind = "deviceItem", deviceName = "PLC_1",
-        itemPath = new[] { Segment(0, "Rack_0", 0, "System:Rack.S71500"), Segment(0, "PLC_1", 1, "OrderNumber:6ES7 516-3AN01-0AB0/V2.8"), Segment(index, name, position, "System:InterfacePN") },
+        itemPath = new[] { Segment(0, "Rack_0", 0, "System:Rack.S71500"), Segment(0, "PLC_1", 1, "OrderNumber:6ES7 516-3AN01-0AB0/V2.8"), Segment(index, name, position, null) },
     };
 
     private static object Di => new

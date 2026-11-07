@@ -38,7 +38,10 @@ Hardware-module items name their object with `target`:
 
 - `{ "kind": "deviceItem", "deviceName", "itemPath": [{ index, name, positionNumber, typeIdentifier }, ...] }`
   — the selector `read_hardware_config` and `list_network_objects` return; resolved by exact index
-  path and verified against all four evidence fields (no name-only fallback);
+  path and verified against `name` and `positionNumber`, and against `typeIdentifier` when it is given
+  (no name-only fallback). `typeIdentifier` is optional: built-in items (a CPU's interfaces, ports, card
+  reader, display, channel sub-items) have none, are reported with `typeIdentifier: null` and are
+  selectable; a request may pass `null`, `""` or omit it (K95, not live-tested);
 - `{ "kind": "device", "deviceName" }` — only for `list_plug_locations`, `plug_device_item` (the
   container), `set_hardware_attributes` and the custom identity operations, and for `destination`.
 
@@ -256,8 +259,8 @@ PROFINET cabling between ports: `list_port_connections` (`network_read`, every m
   (`object.Equals`); `port` is null when no device item does (for example a port of another project). `connectedPortsState` is
   `unreadable` when `ConnectedPorts` is missing or throws a recoverable error. K77 (live 2026-11-03, CPU 1516-3 PN/DP): the
   call failed `protocol_error` because integrated interfaces and ports read `TypeIdentifier` null and the worker then sent an
-  identity without a device name; a null `TypeIdentifier` is now the `""` path segment `read_hardware_config` also reports (the
-  selector resolver treats null and `""` alike), and an item whose selector cannot be read is null (`interfaceOwner`, partner
+  identity without a device name; a null `TypeIdentifier` is now the `typeIdentifier: null` path segment `read_hardware_config`
+  also reports (K95: the selector accepts null, `""` or no member, so `port` and `interfaceOwner` can be fed back as targets), and an item whose selector cannot be read is null (`interfaceOwner`, partner
   `port`) or, for the port itself, the device name and item name without a path, each with a message. Not live-tested.
 - **Non-port items (K83, not live-tested).** TIA Portal V21 lists `NetworkPort` among the services of every device item (CPU, card
   reader, display, OPC UA, DP and PN interfaces) but returns it only on ports. The read no longer adds one message per such item:

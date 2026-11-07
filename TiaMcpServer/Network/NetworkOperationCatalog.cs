@@ -531,8 +531,9 @@ public static partial class NetworkOperationCatalog
                     errors.Add($"{member}.positionNumber' is required.");
                 else if (segment.PositionNumber < 0)
                     errors.Add($"{member}.positionNumber' must not be negative.");
-                if (segment.TypeIdentifier is not null && string.IsNullOrWhiteSpace(segment.TypeIdentifier))
-                    errors.Add($"{member}.typeIdentifier' must be nonblank when supplied.");
+                // K95: as for itemPath, null, absent or "" mean "no type identifier constraint".
+                if (DeviceItemPathTypeIdentifier.IsInvalid(segment.TypeIdentifier))
+                    errors.Add($"{member}.typeIdentifier' must be nonblank when supplied (omit it, or pass null or \"\", when the item has none).");
             }
         }
 
@@ -576,9 +577,10 @@ public static partial class NetworkOperationCatalog
                     errors.Add($"{segmentPrefix}.positionNumber' must not be negative.");
                 }
 
-                if (string.IsNullOrWhiteSpace(segment.TypeIdentifier))
+                // K95: optional; null, absent or "" mean "TIA reports none" (built-in interfaces, ports).
+                if (DeviceItemPathTypeIdentifier.IsInvalid(segment.TypeIdentifier))
                 {
-                    errors.Add($"{segmentPrefix}.typeIdentifier' is required and must be nonblank.");
+                    errors.Add($"{segmentPrefix}.typeIdentifier' must be nonblank when supplied (omit it, or pass null or \"\", when the item has none).");
                 }
             }
         }

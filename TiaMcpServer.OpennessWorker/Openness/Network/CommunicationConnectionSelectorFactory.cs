@@ -93,7 +93,7 @@ public static class CommunicationConnectionSelectorFactory
                 if (segment.Index < 0
                     || string.IsNullOrWhiteSpace(segment.Name)
                     || segment.PositionNumber < 0
-                    || string.IsNullOrWhiteSpace(segment.TypeIdentifier))
+                    || DeviceItemPathTypeIdentifier.IsInvalid(segment.TypeIdentifier))
                 {
                     diagnostics.Add(
                         $"Owner device item path segment {index} is missing required evidence; "
@@ -149,6 +149,6 @@ public static class CommunicationConnectionSelectorFactory
             Index = segment.Index,
             Name = segment.Name,
             PositionNumber = segment.PositionNumber,
-            TypeIdentifier = segment.TypeIdentifier,
+            TypeIdentifier = DeviceItemPathTypeIdentifier.Normalize(segment.TypeIdentifier),
         };
 }

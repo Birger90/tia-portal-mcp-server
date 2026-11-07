@@ -468,7 +468,8 @@ public static class HardwareModuleWritePlanner
     private static bool SameItem(HardwareObjectIdentityInfo left, HardwareObjectIdentityInfo right)
         => string.Equals(left.DeviceName, right.DeviceName, StringComparison.OrdinalIgnoreCase) && left.ItemPath.Count == right.ItemPath.Count
             && left.ItemPath.Zip(right.ItemPath).All(pair => pair.First.Index == pair.Second.Index && pair.First.Name == pair.Second.Name
-                && pair.First.PositionNumber == pair.Second.PositionNumber && pair.First.TypeIdentifier == pair.Second.TypeIdentifier);
+                && pair.First.PositionNumber == pair.Second.PositionNumber
+                && DeviceItemPathTypeIdentifier.Normalize(pair.First.TypeIdentifier) == DeviceItemPathTypeIdentifier.Normalize(pair.Second.TypeIdentifier));
 
     // ------------------------------------------------------------------
     // Snapshot resolution
@@ -501,10 +502,13 @@ public static class HardwareModuleWritePlanner
             if (segment.Index is not { } index || index < 0 || index >= siblings.Count)
                 return Error(WorkerFailureCategories.TargetNotFound, $"The {role} item path segment {depth} has no sibling at index {segment.Index}.");
             selected = siblings[index];
-            if (selected.Name != segment.Name || selected.PositionNumber != segment.PositionNumber || selected.TypeIdentifier != segment.TypeIdentifier)
+            // K95: the type identifier is an optional constraint; built-in interfaces and ports have none.
+            if (selected.Name != segment.Name || selected.PositionNumber != segment.PositionNumber
+                || !DeviceItemPathTypeIdentifier.Matches(segment.TypeIdentifier, selected.TypeIdentifier))
                 return Error(WorkerFailureCategories.TargetEvidenceMismatch,
                     $"The {role} item path segment {depth} no longer matches its name, position number or type identifier. Re-read the hardware configuration.");
-            path.Add(new DeviceItemPathSegmentInfo { Index = index, Name = segment.Name, PositionNumber = segment.PositionNumber!.Value, TypeIdentifier = segment.TypeIdentifier });
+            path.Add(new DeviceItemPathSegmentInfo { Index = index, Name = segment.Name, PositionNumber = segment.PositionNumber!.Value,
+                TypeIdentifier = DeviceItemPathTypeIdentifier.Normalize(selected.TypeIdentifier) });
             siblings = selected.Items;
         }
 
@@ -581,7 +585,7 @@ public static class HardwareModuleWritePlanner
                     Index = index,
                     Name = child.Name ?? string.Empty,
                     PositionNumber = child.PositionNumber ?? -1,
-                    TypeIdentifier = child.TypeIdentifier ?? string.Empty,
+                    TypeIdentifier = DeviceItemPathTypeIdentifier.Normalize(child.TypeIdentifier),
                 }).ToList()));
             }
         }

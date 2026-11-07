@@ -326,7 +326,7 @@ public static class NetworkIdentityResolver
     private static (NodeCandidate? Candidate, string? Category, string? Error) SelectNode(DeviceInfo device, NetworkObjectTarget target)
     {
         IReadOnlyList<NetworkInterfacePathSegmentInfo>? path = target.InterfacePath?.Select(x => new NetworkInterfacePathSegmentInfo
-        { Name = x.Name, PositionNumber = x.PositionNumber ?? -1, TypeIdentifier = x.TypeIdentifier }).ToArray();
+        { Name = x.Name, PositionNumber = x.PositionNumber ?? -1, TypeIdentifier = DeviceItemPathTypeIdentifier.Normalize(x.TypeIdentifier) }).ToArray();
         if (target.InterfacePath is not null && target.ItemPath is not null)
             return (null, WorkerFailureCategories.TargetEvidenceMismatch, "Both owner path forms were supplied.");
         if (target.ItemPath is not null)
@@ -338,13 +338,14 @@ public static class NetworkIdentityResolver
                 if (segment.Index is not int index || index < 0 || index >= siblings.Count)
                     return (null, WorkerFailureCategories.TargetNotFound, "Legacy itemPath index was not found.");
                 var item = siblings[index];
-                if (item.Name != segment.Name || item.PositionNumber != segment.PositionNumber || item.TypeIdentifier != segment.TypeIdentifier
-                    || string.IsNullOrWhiteSpace(segment.TypeIdentifier))
+                // K95: the type identifier is an optional constraint; built-in interfaces and ports have none.
+                if (item.Name != segment.Name || item.PositionNumber != segment.PositionNumber
+                    || !DeviceItemPathTypeIdentifier.Matches(segment.TypeIdentifier, item.TypeIdentifier))
                     return (null, WorkerFailureCategories.TargetEvidenceMismatch, "Legacy itemPath evidence does not match.");
                 siblings = item.Items;
             }
             path = target.ItemPath.Select(x => new NetworkInterfacePathSegmentInfo
-            { Name = x.Name, PositionNumber = x.PositionNumber ?? -1, TypeIdentifier = x.TypeIdentifier }).ToArray();
+            { Name = x.Name, PositionNumber = x.PositionNumber ?? -1, TypeIdentifier = DeviceItemPathTypeIdentifier.Normalize(x.TypeIdentifier) }).ToArray();
         }
         if (path is not null)
         {

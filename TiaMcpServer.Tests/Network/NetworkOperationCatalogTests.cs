@@ -85,6 +85,63 @@ public class NetworkOperationCatalogTests
             ? NetworkOperationCatalog.ValidateRead(new[] { request }) : NetworkOperationCatalog.ValidateWrite(new[] { request });
         Assert.False(invalidTargetValidation.IsValid);
     }
+    /// <summary>
+    /// K95 (live 2026-11-07): built-in interfaces and ports have no type identifier, so a deviceItem itemPath segment (and an
+    /// interfacePath segment) may carry null, "" or no typeIdentifier; index, name and positionNumber stay required, and a
+    /// whitespace-only type identifier is still refused.
+    /// </summary>
+    [Theory]
+    [InlineData(null, true)]
+    [InlineData("", true)]
+    [InlineData("OrderNumber:X", true)]
+    [InlineData("   ", false)]
+    public void DeviceItemTarget_TypeIdentifierIsOptional(string? typeIdentifier, bool valid)
+    {
+        var request = Op("i", "inspect_network_object", r => r.Target = new NetworkObjectTarget
+        {
+            Kind = "deviceItem", DeviceName = "PLC_1",
+            ItemPath = new[]
+            {
+                new NetworkDeviceItemPathSegment { Index = 0, Name = "PLC_1", PositionNumber = 1, TypeIdentifier = "OrderNumber:CPU" },
+                new NetworkDeviceItemPathSegment { Index = 0, Name = "PROFINET-Schnittstelle_1", PositionNumber = 32768, TypeIdentifier = typeIdentifier },
+            },
+        });
+        var validation = NetworkOperationCatalog.ValidateRead(new[] { request });
+        Assert.Equal(valid, validation.IsValid);
+        if (!valid) Assert.Contains("'target.itemPath[1].typeIdentifier' must be nonblank when supplied", validation.Error, StringComparison.Ordinal);
+        else Assert.True(validation.IsValid, validation.Error);
+    }
+
+    [Fact]
+    public void DeviceItemTarget_IndexNameAndPositionStayRequired()
+    {
+        var request = Op("i", "inspect_network_object", r => r.Target = new NetworkObjectTarget
+        {
+            Kind = "deviceItem", DeviceName = "PLC_1",
+            ItemPath = new[] { new NetworkDeviceItemPathSegment { Name = " " } },
+        });
+        var validation = NetworkOperationCatalog.ValidateRead(new[] { request });
+        Assert.False(validation.IsValid);
+        Assert.Contains("'target.itemPath[0].index' is required", validation.Error, StringComparison.Ordinal);
+        Assert.Contains("'target.itemPath[0].name' is required", validation.Error, StringComparison.Ordinal);
+        Assert.Contains("'target.itemPath[0].positionNumber' is required", validation.Error, StringComparison.Ordinal);
+        Assert.DoesNotContain("typeIdentifier", validation.Error, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(null, true)]
+    [InlineData("", true)]
+    [InlineData("  ", false)]
+    public void NodeInterfacePath_TypeIdentifierIsOptional(string? typeIdentifier, bool valid)
+    {
+        var request = Configure();
+        request.Operation = "inspect_network_object";
+        request.Changes = null;
+        request.Target!.Kind = "node";
+        request.Target.InterfacePath = new[] { new NetworkInterfacePathSegment { Name = "X1", PositionNumber = 1, TypeIdentifier = typeIdentifier } };
+        Assert.Equal(valid, NetworkOperationCatalog.ValidateRead(new[] { request }).IsValid);
+    }
+
     private const int ExpectedMaxOperationIdLength = 256;
 
     private static NetworkOperationRequest Op(

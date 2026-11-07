@@ -99,6 +99,23 @@ internal static class NetworkObjectDiscoveryEvidence
     /// With <paramref name="reportNull"/> false, a successfully read null is ordinary data and adds
     /// nothing; blank, wrong-type and unreadable values still report.
     /// </summary>
+    /// <summary>
+    /// Adds a read message for optional selector evidence such as a device item's type identifier (K95):
+    /// a null or blank value is ordinary data (TIA reports none for built-in interfaces and ports) and adds
+    /// nothing; a wrong-type or unreadable value reports, and the selector is still built without it.
+    /// </summary>
+    public static void AddOptionalReadMessage(List<string> messages, NetworkObjectDiscoveryEvidenceValue<string> evidence)
+    {
+        if (!evidence.IsUsable && evidence.SnapshotToken != "null" && evidence.SnapshotToken != "blank")
+        {
+            const string Unavailable = "; selector not available.";
+            var diagnostic = evidence.Diagnostic;
+            messages.Add(diagnostic.EndsWith(Unavailable, System.StringComparison.Ordinal)
+                ? diagnostic.Substring(0, diagnostic.Length - Unavailable.Length) + "; the selector carries no type identifier."
+                : diagnostic);
+        }
+    }
+
     public static void AddReadMessage<T>(
         List<string> messages,
         NetworkObjectDiscoveryEvidenceValue<T> evidence,

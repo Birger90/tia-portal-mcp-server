@@ -157,6 +157,6 @@ public static class HardwareModuleInvoker
         Index = segment.Index ?? throw new ArgumentException("A validated item-path segment is missing its index."),
         Name = segment.Name,
         PositionNumber = segment.PositionNumber ?? throw new ArgumentException("A validated item-path segment is missing its positionNumber."),
-        TypeIdentifier = segment.TypeIdentifier,
+        TypeIdentifier = DeviceItemPathTypeIdentifier.Normalize(segment.TypeIdentifier),
     };
 }

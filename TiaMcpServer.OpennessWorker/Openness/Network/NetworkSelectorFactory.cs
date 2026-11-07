@@ -152,7 +152,7 @@ public static class NetworkSelectorFactory
             Index = segment.Index,
             Name = segment.Name,
             PositionNumber = segment.PositionNumber,
-            TypeIdentifier = segment.TypeIdentifier,
+            TypeIdentifier = DeviceItemPathTypeIdentifier.Normalize(segment.TypeIdentifier),
         };
 
     private static void RequireNonBlank(string value, string paramName)
@@ -210,10 +210,11 @@ public static class NetworkSelectorFactory
                     nameof(itemPath));
             }
 
-            if (string.IsNullOrWhiteSpace(segment.TypeIdentifier))
+            // K95: optional; null when TIA reports none (built-in interfaces, ports, card reader, display).
+            if (DeviceItemPathTypeIdentifier.IsInvalid(segment.TypeIdentifier))
             {
                 throw new ArgumentException(
-                    $"Segment at position {i} must contain a non-blank TypeIdentifier.",
+                    $"Segment at position {i} has a whitespace-only TypeIdentifier; use null when the item has none.",
                     nameof(itemPath));
             }
         }

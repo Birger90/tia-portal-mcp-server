@@ -66,16 +66,17 @@ sealed class HardwareModuleScenario
         var cpu = new Item("PLC_1", "OrderNumber:6ES7 516-3AN01-0AB0/V2.8", 1);
         // PROFINET interface X1 with two port items, each offering the NetworkPort stand-in (issue #10).
         // X1 is also an I-device whose single IO connector is in IO system 100 of subnet PN/IE_1 (issue #11).
-        var x1 = new Item("PROFINET interface_1", "System:InterfacePN", 32768) { Interface = new FakeNetworkInterface { ConnectedIoSystem = 100 } };
-        x1.Items.Add(new Item("Port_1", "System:PortPN", 32769) { Port = new Siemens.Engineering.HW.Features.NetworkPort() });
-        x1.Items.Add(new Item("Port_2", "System:PortPN", 32770) { Port = new Siemens.Engineering.HW.Features.NetworkPort() });
+        // K95 (live 2026-11-07, CPU 1516-3 PN/DP V2.9): built-in interfaces and ports report TypeIdentifier null.
+        var x1 = new Item("PROFINET interface_1", null, 32768) { Interface = new FakeNetworkInterface { ConnectedIoSystem = 100 } };
+        x1.Items.Add(new Item("Port_1", null, 32769) { Port = new Siemens.Engineering.HW.Features.NetworkPort() });
+        x1.Items.Add(new Item("Port_2", null, 32770) { Port = new Siemens.Engineering.HW.Features.NetworkPort() });
         cpu.Items.Add(x1);
         // Package G: X1 offers NetworkInterface (one node, one IO connector), ImConnection, PcInterfaceAssignment and CommunicationManagement;
         // the DI module offers ModuleDescriptionUpdater and TelecontrolManagement.
         var features = new Siemens.Engineering.HW.Features.NetworkInterface();
         features.IoConnectors.Add(new Siemens.Engineering.HW.IoConnector(new Siemens.Engineering.HW.IoController(cpu)));
         x1.Features.AddRange(new object[] { features, new Siemens.Engineering.HW.Features.ImConnection(), new Siemens.Engineering.HW.Features.PcInterfaceAssignment(), new Siemens.Engineering.HW.Features.CommunicationManagement() });
-        var x2 = new Item("PROFINET interface_2", "System:InterfacePN", 33024) { Interface = new FakeNetworkInterface() };
+        var x2 = new Item("PROFINET interface_2", null, 33024) { Interface = new FakeNetworkInterface() };
         x2.Features.Add(new Siemens.Engineering.HW.Features.NetworkInterface());
         cpu.Items.Add(x2);
         rack.Items.Add(cpu);
@@ -729,18 +730,13 @@ sealed class HardwareModuleScenario
 
     private DeviceItemInfo Project(Item item, List<DeviceItemPathSegmentInfo> parent, int index, bool ioDetails, bool tagMatches)
     {
-        var path = parent.Append(new DeviceItemPathSegmentInfo { Index = index, Name = item.Name, PositionNumber = item.Position, TypeIdentifier = item.Type ?? string.Empty }).ToList();
-        var info = item.Type is null
-            ? new DeviceItemInfo
-            {
-                Name = item.Name, PositionNumber = item.Position, Selectable = false,
-                SelectorDiagnostics = { "Could not read device item type identifier." },
-            }
-            : new DeviceItemInfo
-            {
-                Name = item.Name, TypeIdentifier = item.Type, PositionNumber = item.Position, Selectable = true,
-                Selector = new NetworkObjectSelectorInfo { Kind = NetworkObjectKinds.DeviceItem, DeviceName = DeviceName, ItemPath = path },
-            };
+        var path = parent.Append(new DeviceItemPathSegmentInfo { Index = index, Name = item.Name, PositionNumber = item.Position, TypeIdentifier = item.Type }).ToList();
+        // K95: an item without type identifier (built-in interfaces, ports, channel sub-items) is selectable like the worker reports it.
+        var info = new DeviceItemInfo
+        {
+            Name = item.Name, TypeIdentifier = item.Type, PositionNumber = item.Position, Selectable = true,
+            Selector = new NetworkObjectSelectorInfo { Kind = NetworkObjectKinds.DeviceItem, DeviceName = DeviceName, ItemPath = path },
+        };
         if (ioDetails)
         {
             info.IoDetails = new DeviceItemIoDetailsInfo();
@@ -786,8 +782,8 @@ sealed class HardwareModuleScenario
         {
             if (segment.Index < 0 || segment.Index >= siblings.Count) throw new WorkerOperationRefusal(WorkerFailureCategories.TargetNotFound, "No item at that index.");
             current = siblings[segment.Index];
-            // K77: a null type identifier (integrated interfaces and ports) is the "" segment, as in the worker's resolver.
-            if (current.Name != segment.Name || current.Position != segment.PositionNumber || (current.Type ?? string.Empty) != (segment.TypeIdentifier ?? string.Empty))
+            // K77/K95: index, name and position identify the item; a supplied type identifier must match (integrated interfaces and ports have none).
+            if (current.Name != segment.Name || current.Position != segment.PositionNumber || !DeviceItemPathTypeIdentifier.Matches(segment.TypeIdentifier, current.Type))
                 throw new WorkerOperationRefusal(WorkerFailureCategories.TargetEvidenceMismatch, "The item path evidence does not match.");
             siblings = current.Items;
         }
@@ -815,7 +811,7 @@ sealed class HardwareModuleScenario
         var siblings = _deviceItems;
         foreach (var level in chain)
         {
-            path.Add(new DeviceItemPathSegmentInfo { Index = siblings.IndexOf(level), Name = level.Name, PositionNumber = level.Position, TypeIdentifier = level.Type ?? string.Empty });
+            path.Add(new DeviceItemPathSegmentInfo { Index = siblings.IndexOf(level), Name = level.Name, PositionNumber = level.Position, TypeIdentifier = level.Type });
             siblings = level.Items;
         }
 

@@ -425,7 +425,8 @@ public static class LibraryCatalog
                 DeviceName = item.Target.Parent.DeviceName,
                 ItemPath = item.Target.Parent.ItemPath?.Select(segment => new Contracts.Network.DeviceItemPathSegmentInfo
                 {
-                    Index = segment.Index, Name = segment.Name, PositionNumber = segment.PositionNumber, TypeIdentifier = segment.TypeIdentifier,
+                    Index = segment.Index, Name = segment.Name, PositionNumber = segment.PositionNumber,
+                    TypeIdentifier = Contracts.Network.DeviceItemPathTypeIdentifier.Normalize(segment.TypeIdentifier),
                 }).ToList(),
             },
         },
@@ -472,4 +473,30 @@ public static class LibraryCatalog
 
     public static string? Key(string? library)
         => library is null ? null : LibraryPolicy.IsProject(library) ? LibraryPolicy.ProjectLibrary : LibraryPolicy.NormalizePath(library).ToUpperInvariant();
+}
+
+/// <summary>
+/// library_read/library_write item schema (K95): the optional <c>typeIdentifier</c> of a <c>target.parent.itemPath</c>
+/// segment is advertised as <c>"type": "string"</c> instead of <c>["string", "null"]</c>, which would make the schema one
+/// level deeper than the K91 client limit allows. The arguments are still deserialized into the nullable contract, so an
+/// explicit null is accepted as well as an omitted member; the description says so. Nothing accepted or refused changes.
+/// </summary>
+internal static class LibraryItemSchema
+{
+    internal const string TypeIdentifierDescription =
+        "Optional type identifier of the item at this level; omit it (or pass null) when the item has none, as for built-in interfaces and ports.";
+
+    internal static System.Text.Json.Nodes.JsonNode KeepSegmentDepth(
+        Microsoft.Extensions.AI.AIJsonSchemaCreateContext context, System.Text.Json.Nodes.JsonNode schema)
+    {
+        if (context.PropertyInfo is { Name: "typeIdentifier" } property
+            && property.DeclaringType == typeof(Contracts.Network.DeviceItemPathSegmentInfo)
+            && schema is System.Text.Json.Nodes.JsonObject node)
+        {
+            node["type"] = "string";
+            node["description"] = TypeIdentifierDescription;
+        }
+
+        return schema;
+    }
 }

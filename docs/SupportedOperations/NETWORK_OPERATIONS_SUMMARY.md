@@ -151,7 +151,7 @@ mode and local-session cases; C-9's default changes and combined qualification a
 
 | Kind | Required selector identity | Additional verification evidence |
 |---|---|---|
-| `deviceItem` | `deviceName`, non-empty `itemPath` | Every path segment carries zero-based sibling `index`, `name`, `positionNumber`, and `typeIdentifier`. |
+| `deviceItem` | `deviceName`, non-empty `itemPath` | Every path segment carries zero-based sibling `index`, `name` and `positionNumber` (required) and an optional `typeIdentifier`. TIA reports no type identifier for built-in items such as a CPU's PROFINET/DP interfaces, their ports, the card reader, the display, OPC UA and channel sub-items; their segments carry `typeIdentifier: null`, they are selectable, and a request may give `null`, `""` or omit the member. A nonblank `typeIdentifier` is an extra constraint that must equal the live item's (K95; not live-tested). |
 | `networkInterface` | `deviceName`, non-empty `itemPath` | Optional `interfaceName`, `interfaceType`, and `interfaceOperatingMode` are verified when present. |
 | `node` | `deviceName`, `nodeId` | Discovery may also supply `itemPath` plus `nodeIndex`; those two fields are supplied together and verify the owning interface and sibling position. |
 | `subnet` | `subnetId` | The exact identifier is re-read before inspection. |

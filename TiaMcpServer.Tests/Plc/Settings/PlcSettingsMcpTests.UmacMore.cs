@@ -67,4 +67,29 @@ public sealed partial class PlcSettingsMcpTests
         var section = Section(Item(user, 0).GetProperty("result").GetProperty("project"), "umcServerUser");
         Assert.Equal("Operators of line 1", Property(section, "Description"));
     }
+
+    /// <summary>
+    /// K96 (live 2026-11-07, build 986928f): create_offline_umc_user_group with a name created TIA's default Group_1 and failed
+    /// postcondition_failed before SetName. The returned group is now renamed first and read back by its actual name; without a
+    /// name the result reports the name TIA gave the group.
+    /// </summary>
+    [Fact]
+    public async Task UmacMore_OfflineUmcUserGroup_GetsTheRequestedName_OrReportsTiasName()
+    {
+        await using var session = await Session.StartAsync(McpAccessMode.ReadWrite);
+        var (named, raw) = await session.WriteAsync(false, new { operationId = "g", operation = "create_offline_umc_user_group", name = "MCP_Test_Gruppe" });
+        Assert.False(raw.IsError == true, named.GetRawText());
+        Assert.True(named.GetProperty("success").GetBoolean(), named.GetRawText());
+        Assert.True(Verification(named, "g").GetProperty("success").GetBoolean(), named.GetRawText());
+        var result = Item(named, 0).GetProperty("result");
+        Assert.Contains("MCP_Test_Gruppe", result.GetRawText(), StringComparison.Ordinal);
+        Assert.Contains("Group_1", result.GetRawText(), StringComparison.Ordinal);
+        Assert.Contains("UmcUserGroup.SetName(", result.GetRawText(), StringComparison.Ordinal);
+
+        var (unnamed, _) = await session.WriteAsync(false, new { operationId = "u", operation = "create_offline_umc_user_group" });
+        Assert.True(unnamed.GetProperty("success").GetBoolean(), unnamed.GetRawText());
+        var second = Item(unnamed, 0).GetProperty("result").GetRawText();
+        Assert.True(second.Contains("Group_2", StringComparison.Ordinal), second);
+        Assert.DoesNotContain("SetName", second, StringComparison.Ordinal);
+    }
 }
