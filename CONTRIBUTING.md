@@ -137,7 +137,7 @@ see [docs/development/building.md](docs/development/building.md); for the MCP In
 - New write operations build on the guarded pipeline (`Safety/Pipeline`), with `dryRun`,
   guards, verification and audit. No tokens, no separate parallel mechanism.
 - A new tool is rarely needed: new capabilities come as operations in existing tools
-  (`plc_read`, `plc_write`, `network_read` …). The tool count (13/32/32) changes only for good reason.
+  (`plc_read`, `plc_write`, `network_read` …). The tool count (13/33/33) changes only for good reason.
 
 ### Documentation
 

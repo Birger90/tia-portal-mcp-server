@@ -18,6 +18,12 @@ public interface IWriteDomain<TItem, TEffect, TVerification, TResponse>
 
     bool ConfirmsEveryCall => false;
 
+    /// <summary>
+    /// True for a domain that acts on the TIA Portal instance rather than on the bound project (project_server_write): the
+    /// project container's capability table does not apply to it.
+    /// </summary>
+    bool IsPortalScoped => false;
+
     string DescribeForConfirmation(IReadOnlyList<TItem> items, IReadOnlyList<ItemPlan<TEffect>> plans) => ToolName;
 
     /// <summary>Validates the items and the access mode before any worker call.</summary>

@@ -23,13 +23,16 @@ public static partial class BlockImporter
         string plcName,
         DirectoryInfo directory,
         string baseName,
-        BlockImportInvocationBoundary boundary)
+        BlockImportInvocationBoundary boundary,
+        string? documentImportOption = null)
     {
+        // Audit N7: Override, or Override combined with the caller's culture member (bound before the import starts).
+        var options = DocumentImportOptions(documentImportOption);
         boundary.BeforeSiemensCall();
         var result = target.Group.Blocks.ImportFromDocuments(
             directory,
             baseName,
-            ImportDocumentOptions.Override);
+            options);
         boundary.AfterSiemensCallReturned();
         if (result.State == DocumentResultState.Success)
             BlockExportLedger.Shared.RecordWrite(plcName, target.DocumentName);
@@ -53,7 +56,8 @@ public static partial class BlockImporter
         ProjectBase project,
         string blockPath,
         string content,
-        string? expectedContentHash)
+        string? expectedContentHash,
+        string? documentImportOption = null)
     {
         var preflight = BlockImportCoordinator.ExecuteWithPreTargetOutcome(
             () =>
@@ -88,7 +92,7 @@ public static partial class BlockImporter
                 var target = BlockTargetResolver.ResolveForImport(project, preflight.Prepared.Address);
                 var plcName = PlcSoftwareLocator.FindUnique(project, preflight.Prepared.Address.PlcName).Software.Name;
                 var s7dcl = BlockImportRouting.SelectSimaticSdDocument(bundle);
-                ImportFromDocuments(target, plcName, directory, Path.GetFileNameWithoutExtension(s7dcl.SafeFileName), boundary);
+                ImportFromDocuments(target, plcName, directory, Path.GetFileNameWithoutExtension(s7dcl.SafeFileName), boundary, documentImportOption);
             },
             compileAllowed => ObservePostconditions(
                 project,
@@ -98,5 +102,35 @@ public static partial class BlockImporter
                 primaryDocumentName: null,
                 compileAllowed,
                 warnings: null));
+    }
+
+    /// <summary>
+    /// Audit N7: <c>ImportDocumentOptions.Override</c>, or Override combined with <paramref name="cultureOption"/>
+    /// (<see cref="PlcImportOptionNames.DocumentOptions"/>); a refusal is a <see cref="WorkerOperationException"/> before any import.
+    /// </summary>
+    internal static ImportDocumentOptions DocumentImportOptions(string? cultureOption)
+    {
+        if (cultureOption is null) return ImportDocumentOptions.Override;
+        try
+        {
+            return (ImportDocumentOptions)PlcImportOptionNames.DocumentOptions(typeof(ImportDocumentOptions), cultureOption);
+        }
+        catch (TiaMcpServer.Contracts.Shared.RuntimeBindingException exception)
+        {
+            throw new WorkerOperationException(exception.Category, exception.Message);
+        }
+    }
+
+    /// <summary>Audit N8: the bound three-argument SimaticML import; a refusal is a <see cref="WorkerOperationException"/> before any import.</summary>
+    internal static Func<FileInfo, object?> BindSwImport(object composition, IReadOnlyList<string> swImportOptions)
+    {
+        try
+        {
+            return PlcImportOptionNames.BindSwImport(composition, swImportOptions);
+        }
+        catch (TiaMcpServer.Contracts.Shared.RuntimeBindingException exception)
+        {
+            throw new WorkerOperationException(exception.Category, exception.Message);
+        }
     }
 }

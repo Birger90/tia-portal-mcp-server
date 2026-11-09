@@ -18,7 +18,7 @@ installed STEP 7 Safety option and may be absent.
 > signatures, read-backs) is acceptance evidence. Every fail-safe write carries this notice in its guard, its prompt and
 > its result.
 
-The surface stays 13/32/32: the operations belong to `plc_read` and `plc_write` because the safety program is PLC
+The surface stays 13/33/33: the operations belong to `plc_read` and `plc_write` because the safety program is PLC
 software. Method names are in `PlcSafetyMethods` (Contracts), parameters in `WorkerRequest.PlcSafety`, dispatch in
 `TiaMcpServer.OpennessWorker/Program.PlcSafety.cs`, host code in `TiaMcpServer/Plc/Safety/`.
 

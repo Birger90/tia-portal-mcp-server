@@ -30,6 +30,29 @@ public static class PlcOnlinePayloadContract
         => CanonicalJson.NormalizeWorkerPayload<PlcCompareResultInfo>(payload,
             result => ValidateCompare(result, operation, trustedCertificates ?? Array.Empty<string>(), failureEvidence: true)).Element;
 
+    /// <summary>
+    /// Audit N3: get_station_fingerprint_data. The echoed path and address must be the request's, the item list within the cap and
+    /// its count, every identifier and value a <see cref="Contracts.Shared.RuntimeValueInfo"/>, the provider owner portal or project,
+    /// and the online legitimation evidence valid under the compare rules (a delivered result carries no abort).
+    /// </summary>
+    public static JsonElement NormalizeFingerprintData(string payload, string? mode, string? pcInterfaceName, int? pcInterfaceNumber, string? targetAddress,
+        int maxItems, IReadOnlyCollection<string>? trustedCertificates)
+        => CanonicalJson.NormalizeWorkerPayload<PlcStationFingerprintDataInfo>(payload, result =>
+        {
+            Require(result.Items);
+            StandalonePayloadContract.RejectNullElements(result.Items);
+            if (result.Operation != PlcOnlineMethods.GetStationFingerprintData || result.ProviderOwner is not ("portal" or "project")
+                || result.Mode != mode || result.PcInterfaceName != pcInterfaceName || result.PcInterfaceNumber != pcInterfaceNumber
+                || result.TargetAddress != targetAddress || result.MaxItems != maxItems || result.Items.Count > maxItems
+                || result.ItemCount < result.Items.Count || result.Truncated != (result.ItemCount > result.Items.Count)
+                || result.Abort is not null
+                || result.Items.Any(item => item.Identifier is null || item.Value is null
+                    || !Contracts.Shared.RuntimeValueStates.All.Contains(item.Identifier.State) || !Contracts.Shared.RuntimeValueStates.All.Contains(item.Value.State)))
+                throw new JsonException(ProtocolFailureMessage);
+            ValidateCallbacks(result.ConfigurationsSeen, result.Abort, Array.Empty<PlcCallbackDecisionInfo>(), Array.Empty<PlcCallbackPasswordInfo>(),
+                trustedCertificates ?? Array.Empty<string>(), passwordsUnknown: true);
+        }).Element;
+
     public static PlcOnlineStateInventoryInfo DecodeOnlineState(string payload)
         => CanonicalJson.NormalizeWorkerPayload<PlcOnlineStateInventoryInfo>(payload, ValidateOnlineState).Value;
 
@@ -148,7 +171,10 @@ public static class PlcOnlinePayloadContract
         }
         else
         {
-            ValidateCallbacks(result.ConfigurationsSeen, result.Abort, Array.Empty<PlcCallbackDecisionInfo>(), Array.Empty<PlcCallbackPasswordInfo>(), trusted);
+            // The merged password list (item sources plus the server map) is built at the call, not known here: a password_set entry
+            // only has to name a valid source (audit N2 made such answers reachable for compares).
+            ValidateCallbacks(result.ConfigurationsSeen, result.Abort, Array.Empty<PlcCallbackDecisionInfo>(), Array.Empty<PlcCallbackPasswordInfo>(), trusted,
+                passwordsUnknown: true);
             if (failureEvidence ? result.Root is not null || result.ConfigurationsSeen.Count == 0 : result.Abort is not null)
                 throw new JsonException(ProtocolFailureMessage);
         }
@@ -294,7 +320,8 @@ public static class PlcOnlinePayloadContract
     /// </summary>
     internal static void ValidateCallbacks(List<PlcCallbackConfigurationInfo>? seen, PlcCallbackAbortInfo? abort,
         IReadOnlyList<PlcCallbackDecisionInfo> decisions, IReadOnlyList<PlcCallbackPasswordInfo> passwords,
-        IReadOnlyCollection<string>? trustedCertificates = null, bool plcSimInterface = false, bool allowInsecurePasswordTransfer = false)
+        IReadOnlyCollection<string>? trustedCertificates = null, bool plcSimInterface = false, bool allowInsecurePasswordTransfer = false,
+        bool passwordsUnknown = false)
     {
         Require(seen);
         if (seen!.Count > PlcCallbackPolicy.MaxConfigurations + 1) throw new JsonException(ProtocolFailureMessage);
@@ -358,7 +385,9 @@ public static class PlcOnlinePayloadContract
                     break;
                 case PlcCallbackPolicy.Decisions.PasswordSet:
                     if (aborted || tlsEntry || entry.Kind != PlcCallbackPolicy.Kinds.Password || entry.Selection is not null || entry.DecisionKey is null
-                        || !variables.TryGetValue(entry.DecisionKey, out var variable) || entry.PasswordVariable != variable)
+                        || (passwordsUnknown
+                            ? !Contracts.Shared.PasswordSources.IsSource(entry.PasswordVariable)
+                            : !variables.TryGetValue(entry.DecisionKey, out var variable) || entry.PasswordVariable != variable))
                         throw new JsonException(ProtocolFailureMessage);
                     break;
                 case PlcCallbackPolicy.Decisions.Aborted:

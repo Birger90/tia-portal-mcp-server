@@ -441,6 +441,10 @@
       "applicability": "standaloneOnly"
     },
     {
+      "operation": "get_station_fingerprint_data",
+      "applicability": "standaloneOnly"
+    },
+    {
       "operation": "library_read",
       "applicability": "standaloneOnly"
     },
@@ -915,6 +919,10 @@
       "applicability": "standaloneOnly"
     },
     {
+      "operation": "get_station_fingerprint_data",
+      "applicability": "standaloneOnly"
+    },
+    {
       "operation": "library_read",
       "applicability": "standaloneOnly"
     },
@@ -1386,6 +1394,10 @@
     },
     {
       "operation": "compare_hardware_to_online",
+      "applicability": "standaloneOnly"
+    },
+    {
+      "operation": "get_station_fingerprint_data",
       "applicability": "standaloneOnly"
     },
     {

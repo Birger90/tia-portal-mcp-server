@@ -13,7 +13,7 @@ den Testprojekten `MCP_Livetest_01`, `MCP_Safety_01`, `MCP_G2_Test` ausgeführt;
 
 | | Original | Fork |
 | --- | --- | --- |
-| MCP-Werkzeuge | 19 | 32 |
+| MCP-Werkzeuge | 19 | 33 |
 | `plc_read`-Operationen | 3 | 63 |
 | `plc_write`-Operationen | 14 | 212 |
 | `network_read` / `network_write` | 4 / 5 | 17 / 35 |
@@ -22,8 +22,9 @@ den Testprojekten `MCP_Livetest_01`, `MCP_Safety_01`, `MCP_G2_Test` ausgeführt;
 | `plc_online_read` / `plc_online_write` (S7-1500-Web-API) | – | 18 / 7 |
 | `vci_read` / `vci_write` | 3 / 6 | 3 / 6 |
 | `siemens_docs` (Siemens-Dokumentation) | – | 4 |
+| `project_server_write` (Project-Server-Verwaltung) | – | 6 |
 
-Neue Werkzeuge: `retrieve_project` (Projektarchiv dearchivieren; nicht live getestet), `plc_download`, `plc_tia_online`, `plc_station_upload`, `plcsim_read`, `plcsim_write`, `plcsim_test`,
+Neue Werkzeuge: `retrieve_project` (Projektarchiv dearchivieren; nicht live getestet), `project_server_write` (Project-Server-Verbindungen, Hochladen und lokale Sitzungen; nicht live getestet), `plc_download`, `plc_tia_online`, `plc_station_upload`, `plcsim_read`, `plcsim_write`, `plcsim_test`,
 `plc_online_read`, `plc_online_write`, `library_read`, `library_write`, `tia_inbox` (Claude in TIA; nicht live getestet), `siemens_docs` (die Siemens-Dokumentation ohne TIA Portal durchsuchen und lesen; eigene C#-Portierung von Czarnak/siemens-docs-mcp, MIT; auf dem Windows-PC nicht live getestet).
 
 ## Funktionen, die es im Original nicht gibt
@@ -58,12 +59,14 @@ Neue Werkzeuge: `retrieve_project` (Projektarchiv dearchivieren; nicht live gete
 | Übersetzen | Hardware übersetzen (`scope:"hardware"`), Einstellung „Simulation bei Bausteinübersetzung unterstützen“ setzen | ja |
 | Änderungserkennung | Prüfsummen von Software und Textlisten einer PLC, Fingerprints eines Bausteins oder PLC-Datentyps (`get_plc_checksums`, `get_fingerprints`) | nein |
 | Bibliotheken | Projekt- und globale Bibliotheken, Typen, Versionen, Kopiervorlagen und ihre Ordner, Aufräumen, Harmonisieren, Typen aus Dokumenten, Exporte, Detailvergleiche | nein |
+| Project Server (Multiuser) | `project_server_write`: Serververbindungen anlegen, ändern und löschen, ein Projekt hochladen, lokale Sitzungen anlegen und löschen; acknowledge-Guards für Löschen und Hochladen ([Referenz](SupportedOperations/PROJECT_SERVER_WRITE_SUMMARY.de.md)) | nein |
 | Claude in TIA (`tia_inbox`, TIA-Portal-Add-In, Claude-Brücke) | Kontextmenü „Claude“ in TIA Portal übergibt die markierten Objekte an Claude (Ein-/Ausgangsdateien, nur Namen), Antworten erscheinen in TIA Portal; optionale Brücke startet je Anfrage einen Claude-Lauf ohne Chat ([Referenz](SupportedOperations/CLAUDE_IN_TIA.de.md)) | nein |
 | Meldungen und Textlisten | Textlisten, Meldetexte, Überwachungen, ProDiag, Meldeklassen, Systemdiagnose-Einstellungen als Datei | nein |
 | Externe Quellen, Ordner, Software Units | Quellen importieren und generieren, Gruppen und Units verwalten, Dateiexporte | nein |
 | WinCC Unified | Bilder, Skripte und Massen-Umbenennungen zusätzlich zu Variablen und Meldungen | nein |
 | OPC-UA-Export | OPC-UA-XML der CPU exportieren | nein |
 | Passwortverwaltung | Windows-Programm „TiaMcp Passwortverwaltung“: Passwörter in der Windows-Anmeldeinformationsverwaltung, nie im Chat; Zugriffsmodus einstellen | nein |
+| MCP-Ressourcen und -Prompts | die zweisprachigen Referenzdokumente und die Operationsreferenz (`tia-mcp://docs/...`, `tia-mcp://operations/{tool}/{operation}`) als nur lesbare Ressourcen in jedem Modus; acht Prompts für Arbeitsabläufe (erklären, prüfen, sicher überarbeiten, dokumentieren, Hardware prüfen, F-Übersicht, Laden in PLCSIM, Claude-in-TIA-Eingang) | nein |
 
 ## Verhalten, das sich vom Original unterscheidet
 

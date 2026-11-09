@@ -16,7 +16,7 @@ document (header pragma, declaration, interface, networks) and an `.s7res` docum
 Siemens V21 skill `simatic-sd` (MIT, Siemens AG, `openness_development/skills/simatic-sd/SKILL.md`) calls this "the
 correct path for adding LAD/FBD/SCL networks to existing blocks via Openness". These operations make it a network-level
 editing path, so an agent can change LAD (KOP), FBD (FUP) and F-LAD/F-FBD logic without a SimaticML (FlgNet XML) round
-trip. No tool was added (13/32/32 stay); every operation is a `plc_read` or `plc_write` operation.
+trip. No tool was added (13/33/33 stay); every operation is a `plc_read` or `plc_write` operation.
 
 For the LAD/FBD syntax itself, with evidence per construct, see [Writing LAD and FBD as SIMATIC SD](../guides/lad-fbd-simatic-sd.md).
 
@@ -173,6 +173,7 @@ only as `result.Messages.Select(m => m.Message)`) are read by reflection and rep
 | `DocumentExportResult.State`, `.ExportedDocuments` | compile stubs (`Software.cs`); already used by the xml bundle export | export result and file list |
 | `PlcBlockComposition.ImportFromDocuments(DirectoryInfo, string, ImportDocumentOptions)` → `DocumentImportResultForBlocks` | Siemens skill §3, §8; compile stubs | `update_block_logic` sd and the implicit route; `create_block_from_document` |
 | `ImportDocumentOptions.Override` | Siemens skill §3; compile stubs (the only member) | every SD import (`create_block_from_document` without `overwrite` checks for an existing block first) |
+| `ImportDocumentOptions.SkipInactiveCultures`, `.ActivateInactiveCultures` | V21 `Siemens.Engineering.Step7.xml` (members.txt); not in the compile stubs, parsed by name on the installed enum | optional `documentImportOption` of `update_block_logic` sd and `create_block_from_document` (audit N7, not live-tested), OR-combined with `Override` only when the installed enum is a flags enum (otherwise `unsupported_capability`, nothing imported) |
 | `DocumentImportResult.State`, `DocumentResultState.Success` | Siemens skill §3; compile stubs | success test (anything else fails the import) |
 | `DocumentImportResultForBlocks.Messages`, its elements' `Message` | Siemens skill §3 (`result.Messages.Select(m => m.Message)`); not in the compile stubs (types undocumented) | bound at runtime by exact name (`SimaticSdImportMessages`); an unreadable member yields a note, never a failure of its own |
 | `PlcBlockComposition.Find(string)`, `PlcBlockGroup.Blocks`, `PlcBlock.Name` | compile stubs; already used | `create_block_from_document` read-back |

@@ -160,6 +160,11 @@ public sealed class ToolOutputContractConformanceTests
         new ToolProbe("library_write", "previewed", false, "library-roundtrip",
             new Dictionary<string, object?> { ["dryRun"] = true, ["operations"] = new[]
             { new { operationId = "rename", operation = "rename_master_copy", library = "project", masterCopyName = "Valve", newName = "Valve2" } } }),
+        new ToolProbe("project_server_write", "rejected", true, null,
+            new Dictionary<string, object?> { ["operations"] = Array.Empty<object>() }),
+        new ToolProbe("project_server_write", "previewed", false, null,
+            new Dictionary<string, object?> { ["dryRun"] = true, ["operations"] = new[]
+            { new { operationId = "port", operation = "set_server_connection", serverAlias = "Fixture", port = 1235 } } }),
         new ToolProbe("vci_read", "succeeded", false, "vci-read-roundtrip",
             new Dictionary<string, object?> { ["operations"] = new[] { new { operationId = "w", operation = "list_workspaces" } } }),
         new ToolProbe(

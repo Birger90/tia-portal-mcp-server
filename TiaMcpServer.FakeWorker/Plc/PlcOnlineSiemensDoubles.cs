@@ -41,4 +41,39 @@ namespace Siemens.Engineering.Online.Configurations
             if (password is null || password.Length == 0) throw new ArgumentException("An empty password was supplied.");
         }
     }
+
+    /// <summary>Audit N2: the documented V21 member names of a user-based online login (values are the fixture's, not Siemens').</summary>
+    public enum UserType
+    {
+        None,
+        AnonymousUser,
+        GlobalUser,
+        PasswordOnly,
+        ProjectUser,
+        SingleSignOnUser,
+    }
+
+    /// <summary>Audit N2: OnlineCredentials (Name, Type, SetPassword); the stand-in keeps only whether a password was supplied.</summary>
+    public class OnlineCredentials
+    {
+        public string Name { get; set; } = string.Empty;
+
+        public UserType Type { get; set; } = UserType.None;
+
+        public bool PasswordSupplied { get; private set; }
+
+        public void SetPassword(SecureString password)
+        {
+            if (password is null || password.Length == 0) throw new ArgumentException("An empty password was supplied.");
+            PasswordSupplied = true;
+        }
+    }
+
+    /// <summary>Audit N2: OnlineAuthenticationConfiguration (OnlineCredentials, IsSecureCommunication); secure unless the scenario says otherwise.</summary>
+    public class OnlineAuthenticationConfiguration
+    {
+        public bool IsSecureCommunication { get; set; } = true;
+
+        public OnlineCredentials OnlineCredentials { get; } = new();
+    }
 }

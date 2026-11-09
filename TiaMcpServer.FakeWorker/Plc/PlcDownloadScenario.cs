@@ -113,13 +113,17 @@ sealed class PlcDownloadScenario(PlcDownloadScenario.Outcome outcome)
             CompletionNote = PlcDownloadPolicy.CompletionNote,
         };
         var recorder = new PlcDownloadCallbackRecorder(PlcDownloadDecisionSet.For(download), result,
-            new PlcDownloadReflectionAccess(configuration => (configuration as DownloadConfiguration)?.Message, Environment.GetEnvironmentVariable));
+            new PlcDownloadReflectionAccess(configuration => (configuration as DownloadConfiguration)?.Message, Environment.GetEnvironmentVariable,
+                onlineUser: download.OnlineUser));
         try
         {
             if (outcome == Outcome.Tls) recorder.OnlineLegitimation(FakeTlsCertificates.Configuration(download.PlcName));
             // K27: a refused TLS question returns normally (NonTrusted, no throw); TIA Portal then fails the download's
             // connection and the recorded abort decides, like the worker.
             if (result.Abort is not null) throw new PlcDownloadAbortedException(PlcDownloadPolicy.Phases.OnlineLegitimation, "connection refused");
+            // Audit N2: a CPU with user management asks for a user-based login when the call names a user or its password.
+            if (download.OnlineUser is not null || download.Passwords.Any(p => p.Type == TiaMcpServer.Contracts.PlcOnline.PlcOnlineAuthentication.ConfigurationShortName))
+                recorder.OnlineLegitimation(new Siemens.Engineering.Online.Configurations.OnlineAuthenticationConfiguration());
             recorder.PreDownload(new StopModules("The modules will be stopped."));
             if (outcome == Outcome.Aborted)
             {
@@ -158,7 +162,14 @@ sealed class PlcDownloadScenario(PlcDownloadScenario.Outcome outcome)
             State = error ? "Error" : "Success",
             Messages = { new PlcDownloadMessageInfo { Message = "PLC_1: software loaded.", State = error ? "Error" : "Success" } },
         });
-        return Ok(WorkerJson.SerializePayload(result));
+        // Audit N4: the fixture reports the Download overload it used (shape only, no Siemens behavior).
+        return download.TargetAddress is { } address
+            ? JsonSerializer.Serialize(new WorkerResponse
+            {
+                Success = true, Payload = WorkerJson.SerializePayload(result),
+                Warnings = new() { $"FakeWorker: Download(IConfiguration, ConfigurationAddress, ...) to '{address}'." },
+            }, WorkerJson.Envelope)
+            : Ok(WorkerJson.SerializePayload(result));
     }
 
     private static PlcDownloadTargetPlcInfo Plc(string software, string device, bool downloadable, params PlcDownloadPcInterfaceInfo[] interfaces)

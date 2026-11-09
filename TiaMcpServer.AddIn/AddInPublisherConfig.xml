@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Publisher configuration of the "Claude in TIA" Add-In (Siemens.Engineering.AddIn.Publisher.exe -f this file).
-  NOT VERIFIED against Siemens.Engineering.AddIn.Publisher.xsd (not available where this was written): element names follow
+  Validated against the installed V21 Siemens.Engineering.AddIn.Publisher.xsd on 2026-11-07 (K97); element names follow
   the V21 help page "File di configurazione" (PackageConfiguration, Product, FeatureAssembly, RequiredPermissions,
   TIAPermissions, SecurityPermissions); the namespace version (V21) and the spelling of the FileIOPermission element are
   assumptions. scripts/install-claude-in-tia.ps1 validates this file against the installed XSD before publishing and
@@ -28,7 +28,7 @@
       <TIA.ReadOnly />
     </TIAPermissions>
     <SecurityPermissions>
-      <System.Security.Permissions.FileIOPermission-UNRESTRICTED />
+      <System.Security.Permissions.FileIOPermission />
     </SecurityPermissions>
   </RequiredPermissions>
 </PackageConfiguration>

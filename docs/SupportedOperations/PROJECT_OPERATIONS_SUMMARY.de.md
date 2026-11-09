@@ -91,7 +91,7 @@ fügen bedingt `result.value.inspection` hinzu, mit beobachteter PID und typisie
 `transition:"none"` und `project:null`. Das Weglassen des gesamten Werts schließt das Inventar ein. Siehe die
 [Multiuser-Referenz](MULTIUSER_OPERATIONS_SUMMARY.de.md) für Selektoren, Beispiele, den Umfang des aktuellen
 Benutzers, Grenzen für Sperren/Fehler/Weglassungen und den abgegrenzten Live-Nachweis. Die Discovery in PR3 war
-7/17/17; die aktuelle Discovery ist 13/32/32 mit den Standalone-Tools für VCI und Bibliotheken, `plc_download`,
+7/17/17; die aktuelle Discovery ist 13/33/33 mit den Standalone-Tools für VCI und Bibliotheken, `plc_download`,
 `plc_tia_online`, `plc_station_upload`, den S7-PLCSIM-Advanced-Tools und den S7-1500-Web-API-Tools.
 
 ### Identität und Basisstatus lokaler Sessions
@@ -320,14 +320,14 @@ sie zählt nie den Verlauf oder die erweiterte Metadatenoberfläche auf.
 
 ## Lifecycle-Operationen
 
-Alle sieben Lifecycle-Tools sind in read-write und full verfügbar; die vollständigen Modusanzahlen sind 13/32/32.
+Alle sieben Lifecycle-Tools sind in read-write und full verfügbar; die vollständigen Modusanzahlen sind 13/33/33.
 Read-write verlangt ein Bestätigungsformular je tatsächlichem Aufruf; full führt unter Policy ohne
 Server-Elicitation aus. Block-Guards stoppen einen Aufruf in jedem Modus. Gewöhnliche Lesevorgänge binden, schalten
 um oder öffnen nie; für bereits geöffnete Projekte dient `bind_project`, für bewusstes Öffnen open/create.
 
 | Tool | Verhalten | Haupteingaben |
 |---|---|---|
-| `open_project` | Öffnet ein Standalone-Projekt oder eine vorhandene lokale Session und bindet deren verifizierte Engineering-Identität. | Absoluter `.ap21`- oder vorhandener reiner Datei-`.als21`-`projectPath`; optional `forceRebind`. |
+| `open_project` | Öffnet ein Standalone-Projekt oder eine vorhandene lokale Session und bindet deren verifizierte Engineering-Identität; `upgrade:true` öffnet eine `.ap21` mit `OpenWithUpgrade` (siehe [Öffnen mit Hochrüsten](PROJECT_OPERATIONS_SUMMARY.md#opening-with-upgrade-open_project-upgrade)). | Absoluter `.ap21`- oder vorhandener reiner Datei-`.als21`-`projectPath`; optional `forceRebind`, `upgrade`. |
 | `create_project` | Legt ein Projekt an und bindet die Session daran. | Absolutes `projectDirectory`, `projectName`; optional `author`, `comment`. |
 | `retrieve_project` | Dearchiviert ein Projektarchiv in ein Verzeichnis und bindet die Session an das dearchivierte Projekt (nicht live getestet; siehe [Ein Archiv dearchivieren](#ein-archiv-dearchivieren-retrieve_project)). | Absoluter vorhandener `archivePath`, vorhandenes absolutes `targetDirectory`; optional `upgrade`, `forceRebind`. |
 | `save_project` | Speichert das aktive Projekt. | Keine Operationseingaben (wirkt auf das gebundene Projekt). |
@@ -421,6 +421,27 @@ sind typisierte Fehlschläge versuchter Operationen, daher ist vor einem neuen A
   nicht geprüft). Eine Zeitüberschreitung beim Lesen sagt, dass eine Wiederholung das Projekt nicht ändert, TIA Portal aber
   erneut hängen lassen kann.
 
+### Öffnen mit Hochrüsten (`open_project` `upgrade`)
+
+> **Nicht live getestet** (Audit N5). Beleg: V21 `Siemens.Engineering.Base.xml`,
+> `M:Siemens.Engineering.ProjectComposition.OpenWithUpgrade(System.IO.FileInfo)` („Open Action with project update is necessary“,
+> liefert `Siemens.Engineering.Project`, dokumentiert `MissingProductsException`).
+
+`open_project` nimmt `upgrade` (Standard false). `true` öffnet eine `.ap21` mit `ProjectComposition.OpenWithUpgrade(FileInfo)`
+statt `Open(FileInfo)`; eine `.als21` mit `upgrade:true` ist ein `validation_error` (lokale Sessions öffnen über
+`LocalSessions.Open`, das kein Hochrüsten kennt). Die Überladung steht nicht in den Compile-Stubs: Der Worker bindet sie über den
+exakten Namen und Parametertyp an der Live-Composition, bevor irgendetwas geschlossen oder geöffnet wird (fehlt sie:
+`api_member_missing`, nichts geändert). Jeder Aufruf mit `upgrade:true` löst den Acknowledge-Guard `open_project_upgrades_project` aus
+(read-write zeigt ihn in der Rückfrage, die auch `OpenWithUpgrade` nennt; full erfüllt ihn per Policy): TIA Portal rüstet das Projekt
+auf die aktuelle Version hoch, sodass ein älteres TIA Portal es danach eventuell nicht mehr öffnet; vorher archivieren oder kopieren.
+Wo TIA Portal das hochgerüstete Projekt ablegt, ist nicht dokumentiert: Der Worker verlangt das zurückgegebene Projekt weiterhin am
+angeforderten Pfad, ein unter anderem Pfad zurückgegebenes Projekt scheitert daher mit `postcondition_failed` und bleibt geöffnet
+(mit `bind_project` binden). Ein bereits geöffnetes Projekt wird ohne Öffnen-Aufruf übernommen, dann wird nichts hochgerüstet. Die
+Überladungen mit `UmacDelegate` und `ProjectOpenMode` bleiben wie bei `Open` außen vor. `retrieve_project` bietet
+`RetrieveWithUpgrade` bereits an (`upgrade:true`, unten); es schreibt ein neues dearchiviertes Projekt und behält seinen
+Rückfragetext ohne diesen Guard. **Live-Abnahme noch nötig:** das Hochrüsten eines V20-Projekts, der Ablageort des hochgerüsteten
+Projekts und die Bindung danach.
+
 ### Ein Archiv dearchivieren (`retrieve_project`)
 
 > **Nicht live getestet** (GitHub-Issue #4). Nachweis: die V21-IntelliSense-Datei `Siemens.Engineering.Base.xml`,
@@ -466,6 +487,7 @@ auf das gebundene Projekt. Nicht live getestet.
 | `archive_inside_project_folder` | Das Archivziel ist der Projektordner oder ein Unterordner davon; TIA Portal entscheidet (block bis 2026-11-01). | `info` |
 | `target_exists` | Das Zielverzeichnis von Create oder Save-as existiert; TIA Portal entscheidet (block bis 2026-11-01). | `info` |
 | `create_project_requires_no_open_project` | create_project, während in dem TIA Portal, das es verwenden würde, ein Projekt geöffnet ist (`effects.openProject`); TIA Portal V21 verweigerte dies live am 2026-11-02. Acknowledge, nicht block: Die Verweigerung wurde einmal beobachtet (Standalone-Projekt, eine TIA-Portal-Instanz); dass TIA Portal immer verweigert (lokale Sessions, andere Portal-Zustände), ist nicht gezeigt, daher entscheidet TIA Portal. Die read-write-Rückfrage zeigt ihn. Als Guard nicht live getestet. | `acknowledge` |
+| `open_project_upgrades_project` | open_project mit `upgrade:true` (Audit N5): TIA Portal rüstet das Projekt mit `OpenWithUpgrade` hoch; vorher archivieren oder kopieren, wenn ein älteres TIA Portal es noch öffnen muss. Nicht live getestet. | `acknowledge` |
 | `retrieve_project_requires_no_open_project` | retrieve_project, während in dem TIA Portal, das es verwenden würde, ein Projekt geöffnet ist (`effects.openProject`, ermittelt wie bei create_project); TIA Portal V21 verweigerte live am 2026-11-02 das Öffnen eines zweiten Projekts bei create_project und open_project. Acknowledge, nicht block: TIA Portal entscheidet. Nicht live getestet. | `acknowledge` |
 | `local_session_requires_terminal_operation` | Ein anderes Öffnen würde eine worker-eigene lokale Session ersetzen, auch eine saubere. | `block` |
 | `local_session_source_preservation_unproved` | Für eine geliehene lokale Quelle oder ein doppeltes Ziel kann die Bewahrung nicht bewiesen werden. | `block` |

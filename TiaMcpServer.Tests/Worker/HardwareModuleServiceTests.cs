@@ -497,12 +497,7 @@ public sealed class HardwareModuleServiceTests
         Assert.Equal(3, source.Split("notes.Read<").Length - 1);
     }
 
-    private static string RepositoryRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "TiaMcpServer.slnx"))) directory = directory.Parent;
-        return directory?.FullName ?? throw new InvalidOperationException("Repository root not found.");
-    }
+    private static string RepositoryRoot() => TiaMcpServer.Tests.TestSupport.RepositoryFiles.Root;
 
     [Fact]
     public void SetIoAddress_WritesASubItemAddressAndReadsItBack()

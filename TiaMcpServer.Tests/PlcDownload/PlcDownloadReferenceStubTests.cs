@@ -71,7 +71,7 @@ public sealed class PlcDownloadReferenceStubTests
             Assert.Equal(new[] { "value__" }, Fields(assembly, type));
     }
 
-    private static string Path(string assembly) => System.IO.Path.Combine(ReferenceStubArtifactTests.RepositoryRoot, "ref", assembly + ".dll");
+    private static string Path(string assembly) => System.IO.Path.Combine(TiaMcpServer.Tests.TestSupport.RepositoryFiles.Root, "ref", assembly + ".dll");
 
     private static HashSet<string> PublicTypes(string assembly)
     {

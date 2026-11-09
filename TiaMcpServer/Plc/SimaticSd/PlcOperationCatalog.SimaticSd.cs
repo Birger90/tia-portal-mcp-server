@@ -22,7 +22,7 @@ public static partial class PlcOperationCatalog
         specs[SimaticSdMethods.InsertNetwork] = Write(new[] { "blockPath", "code" }, new[] { "language", "position", "expectedContentHash" });
         specs[SimaticSdMethods.ReplaceNetwork] = Write(new[] { "blockPath", "code" }, new[] { "networkNumber", "language", "expectedContentHash" });
         specs[SimaticSdMethods.DeleteNetwork] = Write(new[] { "blockPath" }, new[] { "networkNumber", "expectedContentHash" });
-        specs[SimaticSdMethods.CreateBlockFromDocument] = Write(new[] { "targetGroupPath", "content" }, new[] { "overwrite" });
+        specs[SimaticSdMethods.CreateBlockFromDocument] = Write(new[] { "targetGroupPath", "content" }, new[] { "overwrite", "documentImportOption" });
         return specs;
     }
 

@@ -71,6 +71,10 @@ public class PlcDownloadTools
             + "(same path, decisions, passwords, guards and confirmation as a normal download). Omitted or null: the normal DownloadProvider.Download. A PLC without "
             + "RHDownloadProvider fails unsupported_capability before anything is downloaded.")] string? rhTarget = null,
         [Description(PlcPasswordChannelDescription.Text)] bool allowInsecurePasswordTransfer = false,
+        [Description(PlcOnlineUserDescription.Text)] PlcOnlineUserArgument? onlineUser = null,
+        [Description("Optional node address (for example the running IP when it differs from the project's offline IP): created with ConfigurationTargetInterface.Addresses.Create "
+            + "and downloaded to with Download(IConfiguration, ConfigurationAddress, ...) (RH: DownloadToPrimary/DownloadToBackup with ConfigurationAddress). Fires the acknowledge "
+            + "guard download_to_custom_address; the PLCSIM/hardware guards are unchanged. Omitted: the configured address. Not live-tested.")] string? targetAddress = null,
         [Description("Resolve the path and evaluate guards without downloading or asking for confirmation.")] bool dryRun = false,
         McpServer? server = null, CancellationToken cancellationToken = default)
     {
@@ -98,6 +102,8 @@ public class PlcDownloadTools
             // trustedCertificates: an explicit JSON null means omitted.
             TrustedCertificates = trustedCertificates?.Entries ?? Array.Empty<string>(),
             AllowInsecurePasswordTransfer = allowInsecurePasswordTransfer,
+            OnlineUser = onlineUser,
+            TargetAddress = targetAddress,
         };
         return execution.RunAsync(new PlcDownloadWriteDomain(workerClient), new WriteCall<PlcDownloadWriteItem>(new[] { item }, dryRun),
             new WriteConfirmationContext(server is null ? null : UserConfirmation.For(server, TimeSpan.FromMinutes(2))),

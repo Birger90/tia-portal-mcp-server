@@ -138,7 +138,7 @@ public class McpToolSchemaTests
 
     // Exact sets: any extra public input, including a retired confirmation argument, fails here.
     [Theory]
-    [InlineData(nameof(ProjectWriteTools.OpenProject), "dryRun,forceRebind,projectPath")]
+    [InlineData(nameof(ProjectWriteTools.OpenProject), "dryRun,forceRebind,projectPath,upgrade")]
     [InlineData(nameof(ProjectWriteTools.CreateProject), "author,comment,dryRun,projectDirectory,projectName")]
     [InlineData(nameof(ProjectWriteTools.SaveProject), "dryRun")]
     [InlineData(nameof(ProjectWriteTools.SaveProjectAs), "dryRun,rebind,targetDirectory,targetName")]
@@ -157,8 +157,8 @@ public class McpToolSchemaTests
     /// ProjectWriteTools lives in - which, for TiaMcpServer.Tests, is the test assembly
     /// itself, since the host's tool source files are compiled directly into it (see
     /// TiaMcpServer.Tests.csproj's Compile Include entries). Counts every method on those types
-    /// carrying [McpServerTool] and asserts the exact approved surface: 32 tools total (22 TIA Portal
-    /// tools, library_read and library_write included, plus plc_download, plc_tia_online, plc_station_upload, plcsim_read, plcsim_write, plcsim_test, plc_online_read and plc_online_write, siemens_docs and tia_inbox), and the internal lifecycle probe
+    /// carrying [McpServerTool] and asserts the exact approved surface: 33 tools total (23 TIA Portal
+    /// tools, project_server_write, library_read and library_write included, plus plc_download, plc_tia_online, plc_station_upload, plcsim_read, plcsim_write, plcsim_test, plc_online_read and plc_online_write, siemens_docs and tia_inbox), and the internal lifecycle probe
     /// (probe_project_status_for_lifecycle, never [McpServerTool]-decorated) absent.
     /// </summary>
     [Fact]
@@ -203,7 +203,8 @@ public class McpToolSchemaTests
             "plc_online_read", "plc_online_write",
             "library_read", "library_write",
             "siemens_docs",
-            "tia_inbox"
+            "tia_inbox",
+            "project_server_write"
         };
 
         Assert.Equal(expected.OrderBy(name => name), toolNames);

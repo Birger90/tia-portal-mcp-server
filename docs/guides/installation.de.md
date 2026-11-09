@@ -195,13 +195,13 @@ Der Server unterstützt drei Zugriffsmodi, durchgesetzt bei der Discovery, beim 
   Übersetzen, keine Änderungen, keine Simulationssteuerung, kein Laden, keine Online-Änderungen, kein Online-Gehen, kein Station-Upload und kein Lifecycle. `plc_read`
   `compare_to_online` (ein Openness-Online-Vergleich, der nichts ändert) und `scan_accessible_devices` (Live-Netzwerkerkennung
   über eine explizit benannte PG/PC-Schnittstelle, ändert nichts) sind Beobachtung und funktionieren in jedem Modus.
-- **read-write** (Standard beim Serverstart) - zweiunddreißig Werkzeuge: die Read-only-Oberfläche plus
+- **read-write** (Standard beim Serverstart) - dreiunddreißig Werkzeuge: die Read-only-Oberfläche plus
   `compile_check`, `network_write`, `plc_write`, `hmi_write`, `vci_write`, `library_write`, `plcsim_write`, `plcsim_test`, alle sieben Lifecycle-Werkzeuge, `plc_download`
-  (in PLCSIM oder in echte Hardware), `plc_online_write` (konfigurierte S7-1500-CPUs), `plc_tia_online` (TIA Portal online/offline gehen)
-  und `plc_station_upload`. Jeder tatsächliche Lifecycle-, Lade-, Online-Schreib-, Online-Verbindungs- oder Upload-Aufruf und jeder
-  `library_write`-Aufruf, der eine globale Bibliothek öffnet, dearchiviert, anlegt, speichert oder schließt, erfordert ein Bestätigungsformular; die Rückfrage zum Laden nennt, wenn
+  (in PLCSIM oder in echte Hardware), `plc_online_write` (konfigurierte S7-1500-CPUs), `plc_tia_online` (TIA Portal online/offline gehen),
+  `plc_station_upload` und `project_server_write` (Project-Server-Verbindungen, Hochladen und lokale Sitzungen der TIA-Portal-Instanz; nicht live getestet). Jeder tatsächliche Lifecycle-, Lade-, Online-Schreib-, Online-Verbindungs- oder Upload-Aufruf und jeder
+  `library_write`-Aufruf, der eine globale Bibliothek öffnet, dearchiviert, anlegt, speichert oder schließt, und jeder `project_server_write`-Aufruf, der eine lokale Sitzung oder eine Verbindung löscht oder ein Projekt hochlädt, erfordert ein Bestätigungsformular; die Rückfrage zum Laden nennt, wenn
   das Ziel eine echte Steuerung ist. Die übrigen Schreibaufrufe der Domänen (einschließlich Bibliotheks-Inhaltselementen) und die PLCSIM-Werkzeuge fragen nie nach.
-- **full** - dieselben zweiunddreißig Werkzeuge und Operationen; Lifecycle, Laden, Online-Schreibvorgänge, Online-Verbindungen, Uploads und der Lifecycle globaler Bibliotheken laufen ohne
+- **full** - dieselben dreiunddreißig Werkzeuge und Operationen; Lifecycle, Laden, Online-Schreibvorgänge, Online-Verbindungen, Uploads und der Lifecycle globaler Bibliotheken laufen ohne
   Server-Elicitation, sodass die KI ohne Nachfrage in eine echte Steuerung laden (und deren Download-Konfigurationen beantworten) oder eine konfigurierte CPU
   online ändern kann. Unbekannte Operationen bleiben verweigert.
 

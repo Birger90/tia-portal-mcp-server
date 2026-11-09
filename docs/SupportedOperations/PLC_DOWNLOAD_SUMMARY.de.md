@@ -59,6 +59,8 @@ Eine lokale Multiuser-Sitzung liefert `unsupported_capability`.
 | `trustedCertificates` | keiner | SHA-256-Fingerabdrücke der TLS-Zertifikate des Geräts, die **der Benutzer** geprüft und freigegeben hat: ein JSON-Array von Strings mit je 64 Hexadezimalzeichen (Groß-/Kleinschreibung egal; Doppelpunkte und Leerzeichen werden ignoriert), höchstens 16, keine Wiederholungen nach der Normalisierung. Der einzige Weg, auf dem die TLS-Zertifikatsprüfung der Verbindung des Downloads (`TlsVerificationConfiguration`, Online-Legitimation) mit `Trusted` beantwortet wird; weggelassen, explizit `null` oder leer vertraut nichts. Siehe [TLS-Zertifikatsvertrauen](#tls-zertifikatsvertrauen-online-legitimation). Nicht live getestet. |
 | `rhTarget` | keiner | Nur R/H-System (Issue #16, nicht live getestet): `primary` oder `backup` lädt über `RHDownloadProvider.DownloadToPrimary`/`DownloadToBackup(IConfiguration, DownloadConfigurationDelegate, DownloadConfigurationDelegate, DownloadOptions)` in diese CPU; der Provider wird unter den `GetServiceInfos()` des CPU-Device-Items über den exakten vollen Namen gefunden und zur Laufzeit gebunden, der Pfad auf `RHDownloadProvider.Configuration` neu aufgelöst. Dieselben Entscheidungen, Passwörter, Guards und Bestätigung wie beim normalen Download; Prompt und `effects.rhTarget` nennen die CPU. Eine PLC ohne den Provider scheitert mit `unsupported_capability`, bevor etwas geladen wird. Weggelassen: `DownloadProvider.Download`. |
 | `allowInsecurePasswordTransfer` | `false` | Audit T1 (nicht live getestet): `false` sendet ein Passwort nur, wenn die Passwortkonfiguration `IsSecureCommunication` true meldet; false oder nicht lesbar bricht mit `insecure_communication` ab, und nichts wird gesendet. `true` sendet es trotzdem über die nicht sichere (Legacy-)Verbindung, wie TIA Portal es erlaubt; nur setzen, nachdem der Benutzer zugestimmt hat. Die Rückfrage nennt die geltende Regel; `effects.allowInsecurePasswordTransfer` ist nur dann `true`, wenn gesetzt. Siehe [Passwörter](#passwörter). |
+| `onlineUser` | keiner | Audit N2 (nicht live getestet): `{ userName, userType? }` für eine benutzerbasierte Anmeldung während der Verbindung des Downloads; siehe [Passwörter](#passwörter) und die Regeln der Online-Legitimation. |
+| `targetAddress` | keiner | Audit N4 (nicht live getestet): eine Knotenadresse (zum Beispiel die laufende IP, wenn sie von der Offline-IP des Projekts abweicht). Der Worker erzeugt sie mit `ConfigurationTargetInterface.Addresses.Create(String)` (`Addresses` per Reflection gelesen: nicht in den Stubs) an der aufgelösten Zielschnittstelle und lädt mit `DownloadProvider.Download(IConfiguration, ConfigurationAddress, DownloadConfigurationDelegate, DownloadConfigurationDelegate, DownloadOptions)` („Download Hardware and Software to a target with specific IP-Address“; mit `rhTarget` die passende Überladung von `DownloadToPrimary`/`DownloadToBackup`), zur Laufzeit gebunden, bevor etwas gesendet wird (`api_member_missing`). Dieselbe Formregel wie die Adresse des Stations-Uploads. Löst den Acknowledge-Guard `download_to_custom_address` aus (das Gerät unter dieser Adresse ist eventuell nicht die projektierte PLC); `download_to_hardware` hängt weiter nur vom Namen der PC-Schnittstelle ab. `effects.targetAddress` und die Rückfrage nennen sie. Aus welcher Composition die Adresse kommen muss, steht nicht in der V21-XML; die der Zielschnittstelle folgt Hinweisen Dritter. |
 | `dryRun` | `false` | PLC, Pfad und Guards auflösen und `phase: preview` zurückgeben, ohne das Ziel zu berühren oder nachzufragen. |
 
 Argumentformfehler (unbekannte Root- oder verschachtelte Member, nulls für nicht nullbare Werte, ein
@@ -500,9 +502,19 @@ Online-Legitimationspasswörter der Download-Verbindung.
 - **Online-Passwörter**, die in dieser Phase vorgelegt werden (`OnlinePasswordConfiguration`,
   `OnlineReadAccessPassword`: `SetPassword(SecureString)`), werden wie Download-Passwörter aus
   `passwords` beantwortet (Schlüssel = Kurzname des Typs, Wert = Umgebungsvariablenname). Für keine
-  Online-Konfiguration gibt es eine Standardantwort; alles andere, zum Beispiel
-  `OnlineAuthenticationConfiguration` (Anmeldedaten über `OnlineCredentials`, von diesem Tool nicht
-  beantwortet), bricht mit `decision_required` oder `decision_not_applicable` ab.
+  Online-Konfiguration gibt es eine Standardantwort; alles andere bricht mit `decision_required` oder
+  `decision_not_applicable` ab.
+- **Benutzerbasierte Anmeldung** (Audit N2, nicht live getestet): `OnlineAuthenticationConfiguration` („Object that is used to
+  authenticate user.“) ist für den Recorder eine Passwortkonfiguration (Entscheidungsschlüssel `OnlineAuthenticationConfiguration`,
+  Art `password`). Sie wird nur beantwortet, wenn der Aufruf `onlineUser { userName, userType? }` und eine Passwortquelle unter
+  `passwords["OnlineAuthenticationConfiguration"]` übergibt (oder die Passwortzuordnung eine liefert): `OnlineCredentials.Name = userName`,
+  `OnlineCredentials.Type = userType`, falls angegeben (exaktes Member des installierten `UserType`-Enums: `None`, `AnonymousUser`,
+  `GlobalUser`, `PasswordOnly`, `ProjectUser`, `SingleSignOnUser`; weggelassen bleibt der Wert von TIA Portal) und
+  `OnlineCredentials.SetPassword(SecureString)`, alles per Reflection gebunden (kein Stub). Zuerst gilt die
+  `IsSecureCommunication`-Regel jedes Passworts (false oder nicht lesbar: nichts wird gesetzt, Abbruch `insecure_communication`, außer
+  mit `allowInsecurePasswordTransfer: true`). Keine Passwortquelle: `decision_required`; kein `onlineUser`, ein unbekannter `userType`
+  oder ein fehlendes Member: `decision_not_applicable` mit dem Grund, nichts gesetzt. Der Benutzername steht in `effects.onlineUser`
+  und in der read-write-Rückfrage, das Passwort nie. `GetSupportedAuthenticationTypes()` wird nicht gelesen.
 
 Die `tls`-Nachweise (am Eintrag in `configurationsSeen` und, bei einer Ablehnung, an `abort`):
 
@@ -615,7 +627,7 @@ eine falsche Annahme den Worker nicht zum Absturz bringen, aber einen Abbruch au
 | `X509Certificate2.RawData`, `.Thumbprint`, `.Subject`, `.Issuer`, `.NotBefore`, `.NotAfter` | .NET | — | .NET-Basisklassenbibliothek, nicht Siemens |
 | `TlsVerificationConfiguration.CurrentSelection` vom Typ `Online.Configurations.TlsVerificationConfigurationSelection`; Member `Trusted` und `NonTrusted` nach Name gesetzt (`NonVerified` nie) | Base | c, d | **Reflection**; Eigenschaft, Typ und Member aus d (Callback-Beispiel `tls.CurrentSelection = … Trusted : … NonTrusted`; Katalog "`NonVerified`, `Trusted`, or `NonTrusted`"), Typname in V21-Baseline verifiziert; der vollständige Name des Eigenschaftstyps wird verglichen und die Member mit `Enum.IsDefined` geprüft; eine fehlende oder fremde Eigenschaft wird nie geschrieben |
 | `Online.Configurations.OnlinePasswordConfiguration.SetPassword(SecureString)`, `OnlineReadAccessPassword` (seine Spezialisierung) | Base | c, d | **Reflection** (der generische Passwortzugriff); Typnamen in V21-Baseline verifiziert |
-| `OnlineAuthenticationConfiguration` (`GetSupportedAuthenticationTypes()`, `OnlineCredentials`, `IsSecureCommunication`), `OnlineCredentials`, `UserType`, `AuthenticationType` | Base | c, d | **nicht verwendet**: Eine solche Konfiguration wird protokolliert und bricht ab |
+| `OnlineAuthenticationConfiguration` (`OnlineCredentials`, `IsSecureCommunication`), `OnlineCredentials` (`Name`, `Type`, `SetPassword(SecureString)`), `UserType` | Base | c, d; V21 members.txt | **Reflection** (Audit N2, nicht live getestet): beantwortet aus `onlineUser` und der Passwortquelle `OnlineAuthenticationConfiguration`; `GetSupportedAuthenticationTypes()` und `AuthenticationType` nicht verwendet |
 | `EnableLegacyCommunication` | Base | d | **nie gelesen oder gesetzt** (d: `true` deaktiviert TLS) |
 
 Für die Entscheidungsunterstützung dieser Funktion wurde kein Stub hinzugefügt oder geändert:
@@ -634,12 +646,12 @@ Parameternamen in der Stub-Signatur von `Download` sind Platzhalter.
 
 Bewusst nicht verwendet: `GetAccessibleDevices()`, `ApplyConfiguration`, die `Find`-Methoden der
 Compositions (stattdessen wird exakt enumeriert, sodass die ordinale Eindeutigkeit nicht von der
-Semantik von `Find` abhängt), die `Download`-Überladung mit einer `ConfigurationAddress`,
+Semantik von `Find` abhängt),
 `DeviceItemClassifications.CPU` (das Stub-Enum hat keine Member-Werte, und das Kompilieren einer
 erfundenen Konstante wäre zur Laufzeit falsch),
 `DownloadSelectionConfiguration`, `OnlineProvider`, `RHDownloadProvider`, `Download(DirectoryInfo, ...)`,
 `EnableLegacyCommunication`, `OnlineAuthenticationConfiguration`/`OnlineCredentials`
-(Online-Authentifizierung wird nicht beantwortet) und `TlsVerificationConfigurationSelection.NonVerified`.
+(per Reflection beantwortet, Audit N2) und `TlsVerificationConfigurationSelection.NonVerified`.
 
 ## Bekannte Grenzen und offene Risiken
 

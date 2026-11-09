@@ -34,7 +34,7 @@ und `plc_write` sind in den Modi read-write und full verfügbar und verhalten si
 erfordert `forceRebind:true`. Gewöhnliche PLC-Lesezugriffe binden, wechseln oder öffnen nie. Nur `open_project` und
 `create_project` öffnen Projekte. Der Lebenszyklus läuft in read-write mit einem Bestätigungsformular pro tatsächlichem
 Aufruf oder in full ohne Server-Elicitation; Block-Guards beenden den Aufruf in jedem Modus. Die vollständigen
-Tool-Zahlen sind 13/32/32. Read-only öffnet, erstellt, speichert oder schließt nie ein Projekt. Das Laden einer PLC in
+Tool-Zahlen sind 13/33/33. Read-only öffnet, erstellt, speichert oder schließt nie ein Projekt. Das Laden einer PLC in
 PLCSIM oder reale Hardware ist das separate Tool `plc_download`; siehe die [PLC-Download-Referenz](PLC_DOWNLOAD_SUMMARY.de.md).
 Online/offline gehen und Station-Upload sind die separaten Tools `plc_tia_online` und `plc_station_upload`; siehe die [Referenz PLC online über Openness](PLC_ONLINE_OPENNESS_SUMMARY.de.md).
 Simulierte CPUs werden von den `plcsim_*`-Tools gesteuert; siehe die [Referenz der PLCSIM-Operationen](PLCSIM_OPERATIONS_SUMMARY.de.md).
@@ -619,9 +619,10 @@ Zwei `plc_read`-Operationen (jeder Modus; `Observe`; eigenständige Projekte und
   angenommen).
 - **Kein Stub-Member** wurde ergänzt: jedes Member wird zur Laufzeit vom Siemens-freien `PlcChangeDetectionRun` und
   `RuntimeServiceValues` (Contracts `Shared`) gebunden, die der FakeWorker mitbenutzt.
-- **Weggelassen:** der Online-`Siemens.Engineering.FingerprintData.FingerprintDataProvider`
-  (`GetFingerprintData(ConfigurationAddress, OnlineConfigurationDelegate)`, `Configuration`): er liest Fingerprint-Daten online
-  von einem Gerät (Verbindungskonfiguration und Online-Rückrufe), was diese Offline-Lesezugriffe nicht tun.
+- **Online-Gegenstück:** der Online-`Siemens.Engineering.FingerprintData.FingerprintDataProvider`
+  (`GetFingerprintData(ConfigurationAddress, OnlineConfigurationDelegate)`) ist der eigene `OnlineObserve`-Lesezugriff
+  `get_station_fingerprint_data` (Audit N3, nicht live getestet; siehe die
+  [PLC-Online-Referenz](PLC_ONLINE_OPENNESS_SUMMARY.md#station-fingerprint-data-get_station_fingerprint_data)).
 - **Noch nötige Live-Abnahme:** welche Objekte die beiden Provider listen, die Laufzeittypen der Prüfsummen, von `Id` und
   `Value`, und ob die Prüfsummen nach einer Änderung leer und nach `compile_check` gefüllt sind.
 
@@ -773,7 +774,8 @@ Stub-Member wurde ergänzt.
   `plc_imports_project_texts`.
 - **TIA-Portal-Hinweise (K75).** Live am 2026-11-03 zeigte TIA Portal nach dem Export einen modalen Hinweis („Export
   erfolgreich abgeschlossen. (0032:000002)“), und der Openness-Aufruf wartete, bis ein Mensch OK klickte. Der Worker behandelt
-  jetzt jede `Notification` (`NotificationEventArgs.IsHandled = true`, für jede Operation, siehe ARCHITECTURE §4); die drei
+  jetzt jede während eines MCP-Aufrufs ausgelöste `Notification` (`NotificationEventArgs.IsHandled = true`, für jede Operation,
+  siehe ARCHITECTURE §4; K98: außerhalb eines Aufrufs bleiben sie TIA Portal überlassen); die drei
   Schreiboperationen der Projektsprachen listen die während des Aufrufs behandelten in `result.portalNotifications`
   (`{ caption, text, detailText, icon, handled }`), und jeder ist auch eine Warnung. Nicht live getestet.
 - **Weggelassen.** Nichts von der dokumentierten Oberfläche. Nicht angeboten: einzelne mehrsprachige Texte lesen oder schreiben
@@ -1079,8 +1081,10 @@ anderen Bausteinen und in Instanz-DBs werden nicht aktualisiert; das nächste Ü
   Typschnittstelle (`Subelement` ist nicht belegt); DB-Werte nehmen sie über `update_db_member`.
 - Erstellen oder Löschen von Schnittstellenabschnitten, Hinzufügen von Membern innerhalb von Array- oder UDT-typisierten Membern und
   Bearbeiten der Schnittstellen von Instanz- oder Array-DBs (die Schnittstelle eines Instanz-DB ist die seines FB).
-- Importe, die strukturelle Änderungen akzeptieren (`SWImportOptions.IgnoreStructuralChanges`) — der
-  vorhandene Importer-Weg wird unverändert wiederverwendet.
+- Schnittstellenbearbeitungen, die strukturelle Änderungen akzeptieren (`SWImportOptions.IgnoreStructuralChanges`): Die
+  Schnittstellenbearbeitungen nutzen den Importer-Weg ohne Importoptionen. Ein vom Aufrufer geschriebenes SimaticML-Dokument kann
+  mit ihnen über `update_block_logic`/`update_type_content` `swImportOptions` importiert werden (Audit N8, siehe die
+  [Import/Export-Referenz](IMPORT_EXPORT_OPTIONS_SUMMARY.md#update-contract); nicht live getestet).
 - Ein natives Verschieben von Bausteinen oder Variablentabellen: keines ist dokumentiert, daher sind Verschiebungen Export/Löschen/Import mit den
   obigen Grenzen; Kopieren und Verschieben über Software Units oder PLCs hinweg.
 - Netzwerklogik: LAD/FBD/SCL-Rümpfe werden von diesen Operationen nie bearbeitet.

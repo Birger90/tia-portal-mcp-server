@@ -8,7 +8,7 @@ installed TIA Portal V21. The FakeWorker fixture models object access only and i
 Siemens behavior. Run the [live acceptance list](#live-acceptance-list) on a disposable project
 before relying on these operations.
 
-The operations extend existing tools; they added no tool (the counts were 10/27/27, 11/30/30 since the library tools, 12/31/31 since `tia_inbox`, 13/32/32 since `siemens_docs`):
+The operations extend existing tools; they added no tool (the counts were 10/27/27, 11/30/30 since the library tools, 12/31/31 since `tia_inbox`, 13/32/32 since `siemens_docs`, 13/33/33 since `project_server_write`):
 
 | Tool | Operations added |
 |---|---|

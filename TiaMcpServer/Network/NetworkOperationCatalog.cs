@@ -101,6 +101,7 @@ public static partial class NetworkOperationCatalog
 
     public static IReadOnlyCollection<NetworkOperationSpec> All { get; } = Specs.Values.ToArray();
 
+    // Field-forwarding tests use the catalog directly so new fields cannot escape their coverage.
     public static bool TryGetSpec(string operation, out NetworkOperationSpec? spec)
         => Specs.TryGetValue(operation, out spec);
 

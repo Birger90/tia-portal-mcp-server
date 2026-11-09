@@ -22,7 +22,7 @@ public static partial class PlcOperationCatalog
 
     private static Spec Write(string[] required, string[] optional) => new(required, optional, true);
 
-    private static readonly IReadOnlyDictionary<string, Spec> Specs = WithSafetySpecs(WithProjectLanguageSpecs(WithBlockProtectionSpecs(WithSettingsSpecs(WithDeviceDataSpecs(WithOpcUaSpecs(WithLoadableSpecs(WithChangeDetectionSpecs(WithCompilationSettingsSpecs(WithSimaticSdSpecs(WithEditingSpecs(WithSourceFolderSpecs(WithSecuritySpecs(WithTechnologyObjectSpecs(WithAlarmSpecs(WithHelpSpecs(new Dictionary<string, Spec>(StringComparer.Ordinal)
+    private static readonly IReadOnlyDictionary<string, Spec> Specs = WithSafetySpecs(WithOnlineFingerprintSpecs(WithProjectLanguageSpecs(WithBlockProtectionSpecs(WithSettingsSpecs(WithDeviceDataSpecs(WithOpcUaSpecs(WithLoadableSpecs(WithChangeDetectionSpecs(WithCompilationSettingsSpecs(WithSimaticSdSpecs(WithEditingSpecs(WithSourceFolderSpecs(WithSecuritySpecs(WithTechnologyObjectSpecs(WithAlarmSpecs(WithHelpSpecs(new Dictionary<string, Spec>(StringComparer.Ordinal)
     {
         ["get_block_content"] = Read(new[] { "blockPath" }, new[] { "format", "withDependencies" }),
         ["get_type_content"] = Read(new[] { "typePath" }, new[] { "format", "withDependencies" }),
@@ -30,10 +30,10 @@ public static partial class PlcOperationCatalog
         ["list_download_targets"] = Read(Array.Empty<string>(), new[] { "plcName" }),
         [PlcTagMoveMethods.ReadAddressOccupancy] = Read(Array.Empty<string>(), new[] { "plcName", "areas", "includeHardware" }),
         [PlcTagMoveMethods.FindFreeAddress] = Read(new[] { "area", "dataType" }, new[] { "plcName", "startByte", "endByte", "requireHardware", "alignBytes" }),
-        [PlcOnlineMethods.CompareToOnline] = Read(Array.Empty<string>(), new[] { "plcName", "maxDepth", "maxElements", "differencesOnly", "trustedCertificates", "passwords" }),
+        [PlcOnlineMethods.CompareToOnline] = Read(Array.Empty<string>(), new[] { "plcName", "maxDepth", "maxElements", "differencesOnly", "trustedCertificates", "passwords", "onlineUser" }),
         [PlcOnlineMethods.CompareSoftware] = Read(new[] { "compareTarget" }, new[] { "plcName", "targetName", "targetProject", "maxDepth", "maxElements", "differencesOnly" }),
         [PlcOnlineMethods.CompareHardware] = Read(new[] { "compareTarget", "targetName" }, new[] { "plcName", "hardwareScope", "maxDepth", "maxElements", "differencesOnly" }),
-        [PlcOnlineMethods.CompareHardwareToOnline] = Read(Array.Empty<string>(), new[] { "plcName", "hardwareScope", "maxDepth", "maxElements", "differencesOnly", "trustedCertificates", "passwords" }),
+        [PlcOnlineMethods.CompareHardwareToOnline] = Read(Array.Empty<string>(), new[] { "plcName", "hardwareScope", "maxDepth", "maxElements", "differencesOnly", "trustedCertificates", "passwords", "onlineUser" }),
         [PlcOnlineMethods.GetOnlineState] = Read(Array.Empty<string>(), new[] { "plcName" }),
         [PlcOnlineMethods.ListStationUploadInterfaces] = Read(Array.Empty<string>(), Array.Empty<string>()),
         [PlcOnlineMethods.ListWatchAndForceTables] = Read(Array.Empty<string>(), new[] { "plcName" }),
@@ -53,8 +53,8 @@ public static partial class PlcOperationCatalog
 
         // Write field sets are the batch catalog's, with yamlContent/sourceContent renamed to content and
         // the two content updates also requiring the hash of the document they were based on.
-        ["update_block_logic"] = Write(new[] { "blockPath", "content", "expectedContentHash" }, new[] { "format" }),
-        ["update_type_content"] = Write(new[] { "typePath", "content", "expectedContentHash" }, new[] { "format" }),
+        ["update_block_logic"] = Write(new[] { "blockPath", "content", "expectedContentHash" }, new[] { "format", "swImportOptions", "documentImportOption" }),
+        ["update_type_content"] = Write(new[] { "typePath", "content", "expectedContentHash" }, new[] { "format", "swImportOptions" }),
         ["create_tag_table"] = Write(new[] { "tableName" }, new[] { "plcName", "folderPath" }),
         ["delete_tag_table"] = Write(new[] { "tableName" }, new[] { "plcName", "folderPath" }),
         ["create_tag"] = Write(new[] { "tableName", "name", "dataType" }, new[] { "plcName", "folderPath", "logicalAddress", "comment", "commentCulture" }),
@@ -92,7 +92,7 @@ public static partial class PlcOperationCatalog
         ["copy_block"] = Write(new[] { "blockPath", "newName" }, new[] { "targetGroupPath", "number" }),
         ["move_block"] = Write(new[] { "blockPath", "targetGroupPath" }, Array.Empty<string>()),
         ["move_tag_table"] = Write(new[] { "tableName", "targetFolderPath" }, new[] { "plcName", "folderPath" }),
-    }))))))))))))))));
+    })))))))))))))))));
 
     /// <summary>Wire name, getter and "is a nonblank value required when listed as required" for every string field.</summary>
     private static readonly (string Name, Func<PlcOperationRequest, string?> Get)[] StringFields = WithSecurityStringFields(WithTechnologyObjectStringFields(new (string Name, Func<PlcOperationRequest, string?> Get)[]
@@ -139,7 +139,7 @@ public static partial class PlcOperationCatalog
         ("portalConfirmations", op => op.PortalConfirmations),
         ("proDiagFb", op => op.ProDiagFb),
         ("directoryPath", op => op.DirectoryPath),
-    }.Concat(SourceFolderStringFields()).Concat(SafetyStringFields()).Concat(EditingStringFields()).Concat(SimaticSdStringFields()).Concat(LoadableStringFields()).Concat(ProjectLanguageStringFields()).Concat(SettingsStringFields()).Concat(OpcUaStringFields()).ToArray()))
+    }.Concat(SourceFolderStringFields()).Concat(SafetyStringFields()).Concat(EditingStringFields()).Concat(SimaticSdStringFields()).Concat(LoadableStringFields()).Concat(ProjectLanguageStringFields()).Concat(SettingsStringFields()).Concat(OpcUaStringFields()).Concat(OnlineFingerprintStringFields()).ToArray()))
         // The source/folder, alarm and technology object fields share filePath and directoryPath: one entry per wire name.
         .DistinctBy(field => field.Name).ToArray();
 
@@ -187,6 +187,8 @@ public static partial class PlcOperationCatalog
             .Concat(OpcUaOtherFields())
             .Concat(DeviceDataOtherFields())
             .Concat(HelpOtherFields())
+            .Concat(ImportOptionOtherFields())
+            .Concat(OnlineLoginOtherFields())
             // The source/folder, alarm and technology object fields share overwrite, offset and limit: one entry per wire name.
             .DistinctBy(field => field.Item1)
             .ToArray();
@@ -205,7 +207,7 @@ public static partial class PlcOperationCatalog
     public static IReadOnlyList<string> WriteOperationNames { get; } =
         Specs.Where(entry => entry.Value.IsWrite).Select(entry => entry.Key).ToArray();
 
-    /// <summary>The declared required and optional wire fields of a write operation.</summary>
+    /// <summary>Exposes write fields to catalog and field-forwarding tests so new fields cannot escape their coverage.</summary>
     public static bool TryGetWriteFields(
         string operation,
         out IReadOnlyList<string> required,
@@ -378,6 +380,9 @@ public static partial class PlcOperationCatalog
         ValidateOpcUaItem(operation, prefix, errors);
         ValidateDeviceDataItem(operation, prefix, errors);
         ValidateHelpItem(operation, prefix, errors);
+        ValidateImportOptionsItem(operation, prefix, errors);
+        ValidateOnlineLoginItem(operation, prefix, errors);
+        ValidateOnlineFingerprintItem(operation, prefix, errors);
     }
 
     /// <summary>

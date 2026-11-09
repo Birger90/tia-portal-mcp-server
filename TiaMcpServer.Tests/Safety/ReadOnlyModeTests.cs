@@ -9,7 +9,6 @@ using TiaMcpServer.Network;
 using TiaMcpServer.OpennessWorker.Worker;
 using TiaMcpServer.Safety;
 using TiaMcpServer.Tests.TestSupport;
-using TiaMcpServer.Tests.TestUtilities;
 using TiaMcpServer.Tests.Worker;
 using TiaMcpServer.Tools;
 using TiaMcpServer.Worker;
@@ -204,6 +203,8 @@ public class ReadOnlyModeTests
             .Concat(TiaMcpServer.Contracts.PlcSim.PlcSimMethods.All)
             .Concat(TiaMcpServer.Contracts.PlcWebApi.PlcWebApiMethods.All)
             .Concat(TiaMcpServer.Contracts.Docs.SiemensDocsMethods.All)
+            // project_server_write acts on the TIA Portal instance; a bound session's identity is sent but not required.
+            .Concat(TiaMcpServer.Contracts.Multiuser.ProjectServerMethods.WorkerMethods)
             .ToHashSet(StringComparer.Ordinal);
         foreach (var operation in OperationPolicyCatalog.AllOperationNames.Where(op => !optional.Contains(op)))
             Assert.True(OperationPolicyCatalog.RequiresExpectedSessionIdentity(operation), operation);
@@ -437,10 +438,7 @@ public class ReadOnlyModeTests
     public async Task OpennessWorkerClient_ReadOnly_DeniesRebindProbeWithVerifiedRuntimeBinding()
     {
         var binding = new ProjectSessionBinding(null);
-        using var client = new OpennessWorkerClient(
-            binding,
-            workerExecutablePath: FakeWorkerLocator.Locate(),
-            accessPolicy: new OperationAccessPolicy(McpAccessMode.ReadOnly));
+        using var client = FakeWorkerClients.Create(McpAccessMode.ReadOnly, binding: binding);
         await FakeWorkerBinding.BindVerifiedAsync(client, binding, "echo");
         var bindingBefore = binding.CaptureSnapshot();
         var sourceProjectPath = Assert.IsType<string>(bindingBefore.ProjectPath);
@@ -609,7 +607,7 @@ public class ReadOnlyModeTests
                 "archive_project", "bind_project", "browse_project_tree", "close_project",
                 "compile_check", "create_project", "get_project_status", "hmi_read", "hmi_write",
                 "library_read", "library_write", "network_read", "network_write", "open_project", "plc_download", "plc_online_read", "plc_online_write", "plc_read", "plc_station_upload", "plc_tia_online", "plc_write", "plcsim_read", "plcsim_test",
-                "plcsim_write", "read_cross_references", "retrieve_project", "save_project", "save_project_as", "siemens_docs", "tia_inbox", "vci_read", "vci_write"
+                "plcsim_write", "project_server_write", "read_cross_references", "retrieve_project", "save_project", "save_project_as", "siemens_docs", "tia_inbox", "vci_read", "vci_write"
             },
             toolNames);
     }

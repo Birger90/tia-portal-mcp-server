@@ -103,14 +103,15 @@ internal static class PlcMainSafetyBlockSdRouteWorker
     }
 
     /// <summary>Runs the route for <paramref name="target"/> with the SD documents; the main import is update_block_logic xml.</summary>
+    /// <param name="documentImportOption">Audit N7: the caller's culture member, added to Override for the temporary F-block's import.</param>
     public static (BlockImportResult Result, PlcMainSafetyBlockRouteInfo Info, List<string> Warnings) Run(
-        ProjectBase project, Target target, string operation, string s7dcl, string? s7res)
-        => PlcMainSafetyBlockSdRoute.Run(new Steps(project, target), operation, target.BlockPath, target.Located.Block.Name, target.GroupPath,
+        ProjectBase project, Target target, string operation, string s7dcl, string? s7res, string? documentImportOption = null)
+        => PlcMainSafetyBlockSdRoute.Run(new Steps(project, target, documentImportOption), operation, target.BlockPath, target.Located.Block.Name, target.GroupPath,
             target.RuntimeGroups, s7dcl, s7res);
 
     private static string OneLine(string text) => text.Replace("\r\n", " ").Replace('\r', ' ').Replace('\n', ' ');
 
-    private sealed class Steps(ProjectBase project, Target target) : IPlcMainSafetyBlockSdRouteSteps<BlockImportResult>
+    private sealed class Steps(ProjectBase project, Target target, string? documentImportOption) : IPlcMainSafetyBlockSdRouteSteps<BlockImportResult>
     {
         private PlcBlockComposition Blocks => target.Located.Group.Blocks;
 
@@ -142,7 +143,7 @@ internal static class PlcMainSafetyBlockSdRouteWorker
                 File.WriteAllBytes(Path.Combine(directory, name + SimaticSdText.BundleExtension), SimaticSdFileText.Encode(s7dcl));
                 if (s7res is not null)
                     File.WriteAllBytes(Path.Combine(directory, name + SimaticSdText.ResourceExtension), SimaticSdFileText.Encode(s7res));
-                var result = Blocks.ImportFromDocuments(new DirectoryInfo(directory), name, ImportDocumentOptions.Override);
+                var result = Blocks.ImportFromDocuments(new DirectoryInfo(directory), name, Block.BlockImporter.DocumentImportOptions(documentImportOption));
                 var messages = SimaticSdImportMessages.Read(result);
                 foreach (var message in messages) Console.Error.WriteLine(BlockImportDiagnosticSanitizer.SimaticSdMessagePrefix + OneLine(message));
                 if (result.State != DocumentResultState.Success)

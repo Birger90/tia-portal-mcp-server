@@ -21,14 +21,14 @@ public sealed class ClaudeBridgeSettings
     /// <summary>The MCP server name the defaults assume (<c>claude mcp add -s user tia-portal ...</c>).</summary>
     public const string DefaultServerName = "tia-portal";
 
-    /// <summary>Every tool of the TIA MCP server (13 in read-only, 32 in read-write/full); the server's access mode still decides
+    /// <summary>Every tool of the TIA MCP server (13 in read-only, 33 in read-write/full); the server's access mode still decides
     /// which of them exist. No built-in Claude Code tool (shell, file editing, web) is in the default list.</summary>
     public static readonly IReadOnlyList<string> TiaToolNames = new[]
     {
         "archive_project", "bind_project", "browse_project_tree", "close_project", "compile_check", "create_project", "get_project_status",
         "hmi_read", "hmi_write", "library_read", "library_write", "network_read", "network_write", "open_project", "plc_download",
         "plc_online_read", "plc_online_write", "plc_read", "plc_station_upload", "plc_tia_online", "plc_write", "plcsim_read", "plcsim_test",
-        "plcsim_write", "read_cross_references", "retrieve_project", "save_project", "save_project_as", "siemens_docs", "tia_inbox", "vci_read", "vci_write",
+        "plcsim_write", "project_server_write", "read_cross_references", "retrieve_project", "save_project", "save_project_as", "siemens_docs", "tia_inbox", "vci_read", "vci_write",
     };
 
     /// <summary>

@@ -35,16 +35,19 @@ sealed class PlcOnlineScenario
 
     private readonly bool _raiseConfirmation;
     private readonly bool _presentTls;
+    private readonly bool _insecureLogin;
 
     /// <param name="raiseConfirmation">
     /// Scenario <c>plc-online-confirmation</c>: TIA Portal raises one confirmation dialog during every go online,
     /// go offline, station upload and compare_to_online, answered as the request's policy says (compare: No).
     /// </param>
     /// <param name="presentTls">Scenario <c>plc-online-tls</c>: every connecting action first presents the TLS verification.</param>
-    public PlcOnlineScenario(bool raiseConfirmation = false, bool presentTls = false)
+    /// <param name="insecureLogin">Scenario <c>plc-online-insecure-login</c> (audit N2): the user-based login reports IsSecureCommunication false.</param>
+    public PlcOnlineScenario(bool raiseConfirmation = false, bool presentTls = false, bool insecureLogin = false)
     {
         _raiseConfirmation = raiseConfirmation;
         _presentTls = presentTls;
+        _insecureLogin = insecureLogin;
     }
 
     /// <summary>The evidence of one action's confirmation scope, as the worker's log would close it.</summary>
@@ -118,6 +121,7 @@ sealed class PlcOnlineScenario
                 PlcOnlineMethods.CompareSoftware => Ok(WorkerJson.SerializePayload(Compare(request, online: false))),
                 PlcOnlineMethods.CompareHardware => Ok(WorkerJson.SerializePayload(Compare(request, online: false, hardware: true))),
                 PlcOnlineMethods.CompareHardwareToOnline => Ok(WorkerJson.SerializePayload(Compare(request, online: true, hardware: true))),
+                PlcOnlineMethods.GetStationFingerprintData => FingerprintData(request),
                 PlcOnlineMethods.GoOnline => GoOnline(request),
                 PlcOnlineMethods.GoOffline => GoOffline(request),
                 PlcOnlineMethods.StationUpload => StationUpload(request),
@@ -327,13 +331,16 @@ sealed class PlcOnlineScenario
 
         var recorder = new PlcCallbackRecorder(null, action.Passwords,
             new PlcCallbackReflectionAccess(PlcCallbackPolicy.OnlineConfigurationsNamespace, _ => null,
-                variable => variable == PasswordVariable ? "fake-password" : null), trustedCertificates: action.TrustedCertificates,
+                variable => variable == PasswordVariable ? "fake-password" : null, onlineUser: action.OnlineUser), trustedCertificates: action.TrustedCertificates,
             plcSimInterface: PlcTlsTrustPolicy.IsPlcSimInterface(action.PcInterfaceName), allowInsecurePasswordTransfer: action.AllowInsecurePasswordTransfer);
         try
         {
             if (_presentTls) recorder.Handle(FakeTlsCertificates.Configuration(plc.Software));
             if (action.Passwords.Any(p => p.Type == nameof(Siemens.Engineering.Online.Configurations.OnlinePasswordConfiguration)))
                 recorder.Handle(new Siemens.Engineering.Online.Configurations.OnlinePasswordConfiguration());
+            // Audit N2: a CPU with user management asks for a user-based login when the call names a user or its password.
+            if (action.OnlineUser is not null || action.Passwords.Any(p => p.Type == PlcOnlineAuthentication.ConfigurationShortName))
+                recorder.Handle(new Siemens.Engineering.Online.Configurations.OnlineAuthenticationConfiguration { IsSecureCommunication = !_insecureLogin });
         }
         catch (PlcCallbackAbortedException)
         {
@@ -372,7 +379,65 @@ sealed class PlcOnlineScenario
         result.Outcome = wait.GoalReached ? PlcOnlinePolicy.ActionOutcomes.Connected : PlcOnlinePolicy.ActionOutcomes.NotReached;
         result.PathVerified = wait.GoalReached;
         if (wait.GoalReached) Replace(plc, PlcOnlinePolicy.States.Online);
-        return Ok(WorkerJson.SerializePayload(Close(result, confirmations)));
+        // Audit N4: the fixture reports the GoOnline overload it used (shape only, no Siemens behavior).
+        return action.TargetAddress is { } address
+            ? JsonSerializer.Serialize(new WorkerResponse
+            {
+                Success = true, Payload = WorkerJson.SerializePayload(Close(result, confirmations)),
+                Warnings = new() { $"FakeWorker: GoOnline(ConfigurationAddress) to '{address}'." },
+            }, WorkerJson.Envelope)
+            : Ok(WorkerJson.SerializePayload(Close(result, confirmations)));
+    }
+
+    /// <summary>
+    /// Audit N3: get_station_fingerprint_data against the fixture station. The address <c>192.168.0.250</c> answers no device (TIA
+    /// Portal's own failure); a user-based login is presented when the call names a user or its password; two items of undocumented
+    /// type are projected through the shared <see cref="PlcFingerprintData.Project"/>. Shapes only, no Siemens behavior.
+    /// </summary>
+    private string FingerprintData(WorkerRequest request)
+    {
+        var read = request.PlcOnline ?? throw new WorkerOperationException(WorkerFailureCategories.ValidationError, "The PlcOnline request is missing.");
+        if (read.TargetAddress == "192.168.0.250")
+            throw new WorkerOperationException(WorkerFailureCategories.WorkerOperationFailed, "No device answered at 192.168.0.250 (fixture). Nothing was read.");
+        var recorder = new PlcCallbackRecorder(null, read.Passwords,
+            new PlcCallbackReflectionAccess(PlcCallbackPolicy.OnlineConfigurationsNamespace, _ => null,
+                variable => variable == PasswordVariable ? "fake-password" : null, onlineUser: read.OnlineUser), trustedCertificates: read.TrustedCertificates);
+        try
+        {
+            if (_presentTls) recorder.Handle(FakeTlsCertificates.Configuration("Fingerprint_Station"));
+            if (recorder.Abort is not null) throw new PlcCallbackAbortedException("refused");
+            if (read.OnlineUser is not null || read.Passwords.Any(p => p.Type == PlcOnlineAuthentication.ConfigurationShortName))
+                recorder.Handle(new Siemens.Engineering.Online.Configurations.OnlineAuthenticationConfiguration { IsSecureCommunication = !_insecureLogin });
+        }
+        catch (PlcCallbackAbortedException)
+        {
+            throw new WorkerOperationException(WorkerFailureCategories.WorkerOperationFailed, PlcCallbackRecorder.AbortMessage(recorder.Abort!) + " No fingerprint data was read.");
+        }
+
+        var info = new PlcStationFingerprintDataInfo
+        {
+            ProviderOwner = "portal", Mode = read.Mode!, PcInterfaceName = read.PcInterfaceName!, PcInterfaceNumber = read.PcInterfaceNumber,
+            TargetAddress = read.TargetAddress!, MaxItems = read.MaxElements,
+        };
+        PlcFingerprintData.Project(new FakeFingerprintResult(), read.MaxElements, info, _ => true);
+        info.ConfigurationsSeen = recorder.Seen;
+        return Ok(WorkerJson.SerializePayload(info));
+    }
+
+    private sealed class FakeFingerprintItem(string identifier, byte[] value)
+    {
+        public string FingerprintDataIdentifier { get; } = identifier;
+
+        public byte[] FingerprintDataValue { get; } = value;
+    }
+
+    private sealed class FakeFingerprintResult
+    {
+        public List<FakeFingerprintItem> FingerprintDataItems { get; } = new()
+        {
+            new("HardwareConfiguration", new byte[] { 0x0A, 0x1B }),
+            new("SoftwareConfiguration", new byte[] { 0xC0, 0xDE }),
+        };
     }
 
     private string GoOffline(WorkerRequest request)
@@ -415,7 +480,7 @@ sealed class PlcOnlineScenario
         var recorder = new PlcCallbackRecorder(upload.Decisions, upload.Passwords,
             new PlcCallbackReflectionAccess(new[] { PlcCallbackPolicy.UploadConfigurationsNamespace, PlcCallbackPolicy.OnlineConfigurationsNamespace },
                 configuration => configuration is Siemens.Engineering.Upload.Configurations.UploadMissingProducts ? "Products are missing." : null,
-                variable => variable == PasswordVariable ? "fake-password" : null), trustedCertificates: upload.TrustedCertificates,
+                variable => variable == PasswordVariable ? "fake-password" : null, onlineUser: upload.OnlineUser), trustedCertificates: upload.TrustedCertificates,
             plcSimInterface: PlcTlsTrustPolicy.IsPlcSimInterface(upload.PcInterfaceName), allowInsecurePasswordTransfer: upload.AllowInsecurePasswordTransfer);
         try
         {
@@ -423,6 +488,8 @@ sealed class PlcOnlineScenario
             if (_presentTls) recorder.Handle(FakeTlsCertificates.Configuration("Uploaded_Station"));
             // K27: a refused TLS question returns normally (NonTrusted, no throw); TIA Portal then fails the upload's connection.
             if (recorder.Abort is not null) throw new PlcCallbackAbortedException("TIA Portal refused the connection after NonTrusted.");
+            if (upload.OnlineUser is not null || upload.Passwords.Any(p => p.Type == PlcOnlineAuthentication.ConfigurationShortName))
+                recorder.Handle(new Siemens.Engineering.Online.Configurations.OnlineAuthenticationConfiguration { IsSecureCommunication = !_insecureLogin });
             recorder.Handle(new Siemens.Engineering.Upload.Configurations.UploadMissingProducts());
             if (upload.Passwords.Any(p => p.Type == nameof(Siemens.Engineering.Upload.Configurations.ModuleReadAccessPassword)))
                 recorder.Handle(new Siemens.Engineering.Upload.Configurations.ModuleReadAccessPassword());

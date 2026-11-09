@@ -133,6 +133,20 @@
       Link="Host\OpennessWorkerClient.PlcDeviceData.cs" />
     <Compile Include="..\TiaMcpServer\Worker\OpennessWorkerClient.Retrieve.cs"
       Link="Host\OpennessWorkerClient.Retrieve.cs" />
+    <Compile Include="..\TiaMcpServer\Worker\OpennessWorkerClient.Binding.cs"
+      Link="Host\OpennessWorkerClient.Binding.cs" />
+    <Compile Include="..\TiaMcpServer\Worker\OpennessWorkerClient.Domains.cs"
+      Link="Host\OpennessWorkerClient.Domains.cs" />
+    <Compile Include="..\TiaMcpServer\Worker\OpennessWorkerClient.Invocation.cs"
+      Link="Host\OpennessWorkerClient.Invocation.cs" />
+    <Compile Include="..\TiaMcpServer\Worker\OpennessWorkerClient.Lifecycle.cs"
+      Link="Host\OpennessWorkerClient.Lifecycle.cs" />
+    <Compile Include="..\TiaMcpServer\Worker\OpennessWorkerClient.Network.cs"
+      Link="Host\OpennessWorkerClient.Network.cs" />
+    <Compile Include="..\TiaMcpServer\Worker\OpennessWorkerClient.Plc.cs"
+      Link="Host\OpennessWorkerClient.Plc.cs" />
+    <Compile Include="..\TiaMcpServer\Worker\OpennessWorkerClient.ProjectServer.cs"
+      Link="Host\OpennessWorkerClient.ProjectServer.cs" />
     <Compile Include="..\TiaMcpServer\Worker\OpennessWorkerLocator.cs"
       Link="Host\OpennessWorkerLocator.cs" />
     <Compile Include="..\TiaMcpServer\Worker\TiaPortalInstallationLocator.cs"
@@ -163,6 +177,8 @@
       Link="Host\ProjectRebindStatePayloadContract.cs" />
     <Compile Include="..\TiaMcpServer\Worker\ProjectBindingDecision.cs"
       Link="Host\ProjectBindingDecision.cs" />
+    <Compile Include="..\TiaMcpServer\Worker\ProjectSessionBinding.cs"
+      Link="Host\ProjectSessionBinding.cs" />
     <Compile Include="..\TiaMcpServer\Worker\ProjectBindingPayloadContract.cs"
       Link="Host\ProjectBindingPayloadContract.cs" />
     <Compile Include="..\TiaMcpServer\Worker\ProjectContextPayloadContract.cs"
@@ -259,6 +275,9 @@
     <Compile Include="..\TiaMcpServer\Plc\TechnologyObjects\*.cs" Link="Host\Plc\TechnologyObjects\%(Filename)%(Extension)" />
     <Compile Include="..\TiaMcpServer\Plc\Editing\*.cs" Link="Host\Plc\Editing\%(Filename)%(Extension)" />
     <Compile Include="..\TiaMcpServer\Plc\SimaticSd\*.cs" Link="Host\Plc\SimaticSd\%(Filename)%(Extension)" />
+    <Compile Include="..\TiaMcpServer\Plc\ImportOptions\*.cs" Link="Host\Plc\ImportOptions\%(Filename)%(Extension)" />
+    <Compile Include="..\TiaMcpServer\Plc\OnlineLogin\*.cs" Link="Host\Plc\OnlineLogin\%(Filename)%(Extension)" />
+    <Compile Include="..\TiaMcpServer\Plc\OnlineFingerprint\*.cs" Link="Host\Plc\OnlineFingerprint\%(Filename)%(Extension)" />
     <Compile Include="..\TiaMcpServer\Plc\Security\*.cs" Link="Host\Plc\Security\%(Filename)%(Extension)" />
     <Compile Include="..\TiaMcpServer\Plc\Safety\*.cs" Link="Host\Plc\Safety\%(Filename)%(Extension)" />
     <Compile Include="..\TiaMcpServer\Plc\Project\*.cs" Link="Host\Plc\Project\%(Filename)%(Extension)" />
@@ -500,11 +519,13 @@
     <Compile Include="..\TiaMcpServer\PlcDownload\*.cs" Link="Host\PlcDownload\%(Filename)%(Extension)" />
     <Compile Include="..\TiaMcpServer\PlcOnline\*.cs" Link="Host\PlcOnline\%(Filename)%(Extension)" />
     <Compile Include="..\TiaMcpServer\Library\*.cs" Link="Host\Library\%(Filename)%(Extension)" />
+    <Compile Include="..\TiaMcpServer\ProjectServers\*.cs" Link="Host\ProjectServers\%(Filename)%(Extension)" />
     <Compile Include="..\TiaMcpServer\PlcAnalysis\*.cs" Link="Host\PlcAnalysis\%(Filename)%(Extension)" />
     <Compile Include="..\TiaMcpServer\PlcAlarms\*.cs" Link="Host\PlcAlarms\%(Filename)%(Extension)" />
     <Compile Include="..\TiaMcpServer\ClaudeInbox\*.cs" Link="Host\ClaudeInbox\%(Filename)%(Extension)" />
-    <Compile Include="..\TiaMcpServer.FakeWorker\Plc\XlsxFixture.cs" Link="TestUtilities\XlsxFixture.cs" />
-    <Compile Include="..\TiaMcpServer.FakeWorker\Plc\SimaticSdFixtures.cs" Link="TestUtilities\SimaticSdFixtures.cs" />
+    <Compile Include="..\TiaMcpServer\McpContext\*.cs" Link="Host\McpContext\%(Filename)%(Extension)" />
+    <Compile Include="..\TiaMcpServer.FakeWorker\Plc\XlsxFixture.cs" Link="TestSupport\XlsxFixture.cs" />
+    <Compile Include="..\TiaMcpServer.FakeWorker\Plc\SimaticSdFixtures.cs" Link="TestSupport\SimaticSdFixtures.cs" />
   </ItemGroup>
   <ItemGroup>
     <!-- S7-PLCSIM Advanced: host tools/client and the Siemens-free worker logic. The machine
@@ -517,5 +538,7 @@
       Exclude="..\TiaMcpServer.PlcSimWorker\Runtime\PlcSimMachineEnvironment.cs"
       Link="Linked\PlcSimWorker\Runtime\%(Filename)%(Extension)" />
   </ItemGroup>
-  <Import Project="TestUtilities\WorkerSerializationHarness.targets" />
+  <Import Project="TestSupport\WorkerSerializationHarness.targets" />
+  <!-- The same embedded reference documents as the server (MCP resources). -->
+  <Import Project="..\TiaMcpServer\McpContext\EmbeddedDocs.props" />
 </Project>

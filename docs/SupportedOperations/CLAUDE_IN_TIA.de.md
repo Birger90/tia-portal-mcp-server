@@ -63,7 +63,7 @@ Pfad), `typePath` (`PLC_1/Types/Ordner/Typ`), `tableName` + `folderPath` (`/`, `
 
 ## MCP-Werkzeug `tia_inbox`
 
-In **jedem** Zugriffsmodus verfügbar (13/32/32 Werkzeuge). Es berührt weder TIA Portal noch das Projekt noch die Bindung;
+In **jedem** Zugriffsmodus verfügbar (13/33/33 Werkzeuge). Es berührt weder TIA Portal noch das Projekt noch die Bindung;
 sein einziger Schreibvorgang ist die Antwortdatei (Annotationen: nicht read-only, nicht destruktiv, geschlossene Welt).
 Batch mit bis zu 50 Operationen, Vertrag `1.0`, Hülle `OperationBatchReadResponse`:
 
@@ -111,7 +111,7 @@ Version 1); der Server liest beide Versionen und ignoriert `claudeBridge`.
 ```
 
 Platzhalter in `arguments`: `{allowedTools}` (die Liste mit Kommas verbunden), `{prompt}` (dann ist der Prompt ein Argument
-statt Standardeingabe), `{requestId}`, `{inboxRoot}`. Standard: aus; die Freigabeliste enthält die 32 Werkzeuge dieses
+statt Standardeingabe), `{requestId}`, `{inboxRoot}`. Standard: aus; die Freigabeliste enthält die 33 Werkzeuge dieses
 Servers als `mcp__tia-portal__<werkzeug>` und **kein eingebautes Claude-Code-Werkzeug** (`--tools ""` entfernt sie: keine
 Shell, keine Dateibearbeitung, kein Web). Die Schalter sind die, die `claude --help` von Claude Code **2.1.317** auflistet
 (`-p/--print`, `--output-format json`, `--tools`, `--allowedTools`, `--permission-prompts none`: „alles, was nachfragen
@@ -185,9 +185,9 @@ ein eigenes Programm).
 ## Berechtigungen
 
 `AddInPublisherConfig.xml` fordert `TIA.ReadOnly` an (das Add-In liest nur Namen und Eltern der markierten Objekte) und
-`System.Security.Permissions.FileIOPermission` für Ein- und Ausgang. Die Schreibweise `FileIOPermission-UNRESTRICTED` ist
-eine Annahme (H nennt die Berechtigungsklasse, das Schema lag nicht vor); eine auf Pfade beschränkte Dateiberechtigung wäre
-kleiner, ihre XML-Form ist aber unbekannt. Der Code berührt nur `%APPDATA%\TiaMcpServer\inbox` und `...\outbox`
+`System.Security.Permissions.FileIOPermission` für Ein- und Ausgang (Element `PermissionType`, am 2026-11-07 gegen die
+installierte V21-`Siemens.Engineering.AddIn.Publisher.xsd` geprüft, K97; die frühere Schreibweise
+`FileIOPermission-UNRESTRICTED` hat das Schema abgelehnt). Der Code berührt nur `%APPDATA%\TiaMcpServer\inbox` und `...\outbox`
 (festgehalten durch `ClaudeInTiaAddInContractTests`). Keine `UnrestrictedPermissions`, kein Prozessstart, kein Netzwerk.
 
 ## Ungeprüft

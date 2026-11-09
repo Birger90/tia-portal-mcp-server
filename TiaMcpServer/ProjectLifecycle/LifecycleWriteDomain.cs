@@ -25,7 +25,9 @@ public sealed class LifecycleWriteDomain(OpennessWorkerClient workerClient, Life
         var effect = plans.Single().Effect!;
         return item.Operation switch
         {
-            "open_project" => $"Confirm open_project: open {Q(effect.DestinationProjectPath)} and bind this session to it."
+            "open_project" => $"Confirm open_project: open {Q(effect.DestinationProjectPath)}"
+                + (item.Upgrade ? " with OpenWithUpgrade (TIA Portal upgrades the project to the current version)" : string.Empty)
+                + " and bind this session to it."
                 + (effect.WillCloseSource ? $" Close source project {Q(effect.SourceProjectPath)}." : string.Empty),
             "create_project" => $"Confirm create_project: create {Q(effect.DestinationDirectory)} and bind this session to it.",
             "retrieve_project" => $"Confirm retrieve_project: retrieve archive {Q(effect.ArchivePath)} into {Q(effect.DestinationDirectory)}"
@@ -61,12 +63,20 @@ public sealed class LifecycleWriteDomain(OpennessWorkerClient workerClient, Life
             "A project is open in the TIA Portal the project would be created in. TIA Portal V21 refused create_project in that state "
             + "(live 2026-11-02: \"Unable to open project '...'. Another project is already open.\"); save_project and close_project it first. "
             + "Not refused here: TIA Portal decides."),
+        // Audit N5: OpenWithUpgrade upgrades the project to the current TIA Portal version ("Open Action with project update is necessary").
+        new WriteGuardDefinition(OpenUpgradesProject, WriteGuardSeverities.Acknowledge,
+            "open_project with upgrade:true opens the project with ProjectComposition.OpenWithUpgrade: TIA Portal upgrades the project to the "
+            + "current version (where the upgraded project is stored is not documented). Archive or copy it first if an older TIA Portal must still "
+            + "open it. Not live-tested."),
         // Issue #4: retrieve opens the retrieved project, which TIA Portal V21 refused while another was open (K30/K51).
         new WriteGuardDefinition(RetrieveRequiresNoOpenProject, WriteGuardSeverities.Acknowledge,
             "A project is open in the TIA Portal the archive would be retrieved in. TIA Portal V21 refused to open a second project "
             + "(create_project and open_project, live 2026-11-02: \"Unable to open project '...'. Another project is already open.\"); "
             + "save_project and close_project it first. Not refused here: TIA Portal decides.")
     });
+
+    /// <summary>Audit N5: open_project with upgrade:true.</summary>
+    public const string OpenUpgradesProject = "open_project_upgrades_project";
 
     /// <summary>The retrieve_project counterpart of the K16 guard.</summary>
     public const string RetrieveRequiresNoOpenProject = "retrieve_project_requires_no_open_project";
@@ -113,6 +123,8 @@ public sealed class LifecycleWriteDomain(OpennessWorkerClient workerClient, Life
                         return Invalid("Only an existing .ap21 or .als21 file can be opened.");
                     if (!File.Exists(item.ProjectPath))
                         return Invalid("The destination project file must exist.");
+                    if (item.Upgrade && !string.Equals(Path.GetExtension(item.ProjectPath), ".ap21", StringComparison.OrdinalIgnoreCase))
+                        return Invalid("upgrade applies to .ap21 project files (ProjectComposition.OpenWithUpgrade); a .als21 local session has no upgrade open.");
                     break;
                 case "create_project":
                     if (!ValidDirectory(item.ProjectDirectory) || !ValidName(item.ProjectName))
@@ -268,6 +280,11 @@ public sealed class LifecycleWriteDomain(OpennessWorkerClient workerClient, Life
                 Fire("local_session_source_preservation_unproved",
                     "The already-open local session cannot be proved preserved during another project or session open.");
         }
+        if (item.Operation == "open_project" && item.Upgrade)
+            Fire(OpenUpgradesProject,
+                $"'{effect.DestinationProjectPath}' is opened with ProjectComposition.OpenWithUpgrade: TIA Portal upgrades the project to the current "
+                + "version. Archive or copy it first if an older TIA Portal must still open it. If TIA Portal returns the upgraded project under another "
+                + "path, the call fails postcondition_failed and that project stays open: bind it with bind_project.");
         if (effect.WillCloseSource)
         {
             if (effect.SourceStatus?.IsModified == true)
@@ -314,7 +331,7 @@ public sealed class LifecycleWriteDomain(OpennessWorkerClient workerClient, Life
 
     public Task<WorkerCallResult> MutateAsync(LifecycleWriteItem requestedItem) => item.Operation switch
     {
-        "open_project" => workerClient.OpenProjectAsync(item.ProjectPath!, item.ForceRebind),
+        "open_project" => workerClient.OpenProjectAsync(item.ProjectPath!, item.ForceRebind, item.Upgrade),
         "create_project" => workerClient.CreateProjectAsync(item.ProjectDirectory!, item.ProjectName!, item.Author, item.Comment),
         "retrieve_project" => workerClient.RetrieveProjectAsync(item.ArchivePath!, item.TargetDirectory!, item.Upgrade),
         "save_project" => workerClient.SaveProjectAsync(),

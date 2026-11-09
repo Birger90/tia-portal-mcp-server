@@ -206,9 +206,7 @@ public sealed class PlcBlockEditServiceTests : IDisposable
         var unbound = Assert.Throws<WorkerOperationException>(() => TagTableMoveService.BindImport(new PlcTagComposition()));
         Assert.Contains("nothing was changed", unbound.Message, StringComparison.Ordinal);
 
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "TiaMcpServer.slnx"))) directory = directory.Parent;
-        var source = File.ReadAllText(Path.Combine(directory!.FullName, "TiaMcpServer.OpennessWorker", "Openness", "Plc", "TagTableMoveService.cs"));
+        var source = File.ReadAllText(TiaMcpServer.Tests.TestSupport.RepositoryFiles.Path("TiaMcpServer.OpennessWorker", "Openness", "Plc", "TagTableMoveService.cs"));
         Assert.True(source.IndexOf("BindImport(target.TagTables)", StringComparison.Ordinal) < source.IndexOf("table.Delete()", StringComparison.Ordinal));
         Assert.True(source.IndexOf("BindImport(source.TagTables)", StringComparison.Ordinal) < source.IndexOf("table.Delete()", StringComparison.Ordinal));
     }

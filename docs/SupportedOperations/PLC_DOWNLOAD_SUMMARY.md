@@ -55,6 +55,8 @@ session returns `unsupported_capability`.
 | `trustedCertificates` | none | SHA-256 fingerprints of the device's TLS certificates that **the user** checked and approved: a JSON array of strings, each 64 hexadecimal characters (case-insensitive; colons and spaces are ignored), at most 16, no repeats after normalization. The only way the TLS certificate check of the download's connection (`TlsVerificationConfiguration`, online legitimation) is answered `Trusted`; omitted, explicit `null` or empty trusts nothing. See [TLS certificate trust](#tls-certificate-trust-online-legitimation). Not live-tested. |
 | `rhTarget` | none | R/H system only (issue #16, not live-tested): `primary` or `backup` downloads to that CPU through `RHDownloadProvider.DownloadToPrimary`/`DownloadToBackup(IConfiguration, DownloadConfigurationDelegate, DownloadConfigurationDelegate, DownloadOptions)`, found among the CPU device item's `GetServiceInfos()` by exact full name and bound at runtime; the path is re-resolved on `RHDownloadProvider.Configuration`. Same decisions, passwords, guards and confirmation as a normal download; the prompt and `effects.rhTarget` name the CPU. A PLC without the provider fails `unsupported_capability` before anything is downloaded. Omitted: `DownloadProvider.Download`. |
 | `allowInsecurePasswordTransfer` | `false` | Audit T1 (not live-tested): `false` sends a password only when the password configuration reports `IsSecureCommunication` true; false or unreadable aborts with `insecure_communication` and nothing is sent. `true` sends it anyway over the non-secure (legacy) connection, as TIA Portal allows; set it only after the user agreed. The prompt says which rule applies; `effects.allowInsecurePasswordTransfer` is `true` only when set. See [passwords](#passwords). |
+| `onlineUser` | none | Audit N2 (not live-tested): `{ userName, userType? }` for a user-based login during the download's connection; see [passwords](#passwords) and the online legitimation rules. |
+| `targetAddress` | none | Audit N4 (not live-tested): a node address (for example the running IP when it differs from the project's offline IP). The worker creates it with `ConfigurationTargetInterface.Addresses.Create(String)` (`Addresses` read by reflection: not in the stubs) on the resolved target interface and downloads with `DownloadProvider.Download(IConfiguration, ConfigurationAddress, DownloadConfigurationDelegate, DownloadConfigurationDelegate, DownloadOptions)` ("Download Hardware and Software to a target with specific IP-Address"; with `rhTarget` the matching `DownloadToPrimary`/`DownloadToBackup` overload), bound at runtime before anything is sent (`api_member_missing`). Same shape rule as the station upload address. Fires the acknowledge guard `download_to_custom_address` (the device at that address may not be the configured PLC); `download_to_hardware` still depends only on the PC interface name. `effects.targetAddress` and the prompt name it. Which composition the address must come from is not in the V21 XML; the target interface's follows third-party guidance. |
 | `dryRun` | `false` | Resolve the PLC, path and guards and return `phase: preview` without touching the target or prompting. |
 
 Argument-shape errors (unknown root or nested members, nulls for non-nullable values, an explicit
@@ -446,8 +448,18 @@ The same rule applies to the online legitimation passwords of the download's con
 - **Online passwords** presented in this phase (`OnlinePasswordConfiguration`, `OnlineReadAccessPassword`:
   `SetPassword(SecureString)`) are answered from `passwords` like download passwords (key = type short
   name, value = environment variable name). There is no default for any online configuration; anything
-  else, for example `OnlineAuthenticationConfiguration` (credentials through `OnlineCredentials`, not
-  answered by this tool), aborts with `decision_required` or `decision_not_applicable`.
+  else aborts with `decision_required` or `decision_not_applicable`.
+- **User-based login** (audit N2, not live-tested): `OnlineAuthenticationConfiguration` ("Object that is used to authenticate
+  user.") is a password configuration for the recorder (decision key `OnlineAuthenticationConfiguration`, kind `password`). It is
+  answered only when the call passes `onlineUser { userName, userType? }` and a password source under
+  `passwords["OnlineAuthenticationConfiguration"]` (or the password map supplies one): `OnlineCredentials.Name = userName`,
+  `OnlineCredentials.Type = userType` when given (exact member of the installed `UserType` enum: `None`, `AnonymousUser`,
+  `GlobalUser`, `PasswordOnly`, `ProjectUser`, `SingleSignOnUser`; omitted keeps TIA Portal's value) and
+  `OnlineCredentials.SetPassword(SecureString)`, all bound by reflection (no stub). The `IsSecureCommunication` rule of every
+  password applies first (false or unreadable: nothing is set, abort `insecure_communication` unless
+  `allowInsecurePasswordTransfer: true`). No password source: `decision_required`; no `onlineUser`, an unknown `userType` or a
+  missing member: `decision_not_applicable` with the reason, nothing set. The user name appears in `effects.onlineUser` and the
+  read-write prompt; the password never does. `GetSupportedAuthenticationTypes()` is not read.
 
 The `tls` evidence (on the entry in `configurationsSeen` and, for a refusal, on `abort`):
 
@@ -554,7 +566,7 @@ fails closed with an abort reason, so a wrong assumption cannot crash the worker
 | `X509Certificate2.RawData`, `.Thumbprint`, `.Subject`, `.Issuer`, `.NotBefore`, `.NotAfter` | .NET | — | .NET base class library, not Siemens |
 | `TlsVerificationConfiguration.CurrentSelection` of type `Online.Configurations.TlsVerificationConfigurationSelection`; members `Trusted` and `NonTrusted` set by name (`NonVerified` never) | Base | c, d | **reflection**; property, type and members from d (callback sample `tls.CurrentSelection = … Trusted : … NonTrusted`; catalogue "`NonVerified`, `Trusted`, or `NonTrusted`"), type name verified in V21 baseline; the property type's full name is compared and the members checked with `Enum.IsDefined`; a missing or foreign property is never written |
 | `Online.Configurations.OnlinePasswordConfiguration.SetPassword(SecureString)`, `OnlineReadAccessPassword` (its specialization) | Base | c, d | **reflection** (the generic password access); type names verified in V21 baseline |
-| `OnlineAuthenticationConfiguration` (`GetSupportedAuthenticationTypes()`, `OnlineCredentials`, `IsSecureCommunication`), `OnlineCredentials`, `UserType`, `AuthenticationType` | Base | c, d | **not used**: such a configuration is recorded and aborts |
+| `OnlineAuthenticationConfiguration` (`OnlineCredentials`, `IsSecureCommunication`), `OnlineCredentials` (`Name`, `Type`, `SetPassword(SecureString)`), `UserType` | Base | c, d; V21 members.txt | **reflection** (audit N2, not live-tested): answered from `onlineUser` and the `OnlineAuthenticationConfiguration` password source; `GetSupportedAuthenticationTypes()` and `AuthenticationType` not used |
 | `EnableLegacyCommunication` | Base | d | **never read or set** (d: `true` disables TLS) |
 
 No stub was added or changed for this feature's decision support: `Checked`, `SetPassword` and the
@@ -572,11 +584,11 @@ placeholders.
 
 Deliberately not used: `GetAccessibleDevices()`, `ApplyConfiguration`, the composition `Find`
 methods (exact enumeration is used instead, so ordinal uniqueness does not depend on `Find`
-semantics), the `Download` overload with a `ConfigurationAddress`, `DeviceItemClassifications.CPU`
+semantics), `DeviceItemClassifications.CPU`
 (the stub enum has no member values, and compiling an invented constant would be wrong at runtime),
 `DownloadSelectionConfiguration`,
 `OnlineProvider`, `RHDownloadProvider`, `Download(DirectoryInfo, ...)`, `EnableLegacyCommunication`,
-`OnlineAuthenticationConfiguration`/`OnlineCredentials` (online authentication is not answered) and
+`OnlineAuthenticationConfiguration`/`OnlineCredentials` (answered by reflection, audit N2) and
 `TlsVerificationConfigurationSelection.NonVerified`.
 
 ## Known limits and open risks

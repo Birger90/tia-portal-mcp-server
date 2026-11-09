@@ -1,3 +1,4 @@
+using TiaMcpServer.Tests.TestSupport;
 using Xunit;
 
 namespace TiaMcpServer.Tests.Worker;
@@ -5,8 +6,11 @@ namespace TiaMcpServer.Tests.Worker;
 // Dispatch/lifecycle code remains net48 Siemens-facing; these guards complement session behavior tests.
 public sealed class ActiveProjectContextSourceTests
 {
-    private static readonly string Root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
+    private static readonly string Root = RepositoryFiles.Root;
     private static string Read(string path) => File.ReadAllText(Path.Combine(Root, "TiaMcpServer.OpennessWorker", path));
+
+    private static string DispatchSource => string.Join("\n",
+        new[] { "Program.cs", "Program.NetworkDispatch.cs", "Program.PlcDispatch.cs" }.Select(Read));
 
     [Fact]
     public void ProjectDispatch_ResolvesOwnerAfterFreshIdentityCheck()
@@ -18,11 +22,11 @@ public sealed class ActiveProjectContextSourceTests
             "ProjectOpenPolicy.NoProjectOpenMessage(_accessMode)", "return body(session)");
         // Content writes and compile run on the ProjectBase root of any delivered container; the
         // capability gate in WithSession decides which container kinds reach a handler at all.
-        Assert.DoesNotContain("WithProject(", Read("Program.cs"));
+        Assert.DoesNotContain("WithProject(", DispatchSource);
         var root = Method(Read("Program.cs"), "private static WorkerResponse WithEngineeringRoot(");
         Assert.Contains("WithActiveContext(request, session => body(session.EngineeringRoot!))", root);
-        Assert.DoesNotContain("session.Project", Read("Program.cs"));
-        Assert.DoesNotContain("WithSubnetLifecycleProject(", Read("Program.cs"));
+        Assert.DoesNotContain("session.Project", DispatchSource);
+        Assert.DoesNotContain("WithSubnetLifecycleProject(", DispatchSource);
         var vci = Method(Read("Program.cs"), "private static WorkerResponse WriteVci(");
         Assert.Contains("WithActiveContext(request, session => Success(VciDispatch.Write(session.TiaPortal!", vci);
     }
@@ -82,7 +86,7 @@ public sealed class ActiveProjectContextSourceTests
                 Assert.DoesNotContain("LocalSession.Save(", source);
         }
         var lifecycle = Read("Openness/Project/ProjectLifecycleService.cs");
-        Assert.Equal(1, lifecycle.Split("LocalSession.Save(").Length - 1);
+        Assert.Equal(1, RepositoryFiles.CountOccurrences(lifecycle, "LocalSession.Save("));
         Assert.Contains("LocalSession.Save(", Method(lifecycle, "public static ProjectLifecycleResultInfo SaveProject("));
         foreach (var file in new[] { "Openness/Project/ProjectLifecycleOwner.cs", "Openness/Project/LocalSessionOwner.cs" })
         {

@@ -1,5 +1,6 @@
 using TiaMcpServer.Contracts.Hmi;
 using TiaMcpServer.Contracts.Library;
+using TiaMcpServer.Contracts.Multiuser;
 using TiaMcpServer.Contracts.Plc;
 using TiaMcpServer.Contracts.PlcAlarms;
 using TiaMcpServer.Contracts.PlcOnline;
@@ -108,6 +109,13 @@ public static class OperationPolicyCatalog
 
         // Siemens documentation reads run in the host against public documentation hosts; no project identity.
         if (Docs.SiemensDocsMethods.IsDocsMethod(operation))
+        {
+            return false;
+        }
+
+        // Project Server administration (project_server_write) acts on the TIA Portal instance, not on a project: a bound
+        // session's identity is still sent and checked by the worker, but an unbound session needs none.
+        if (ProjectServerMethods.IsWorkerMethod(operation))
         {
             return false;
         }
@@ -245,6 +253,10 @@ public static class OperationPolicyCatalog
         dict[PlcBlockExportStateMethods.GetExportState] = OperationCapability.Observe;
         foreach (var method in LibraryMethods.Write)
             dict[method] = OperationCapability.ProjectMutation;
+        // Project Server administration (owner decision 2026-11-09): connections of this TIA Portal and changes on a Project
+        // Server; not read-only safe, like the lifecycle tools. Planning and read-back use the inventory reads above.
+        foreach (var method in ProjectServerMethods.WorkerMethods)
+            dict[method] = OperationCapability.ProjectLifecycle;
         // Host-computed plc_read list_networks over get_block_content format sd (an export into a temporary directory).
         foreach (var method in Plc.SimaticSd.SimaticSdMethods.Reads)
             dict[method] = OperationCapability.TemporaryExport;

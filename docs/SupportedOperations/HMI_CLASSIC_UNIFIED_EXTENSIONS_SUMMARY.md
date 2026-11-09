@@ -5,7 +5,7 @@
 This reference covers issue #28 (Classic WinCC: Comfort/Advanced panels) and issue #29 (WinCC Unified: events,
 dynamizations, shapes and widgets, audit, plant objects). Everything here is **not live-tested**. The evidence for every
 Siemens member is the V21 IntelliSense description (`Siemens.Engineering.WinCC.xml`, `Siemens.Engineering.WinCCUnified.xml`,
-`PublicAPI\V21\net48`, 2025-10-29); no member outside it is used. The tools, access modes and counts (13/32/32) are
+`PublicAPI\V21\net48`, 2025-10-29); no member outside it is used. The tools, access modes and counts (13/33/33) are
 unchanged: these are more `hmi_read` and `hmi_write` operations, with the conventions of the
 [HMI reference](HMI_OPERATIONS_SUMMARY.md) (50 items, caller order, stop at the first failure, no rollback, `dryRun:true`
 previews, write contract `2.0`, read contract `1.1`).
@@ -88,7 +88,7 @@ names); for `tags` it narrows the tag tables to that folder.
 | Item | Why |
 | --- | --- |
 | `CreateFrom(MasterCopy)` / `CreateFrom(…LibraryTypeVersion)` of tag tables, tags, screens, templates, pop-ups, VB scripts | Library instantiation belongs to `library_write`; its targets do not include classic HMI compositions yet. Not built here. |
-| Multilingual graphics (`GraphicsProvider.Graphics`, `MultiLingualGraphicComposition`) | V21 documents the provider but not which object offers it as a service; nothing is guessed. |
+| Multilingual graphics (`GraphicsProvider.Graphics`, `MultiLingualGraphicComposition`) | V21 documents the provider but not which object offers it as a service; nothing is guessed. Audit N9 (2026-11-09) re-checked members.txt: `MultiLingualGraphicComposition` has `Import(FileInfo, ImportOptions)`, `Find(String)` and enumeration, `MultiLingualGraphic` has `Name`, `Export(FileInfo, ExportOptions)` and `Delete()`, so list/export/import would be bindable at runtime once the owner is known (a `GetServiceInfos()` lookup on the project and the TIA Portal, like `FingerprintDataProvider`). Not built in this package: project graphics are project-wide (a new `plc_read`/`plc_write` family with the caller-file rules and a read-back) and the owner should be live-checked first; follow-up in the [improvement log](../IMPROVEMENT_LOG.md). |
 | `Hmi.Alarm`, `Hmi.Recipe`, `Hmi.Logging`, `Hmi.Report`, `Hmi.Scheduler`, `Hmi.Faceplate` | V21 documents only enums (and library type names) in these namespaces, no composition, export or import member. |
 | Classic object content (properties of a tag, screen items, connection parameters) | V21 documents no typed members; content goes through the SimaticML export/import above. |
 | Slide-in screen delete, global elements/overview delete | No `Delete()` is documented. |

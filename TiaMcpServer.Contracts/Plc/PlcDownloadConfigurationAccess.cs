@@ -1,3 +1,4 @@
+using TiaMcpServer.Contracts.PlcOnline;
 using System.Reflection;
 using System.Runtime.ExceptionServices;
 using System.Security;
@@ -98,15 +99,19 @@ public sealed class PlcDownloadReflectionAccess : IPlcDownloadConfigurationAcces
     private readonly Func<object, string?> _readMessage;
     private readonly Func<string, string?> _readEnvironment;
     private readonly Shared.ICredentialReader? _credentials;
+    private readonly PlcOnlineUserInfo? _onlineUser;
 
     /// <param name="readMessage">Reads <c>DownloadConfiguration.Message</c> (the worker uses its compiled member).</param>
     /// <param name="readEnvironment">Reads an environment variable of this process; null when unset.</param>
     /// <param name="credentials">Reads Windows generic credentials; null uses <see cref="Shared.WindowsCredentialReader"/>.</param>
-    public PlcDownloadReflectionAccess(Func<object, string?> readMessage, Func<string, string?> readEnvironment, Shared.ICredentialReader? credentials = null)
+    /// <param name="onlineUser">Audit N2: the user of a user-based online login (<see cref="PlcOnlineAuthentication"/>); null answers none.</param>
+    public PlcDownloadReflectionAccess(Func<object, string?> readMessage, Func<string, string?> readEnvironment, Shared.ICredentialReader? credentials = null,
+        PlcOnlineUserInfo? onlineUser = null)
     {
         _readMessage = readMessage ?? throw new ArgumentNullException(nameof(readMessage));
         _readEnvironment = readEnvironment ?? throw new ArgumentNullException(nameof(readEnvironment));
         _credentials = credentials;
+        _onlineUser = onlineUser;
     }
 
     public string TypeName(object configuration) => configuration.GetType().FullName ?? configuration.GetType().Name;
@@ -118,7 +123,8 @@ public sealed class PlcDownloadReflectionAccess : IPlcDownloadConfigurationAcces
     public PlcDownloadConfigurationShape Describe(object configuration)
     {
         var type = configuration.GetType();
-        if (PasswordSetter(type) is not null) return new PlcDownloadConfigurationShape(PlcDownloadPolicy.Kinds.Password);
+        // Audit N2: a user-based online login (OnlineCredentials with SetPassword) is a password configuration too.
+        if (PasswordSetter(type) is not null || PlcOnlineAuthentication.IsAuthenticationType(type)) return new PlcDownloadConfigurationShape(PlcDownloadPolicy.Kinds.Password);
         if (CheckProperty(type) is not null) return new PlcDownloadConfigurationShape(PlcDownloadPolicy.Kinds.Check);
         if (SelectionProperty(type) is { } selection)
             return new PlcDownloadConfigurationShape(PlcDownloadPolicy.Kinds.Selection,
@@ -152,7 +158,15 @@ public sealed class PlcDownloadReflectionAccess : IPlcDownloadConfigurationAcces
     public PlcDownloadApplyOutcome ApplyPassword(object configuration, string variable)
     {
         var setter = PasswordSetter(configuration.GetType());
-        if (setter is null)
+        PlcOnlineAuthentication.Binding? login = null;
+        if (setter is null && PlcOnlineAuthentication.IsAuthenticationType(configuration.GetType()))
+        {
+            // Audit N2: bound (user name, user type, SetPassword of OnlineCredentials) before the password is resolved.
+            login = PlcOnlineAuthentication.Bind(configuration, _onlineUser);
+            // An unknown userType is reported as decision_not_applicable too (a password configuration has no selection to be unavailable).
+            if (login.Error is { } loginError) return PlcDownloadApplyOutcome.NotApplicable(loginError);
+        }
+        else if (setter is null)
             return PlcDownloadApplyOutcome.NotApplicable("it has no single public SetPassword(SecureString) method, so it is not a password configuration");
         if (!Shared.PasswordSources.IsSource(variable))
             return PlcDownloadApplyOutcome.PasswordUnavailable("The password entry does not name a valid environment variable or credential target.");
@@ -161,7 +175,8 @@ public sealed class PlcDownloadReflectionAccess : IPlcDownloadConfigurationAcces
             return PlcDownloadApplyOutcome.PasswordUnavailable(Shared.PasswordSources.KindOf(variable) == Shared.PasswordSourceKind.Environment
                 ? "The environment variable named for this configuration is not set or is empty in the worker process."
                 : reason ?? "The credential named for this configuration could not be read.");
-        Invoke(() => setter.Invoke(configuration, new object[] { secure }));
+        if (login is not null) login.Apply(secure);
+        else Invoke(() => setter!.Invoke(configuration, new object[] { secure }));
         return PlcDownloadApplyOutcome.Success;
     }
 

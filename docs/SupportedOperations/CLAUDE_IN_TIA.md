@@ -63,7 +63,7 @@ its chain still names it.
 
 ## MCP tool `tia_inbox`
 
-Available in **every** access mode (13/32/32 tools). It touches neither TIA Portal nor the project nor the binding; its
+Available in **every** access mode (13/33/33 tools). It touches neither TIA Portal nor the project nor the binding; its
 only write is the reply file (annotations: not read-only, not destructive, closed world). Batch of up to 50 operations,
 contract `1.0`, envelope `OperationBatchReadResponse`:
 
@@ -110,7 +110,7 @@ otherwise); the server reads both versions and ignores `claudeBridge`.
 ```
 
 Placeholders in `arguments`: `{allowedTools}` (the list joined by commas), `{prompt}` (then the prompt is an argument,
-not standard input), `{requestId}`, `{inboxRoot}`. Defaults: off; the allow-list holds the 32 tools of this server as
+not standard input), `{requestId}`, `{inboxRoot}`. Defaults: off; the allow-list holds the 33 tools of this server as
 `mcp__tia-portal__<tool>` and **no built-in Claude Code tool** (`--tools ""` removes them; no shell, no file editing, no
 web). The flags are those `claude --help` of Claude Code **2.1.317** lists (`-p/--print`, `--output-format json`,
 `--tools`, `--allowedTools`, `--permission-prompts none`: "anything that would prompt is denied automatically");
@@ -181,9 +181,9 @@ submenus, check-box/radio items, `ProgressProvider`, `Siemens.Engineering.AddIn.
 ## Permissions
 
 `AddInPublisherConfig.xml` requests `TIA.ReadOnly` (the Add-In only reads names and parents of the selected objects) and
-`System.Security.Permissions.FileIOPermission` for the inbox/outbox. The element spelling `FileIOPermission-UNRESTRICTED`
-is an assumption (H names the permission class but the schema was not available); a path-restricted file permission
-would be smaller but its XML form is unknown. The code touches only `%APPDATA%\TiaMcpServer\inbox` and `...\outbox`
+`System.Security.Permissions.FileIOPermission` for the inbox/outbox (element `PermissionType`, validated against the
+installed V21 `Siemens.Engineering.AddIn.Publisher.xsd` on 2026-11-07, K97; the earlier `FileIOPermission-UNRESTRICTED`
+spelling was rejected by the schema). The code touches only `%APPDATA%\TiaMcpServer\inbox` and `...\outbox`
 (pinned by `ClaudeInTiaAddInContractTests`). No `UnrestrictedPermissions`, no process start, no network.
 
 ## Unverified

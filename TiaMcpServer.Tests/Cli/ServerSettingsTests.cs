@@ -494,7 +494,7 @@ public class ServerSettingsTests
     [Fact]
     public void ServerSource_NeverWritesTheSettingsFile()
     {
-        var host = Path.Combine(ReferenceStubArtifactTests.RepositoryRoot, "TiaMcpServer");
+        var host = Path.Combine(TiaMcpServer.Tests.TestSupport.RepositoryFiles.Root, "TiaMcpServer");
         var offenders = Directory.EnumerateFiles(host, "*.cs", SearchOption.AllDirectories)
             .Where(file => !file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}") && !file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}"))
             .Where(file => System.IO.File.ReadAllText(file) is var text && (text.Contains("ServerSettingsEditor") || text.Contains("ServerSettingsFile.Serialize")))

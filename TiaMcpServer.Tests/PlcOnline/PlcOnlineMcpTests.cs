@@ -156,6 +156,46 @@ public sealed class PlcOnlineMcpTests
     }
 
     [Fact]
+    public async Task ReadOnly_ReadsStationFingerprintData_AndRefusesAMissingPcInterface()
+    {
+        // Audit N3 (not live-tested): OnlineObserve, allowed in read-only.
+        Environment.SetEnvironmentVariable("FAKE_PLC_PASSWORD", "set-for-the-host-check");
+        try
+        {
+            await using var session = await Session.StartAsync(McpAccessMode.ReadOnly);
+            var items = await session.ReadAsync(
+                new { operationId = "fp", operation = "get_station_fingerprint_data", mode = "PN/IE", pcInterface = new { name = "PLCSIM", number = 1 },
+                    targetAddress = "192.168.0.10", onlineUser = new { userName = "Engineer" },
+                    passwords = new Dictionary<string, string> { ["OnlineAuthenticationConfiguration"] = "FAKE_PLC_PASSWORD" } },
+                new { operationId = "none", operation = "get_station_fingerprint_data", mode = "PN/IE", pcInterface = new { name = "PLCSIM", number = 1 },
+                    targetAddress = "192.168.0.250" },
+                new { operationId = "one", operation = "get_station_fingerprint_data", mode = "PN/IE", pcInterface = new { name = "PLCSIM", number = 1 },
+                    targetAddress = "192.168.0.10", maxElements = 1 });
+
+            var result = items[0].GetProperty("result");
+            Assert.Equal("succeeded", items[0].GetProperty("status").GetString());
+            Assert.Equal(2, result.GetProperty("itemCount").GetInt32());
+            Assert.Equal("HardwareConfiguration", result.GetProperty("items")[0].GetProperty("identifier").GetProperty("value").GetString());
+            Assert.Equal("0A1B", result.GetProperty("items")[0].GetProperty("value").GetProperty("value").GetString());
+            Assert.Equal("password_set", Assert.Single(result.GetProperty("configurationsSeen").EnumerateArray()).GetProperty("decision").GetString());
+            Assert.Equal("failed", items[1].GetProperty("status").GetString());
+            Assert.True(items[2].GetProperty("result").GetProperty("truncated").GetBoolean());
+            Assert.Single(items[2].GetProperty("result").GetProperty("items").EnumerateArray());
+
+            var (refused, raw) = await session.CallAsync("plc_read", Args(("operations", new[]
+            {
+                new { operationId = "x", operation = "get_station_fingerprint_data", mode = "PN/IE", targetAddress = "192.168.0.10" },
+            })));
+            Assert.True(raw.IsError == true);
+            Assert.Contains("pcInterface", refused.GetProperty("error").GetProperty("message").GetString());
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("FAKE_PLC_PASSWORD", null);
+        }
+    }
+
+    [Fact]
     public async Task ReadOnly_DiscoversNeitherOnlineControlNorUploadTool()
     {
         await using var session = await Session.StartAsync(McpAccessMode.ReadOnly);
@@ -202,6 +242,62 @@ public sealed class PlcOnlineMcpTests
         Assert.Contains("online_disconnects", offline.GetProperty("guards").EnumerateArray().Select(g => g.GetProperty("id").GetString()));
         Assert.Contains("get_online_state", session.Methods);
         Assert.Equal(new[] { "plc_go_online", "plc_go_offline" }, session.Methods.Where(method => method.StartsWith("plc_go_", StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public async Task GoOnline_AnswersAUserBasedLogin_OnlyOverASecureChannel()
+    {
+        // Audit N2 (not live-tested): onlineUser plus passwords["OnlineAuthenticationConfiguration"].
+        Environment.SetEnvironmentVariable("FAKE_PLC_PASSWORD", "set-for-the-host-check");
+        try
+        {
+            var arguments = Args(("action", "go_online"), ("plcName", "PLC_1"), ("pcInterface", new { name = "PLCSIM", number = 1 }),
+                ("onlineUser", new { userName = "Engineer", userType = "ProjectUser" }),
+                ("passwords", new Dictionary<string, string> { ["OnlineAuthenticationConfiguration"] = "FAKE_PLC_PASSWORD" }));
+            await using (var session = await Session.StartAsync(McpAccessMode.Full))
+            {
+                var (online, _) = await session.CallAsync("plc_tia_online", arguments);
+                Assert.True(online.GetProperty("success").GetBoolean(), online.GetRawText());
+                Assert.Equal("Engineer", online.GetProperty("effects").GetProperty("onlineUser").GetProperty("userName").GetString());
+                var seen = Assert.Single(online.GetProperty("result").GetProperty("value").GetProperty("configurationsSeen").EnumerateArray());
+                Assert.Equal("OnlineAuthenticationConfiguration", seen.GetProperty("decisionKey").GetString());
+                Assert.Equal("password_set", seen.GetProperty("decision").GetString());
+                Assert.True(seen.GetProperty("secureCommunication").GetBoolean());
+                Assert.DoesNotContain("fake-password", online.GetRawText());
+
+                var (offline, raw) = await session.CallAsync("plc_tia_online", Args(("action", "go_offline"), ("plcName", "PLC_1"),
+                    ("onlineUser", new { userName = "Engineer" })));
+                Assert.True(raw.IsError == true);
+                Assert.Contains("onlineUser", offline.GetProperty("error").GetProperty("message").GetString());
+            }
+
+            await using var insecure = await Session.StartAsync(McpAccessMode.Full, scenario: "plc-online-insecure-login");
+            var (refused, _) = await insecure.CallAsync("plc_tia_online", arguments);
+            Assert.False(refused.GetProperty("success").GetBoolean());
+            Assert.Equal("insecure_communication", refused.GetProperty("result").GetProperty("value").GetProperty("abort").GetProperty("reason").GetString());
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("FAKE_PLC_PASSWORD", null);
+        }
+    }
+
+    [Fact]
+    public async Task GoOnline_WithTargetAddress_InformsAndUsesGoOnlineWithAConfigurationAddress()
+    {
+        // Audit N4 (not live-tested).
+        await using var session = await Session.StartAsync(McpAccessMode.Full);
+        var (online, _) = await session.CallAsync("plc_tia_online", Args(("action", "go_online"), ("plcName", "PLC_1"),
+            ("pcInterface", new { name = "PLCSIM", number = 1 }), ("targetAddress", "192.168.0.77")));
+
+        Assert.True(online.GetProperty("success").GetBoolean(), online.GetRawText());
+        Assert.Equal("192.168.0.77", online.GetProperty("effects").GetProperty("targetAddress").GetString());
+        Assert.Contains("online_custom_address", online.GetProperty("guards").EnumerateArray().Select(g => g.GetProperty("id").GetString()));
+        Assert.Contains(online.GetProperty("warnings").EnumerateArray(), w => w.GetString()!.Contains("GoOnline(ConfigurationAddress)", StringComparison.Ordinal));
+
+        var (offline, raw) = await session.CallAsync("plc_tia_online", Args(("action", "go_offline"), ("plcName", "PLC_1"), ("targetAddress", "192.168.0.77")));
+        Assert.True(raw.IsError == true);
+        Assert.Contains("targetAddress", offline.GetProperty("error").GetProperty("message").GetString());
     }
 
     [Fact]

@@ -1,6 +1,7 @@
 using TiaMcpServer.Contracts.CrossReferences;
 using TiaMcpServer.Contracts.Hmi;
 using TiaMcpServer.Contracts.Library;
+using TiaMcpServer.Contracts.Multiuser;
 using TiaMcpServer.Contracts.Network;
 using TiaMcpServer.Contracts.Plc;
 using TiaMcpServer.Contracts.PlcAlarms;
@@ -71,6 +72,9 @@ public class WorkerRequest
     /// <summary>Forwarded by: list_local_sessions, get_lock_state.</summary>
     public string? MultiuserServerProjectName { get; set; }
 
+    /// <summary>Forwarded by: every <see cref="ProjectServerMethods.WorkerMethods"/> method ONLY (project_server_write, owner decision 2026-11-09).</summary>
+    public ProjectServerRequestInfo? ProjectServer { get; set; }
+
     #endregion
 
     #region Block operations
@@ -122,6 +126,19 @@ public class WorkerRequest
     /// worker never sees an unrecognized value.
     /// </summary>
     public string? Format { get; set; }
+
+    /// <summary>
+    /// Audit N8, forwarded by: update_block_logic and update_type_content with format xml (optional). Documented
+    /// <c>SWImportOptions</c> member names (<see cref="Block.PlcImportOptionNames.SwImportOptions"/>); the worker then imports with
+    /// <c>Import(FileInfo, ImportOptions.Override, SWImportOptions)</c> instead of <c>Import(FileInfo, ImportOptions.Override)</c>.
+    /// </summary>
+    public List<string>? SwImportOptions { get; set; }
+
+    /// <summary>
+    /// Audit N7, forwarded by: update_block_logic with format sd (or an SD bundle in format xml) and create_block_from_document
+    /// (optional). <c>SkipInactiveCultures</c> or <c>ActivateInactiveCultures</c>, combined with <c>ImportDocumentOptions.Override</c>.
+    /// </summary>
+    public string? DocumentImportOption { get; set; }
 
     /// <summary>
     /// Forwarded by: get_block_content, get_type_content. Selects GenerateOptions.WithDependencies
@@ -541,6 +558,12 @@ public class WorkerRequest
 
     /// <summary>Forwarded by: retrieve_project ONLY: true calls <c>RetrieveWithUpgrade(FileInfo, DirectoryInfo)</c> instead of <c>Retrieve</c>.</summary>
     public bool RetrieveWithUpgrade { get; set; }
+
+    /// <summary>
+    /// Forwarded by: open_project ONLY (audit N5): true opens an .ap21 with <c>ProjectComposition.OpenWithUpgrade(FileInfo)</c>
+    /// instead of <c>Open(FileInfo)</c>.
+    /// </summary>
+    public bool OpenWithUpgrade { get; set; }
 
     #endregion
 }

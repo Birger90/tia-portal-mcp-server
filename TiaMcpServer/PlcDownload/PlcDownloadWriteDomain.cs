@@ -98,6 +98,10 @@ public sealed class PlcDownloadWriteDomain
                 .Append(Listed(effect.Passwords.Select(password => ConfirmationText.Line($"{password.Type} from {password.Variable}"))))
                 .Append('.');
         text.Append(PasswordChannelSentence(effect.Passwords.Count > 0, effect.AllowInsecurePasswordTransfer == true));
+        text.Append(OnlineUserSentence(effect.OnlineUser));
+        if (effect.TargetAddress is { } address)
+            text.Append(" The download goes to node address ").Append(ConfirmationText.Quote(address))
+                .Append(" (ConfigurationAddress) instead of the configured one; the device there may not be the configured PLC.");
         text.Append(TrustSentence(effect.TrustedCertificates, "download"));
         text.Append(" Any other download configuration aborts the download. Every TIA Portal confirmation dialog raised until the download call returns is answered ")
             .Append(effect.PortalConfirmations == PlcDownloadPolicy.PortalConfirmationPolicies.Accept ? "Yes" : "No")
@@ -108,6 +112,16 @@ public sealed class PlcDownloadWriteDomain
     /// <summary>
     /// Audit T1, shared by plc_download, plc_tia_online and plc_station_upload: what happens to a password when TIA Portal reports
     /// the connection as not secure (<c>IsSecureCommunication</c> false or unreadable). Empty when the call names no password.
+    /// </summary>
+    internal static string OnlineUserSentence(PlcOnlineUserInfo? user)
+        => user is null
+            ? string.Empty
+            : " A user-based PLC login (OnlineAuthenticationConfiguration) is answered as user " + ConfirmationText.Quote(user.UserName)
+                + (user.UserType is null ? string.Empty : " of type " + ConfirmationText.Quote(user.UserType))
+                + " with the password source given for OnlineAuthenticationConfiguration.";
+
+    /// <summary>
+    /// Audit T1, shared by plc_download, plc_tia_online and plc_station_upload: see <see cref="PasswordChannelSentence"/> below.
     /// </summary>
     internal static string PasswordChannelSentence(bool hasPasswords, bool allowInsecure)
         => !hasPasswords
@@ -148,6 +162,9 @@ public sealed class PlcDownloadWriteDomain
         if (item.PcInterfaceNumber < 0) return Invalid("pcInterface.number must not be negative.");
         if (item.TargetInterface is not null && Bad(item.TargetInterface))
             return Invalid("targetInterface must be nonblank and at most 256 characters when supplied.");
+        if (item.OnlineUser?.Validate() is { } onlineUserError) return Invalid(onlineUserError);
+        if (item.TargetAddress is not null && PlcOnlinePolicy.ValidateAddress(item.TargetAddress) is { } addressError)
+            return Invalid("targetAddress: " + addressError);
         if (!PlcDownloadPolicy.TryGetDownloadOptionNames(item.Scope, out _))
             return Invalid($"scope must be one of: {string.Join(", ", PlcDownloadPolicy.Scopes.All)}.");
         if (item.RhTarget is not null and not ("primary" or "backup"))
@@ -240,6 +257,10 @@ public sealed class PlcDownloadWriteDomain
                     ? $"the PLCSIM instance of PLC '{effect.PlcName}'"
                     : $"the real controller of PLC '{effect.PlcName}' through PC interface '{effect.Path.PcInterface.Name}' (an F-CPU running a machine)")
                 + $" includes its safety program. {Contracts.Plc.Safety.PlcSafetyPolicy.AcceptanceNotice}"));
+        if (effect.TargetAddress is { } custom)
+            guards.Add(new(PlcDownloadGuardDefinitions.ToCustomAddress, operationId,
+                $"targetAddress '{custom}': the download of PLC '{effect.PlcName}' goes through target interface '{effect.Path.TargetInterface}' to that node address "
+                + "instead of the configured one (Download with a ConfigurationAddress); the device there may not be the configured PLC. TIA Portal decides whether it accepts it."));
         return guards;
     }
 
@@ -273,6 +294,8 @@ public sealed class PlcDownloadWriteDomain
             PortalConfirmations = planned.PortalConfirmations,
             TrustedCertificates = planned.TrustedCertificates.ToList(),
             AllowInsecurePasswordTransfer = planned.AllowInsecurePasswordTransfer == true,
+            OnlineUser = planned.OnlineUser,
+            TargetAddress = planned.TargetAddress,
         });
     }
 

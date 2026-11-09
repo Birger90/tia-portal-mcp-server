@@ -416,7 +416,12 @@ public class TiaPortalSession : IDisposable
         }
     }
 
-    public void OpenProject(string projectPath)
+    /// <param name="upgrade">
+    /// Audit N5: open an .ap21 with <c>ProjectComposition.OpenWithUpgrade(FileInfo)</c> ("Open Action with project update is
+    /// necessary", V21 Siemens.Engineering.Base.xml) instead of <c>Open(FileInfo)</c>; bound at runtime (not in the compile stubs)
+    /// before any project is closed or opened. A project that is already open is adopted without an open call. Not live-tested.
+    /// </param>
+    public void OpenProject(string projectPath, bool upgrade = false)
     {
         ThrowIfDisposed();
         if (_activeContext?.ContainerKind == ProjectContainerKinds.ServerProject)
@@ -433,9 +438,14 @@ public class TiaPortalSession : IDisposable
         if (!File.Exists(projectPath))
             throw new FileNotFoundException("TIA Portal project file was not found.", projectPath);
         var requestedPath = Path.GetFullPath(projectPath);
+        if (upgrade && isLocal)
+            throw new WorkerOperationException(WorkerFailureCategories.ValidationError,
+                "upgrade applies to .ap21 project files (ProjectComposition.OpenWithUpgrade); a .als21 local session is opened with LocalSessions.Open, which has no upgrade.");
 
         if (!IsConnected)
             Connect(requestedPath);
+        // Bound before anything is closed or opened: a missing member changes nothing.
+        var opener = BindProjectOpener(upgrade);
 
         var sourceContext = _activeContext;
         var currentPath = TryReadCurrentProjectPath();
@@ -554,7 +564,7 @@ public class TiaPortalSession : IDisposable
                         () =>
                         {
                             SetActiveContext(null);
-                            var openedProject = OpenProjectFile(requestedPath);
+                            var openedProject = OpenProjectFile(requestedPath, opener);
                             AdoptProject(openedProject, openedByWorker: true, requestedPath);
                         });
                     return;
@@ -573,19 +583,40 @@ public class TiaPortalSession : IDisposable
 
         }
 
-        var project = OpenProjectFile(requestedPath);
+        var project = OpenProjectFile(requestedPath, opener);
         AdoptProject(project, openedByWorker: true, requestedPath);
+    }
+
+    /// <summary>
+    /// <c>ProjectComposition.Open(FileInfo)</c>, or with <paramref name="upgrade"/> the documented
+    /// <c>ProjectComposition.OpenWithUpgrade(FileInfo)</c> bound on the live composition by exact name and parameter type
+    /// (<c>api_member_missing</c> when absent; nothing was opened or closed).
+    /// </summary>
+    private Func<FileInfo, Project> BindProjectOpener(bool upgrade)
+    {
+        var projects = _tiaPortal!.Projects;
+        if (!upgrade) return file => projects.Open(file);
+        var method = TiaMcpServer.Contracts.Library.LibraryRuntimeBinding.Find(projects.GetType(), "OpenWithUpgrade", new[] { typeof(FileInfo) }, out var error)
+            ?? throw new WorkerOperationException(WorkerFailureCategories.ApiMemberMissing,
+                $"{error ?? "This TIA Portal installation exposes no ProjectComposition.OpenWithUpgrade(FileInfo)."} Nothing was opened or closed.");
+        return file =>
+        {
+            var returned = TiaMcpServer.Contracts.Shared.RuntimeServiceValues.Call(method, projects, new object?[] { file });
+            return returned as Project ?? throw new WorkerOperationException(WorkerFailureCategories.PostconditionFailed,
+                $"ProjectComposition.OpenWithUpgrade returned {(returned is null ? "no project" : $"a {returned.GetType().FullName}")}, not the documented "
+                + "Siemens.Engineering.Project; the project may have been upgraded and opened. Inspect get_project_status before retrying.");
+        };
     }
 
     /// <summary>
     /// <c>ProjectComposition.Open(FileInfo)</c>; its documented <c>MissingProductsException</c> (audit T6/K89) becomes a failure
     /// that names the cause instead of a generic one. Every other exception propagates unchanged.
     /// </summary>
-    private Project OpenProjectFile(string requestedPath)
+    private Project OpenProjectFile(string requestedPath, Func<FileInfo, Project> opener)
     {
         try
         {
-            return _tiaPortal!.Projects.Open(new FileInfo(requestedPath));
+            return opener(new FileInfo(requestedPath));
         }
         catch (Exception ex) when (EngineeringFailureHints.Is(ex, EngineeringFailureHints.MissingProductsException))
         {
@@ -1011,20 +1042,22 @@ public class TiaPortalSession : IDisposable
     private void OnNotification(object? sender, NotificationEventArgs e)
     {
         // K75: a modal information message (e.g. "Export erfolgreich abgeschlossen.") blocked the Openness call until a human
-        // clicked OK. Every notification is handled (IsHandled = true) in every access mode: it asks nothing, it only informs.
-        PortalNotificationInfo info;
-        try
-        {
-            info = PortalNotificationHandling.Handle(e);
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"Handling a TIA Portal notification failed: {ex.GetType().Name}");
-            return;
-        }
-
+        // clicked OK, so a notification raised while an MCP call runs is handled (IsHandled = true): it asks nothing, it only informs.
+        // K98 (live 2026-11-09): a notification outside any MCP call comes from the user's own TIA Portal window, e.g. the
+        // "Claude in TIA" Add-In's ShowNotification with Claude's reply; handling it swallowed the reply. It is left to TIA Portal.
         lock (_notificationSync)
         {
+            PortalNotificationInfo info;
+            try
+            {
+                info = _requestRunning ? PortalNotificationHandling.Handle(e) : PortalNotificationHandling.Read(e);
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Reading a TIA Portal notification failed: {ex.GetType().Name}");
+                return;
+            }
+
             if (_requestRunning)
             {
                 if (_requestNotifications.Count < PortalNotificationHandling.MaxRecorded) _requestNotifications.Add(info);
@@ -1036,7 +1069,7 @@ public class TiaPortalSession : IDisposable
             _lateNotifications++;
             if (_lateNotificationTexts.Count < MaxReportedConfirmations) _lateNotificationTexts.Add(PortalNotificationHandling.Describe(info));
             Console.Error.WriteLine($"TIA Portal notification outside any MCP call: {PortalNotificationHandling.Describe(info)}; "
-                + (info.Handled ? "handled (IsHandled = true)." : "IsHandled could not be set."));
+                + "left to TIA Portal (not handled).");
         }
     }
 
@@ -1051,8 +1084,8 @@ public class TiaPortalSession : IDisposable
             _requestRunning = true;
             _requestNotifications.Clear();
             if (_lateNotifications == 0) return Array.Empty<string>();
-            var line = $"{_lateNotifications} TIA Portal notification(s) arrived while no MCP call was running and were handled "
-                + $"(IsHandled = true; {string.Join("; ", _lateNotificationTexts)}{(_lateNotifications > _lateNotificationTexts.Count ? "; ..." : string.Empty)}). "
+            var line = $"{_lateNotifications} TIA Portal notification(s) arrived while no MCP call was running and were left to TIA Portal "
+                + $"(not handled; {string.Join("; ", _lateNotificationTexts)}{(_lateNotifications > _lateNotificationTexts.Count ? "; ..." : string.Empty)}). "
                 + "If you did not cause them, they may come from what the user did in TIA Portal's own window.";
             _lateNotifications = 0;
             _lateNotificationTexts.Clear();

@@ -281,6 +281,10 @@ sealed partial class PlcWriteRoundtripScenario(Func<string, BlockImportOutcomeIn
         var format = request.Format ?? SourceFormatNames.Xml;
         if (format == SourceFormatNames.Sd) return UpdateBlockSd(request, plc, block, path);
         RequireFailSafeImportPermitted(plc, block, request.Content);
+        // A bundle without .xml but with an .s7dcl takes the SIMATIC SD route; anything else is a SimaticML import.
+        if (!PlcBlockBundleText.TryGetSimaticMl(request.Content!, out _, out _) && PlcBlockBundleText.TryGetDocument(request.Content!, ".s7dcl", out _, out _))
+            ApplyDocumentImportOption(request.DocumentImportOption, request.Content);
+        else ApplySwImportOptions(request.SwImportOptions, request.Content);
         if (driftAtImport) _content[Key(path, format)] = "<Block edited-in-tia-ui=\"true\"/>";
         RequireHash(request, format, Content(plc, path, format));
         // A bundle without .xml takes the SIMATIC SD route; onto a main safety block that is the temporary F-block route.
@@ -303,6 +307,7 @@ sealed partial class PlcWriteRoundtripScenario(Func<string, BlockImportOutcomeIn
         var format = request.Format ?? SourceFormatNames.Source;
         var path = $"{plc.Software}/Types/{type}";
         RequireHash(request, format, Content(plc, path, format));
+        if (format == SourceFormatNames.Xml) ApplySwImportOptions(request.SwImportOptions, request.Content);
         _content[Key(path, format)] = request.Content!;
         return Ok(new PlcTypeImportResultInfo
         {

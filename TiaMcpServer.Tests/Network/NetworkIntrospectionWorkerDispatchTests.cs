@@ -1,11 +1,10 @@
 namespace TiaMcpServer.Tests.Network;
 
 using System.Text.Json;
-using TiaMcpServer.Contracts.Json;
 using TiaMcpServer.Contracts.Network;
 using TiaMcpServer.Contracts.Worker;
 using TiaMcpServer.Network;
-using TiaMcpServer.Tests.TestUtilities;
+using TiaMcpServer.Tests.TestSupport;
 using TiaMcpServer.Worker;
 using Xunit;
 
@@ -14,10 +13,11 @@ public class NetworkIntrospectionWorkerDispatchTests
     [Fact]
     public void WorkerProgram_DispatchesListNetworkObjectsToTheNarrowHandler()
     {
-        var source = File.ReadAllText(FindRepositoryFile("TiaMcpServer.OpennessWorker", "Program.cs"));
+        var source = File.ReadAllText(RepositoryFiles.Path("TiaMcpServer.OpennessWorker", "Program.cs"))
+            + File.ReadAllText(RepositoryFiles.Path("TiaMcpServer.OpennessWorker", "Program.NetworkDispatch.cs"));
 
-        Assert.Contains("\"list_network_objects\" => ListNetworkObjects(request)", source);
-        Assert.Contains("private static WorkerResponse ListNetworkObjects(WorkerRequest request)", source);
+        Assert.Contains("\"list_network_objects\" => NetworkWorkerDispatch.ListNetworkObjects(request)", source);
+        Assert.Contains("public static WorkerResponse ListNetworkObjects(WorkerRequest request)", source);
         Assert.Contains("NetworkObjectIndexReader", source);
         Assert.Contains("ValidateListNetworkObjectsRequest(request)", source);
         Assert.Contains("NetworkObjectKinds.Subnet", source);
@@ -30,13 +30,11 @@ public class NetworkIntrospectionWorkerDispatchTests
         var payload = WorkerSerializationHarness.Serialize(new NetworkObjectListInfo()).Payload!;
         using var json = JsonDocument.Parse(payload);
 
-        Assert.False(WorkerJson.OmitsNullMembers(typeof(NetworkObjectListInfo)));
         Assert.Equal(JsonValueKind.Null, json.RootElement.GetProperty("nextCursor").ValueKind);
     }
 
     // A successfully read CLR null is a typed value of kind "null", and the host contract requires
-    // its "value" member. The inspection payload still omits other null members, so the real
-    // worker's bytes must keep this one explicit or every inspection with a null attribute fails.
+    // its "value" member, so the worker's bytes must keep it explicit for the host to decode it.
     [Fact]
     public void WorkerProgram_InspectionWithANullAttributeValue_PassesTheHostPayloadContract()
     {
@@ -70,10 +68,11 @@ public class NetworkIntrospectionWorkerDispatchTests
     [Fact]
     public void WorkerProgram_DispatchesInspectNetworkObjectThroughResolverAndInspector()
     {
-        var source = File.ReadAllText(FindRepositoryFile("TiaMcpServer.OpennessWorker", "Program.cs"));
+        var source = File.ReadAllText(RepositoryFiles.Path("TiaMcpServer.OpennessWorker", "Program.cs"))
+            + File.ReadAllText(RepositoryFiles.Path("TiaMcpServer.OpennessWorker", "Program.NetworkDispatch.cs"));
 
-        Assert.Contains("\"inspect_network_object\" => InspectNetworkObject(request)", source);
-        Assert.Contains("private static WorkerResponse InspectNetworkObject(WorkerRequest request)", source);
+        Assert.Contains("\"inspect_network_object\" => NetworkWorkerDispatch.InspectNetworkObject(request)", source);
+        Assert.Contains("public static WorkerResponse InspectNetworkObject(WorkerRequest request)", source);
         Assert.Contains("NetworkObjectSelectorResolver.Resolve", source);
         Assert.Contains("NetworkObjectInspector.Inspect", source);
     }
@@ -81,7 +80,7 @@ public class NetworkIntrospectionWorkerDispatchTests
     [Fact]
     public void SelectorResolver_UsesTypedTraversalAndStableSelectionCategories()
     {
-        var source = File.ReadAllText(FindRepositoryFile(
+        var source = File.ReadAllText(RepositoryFiles.Path(
             "TiaMcpServer.OpennessWorker", "Openness", "Network", "NetworkObjectSelectorResolver.cs"));
 
         Assert.Contains("GetService<NetworkInterface>()", source);
@@ -98,9 +97,9 @@ public class NetworkIntrospectionWorkerDispatchTests
     [Fact]
     public void IoSystemDiscoverySelector_CarriesNameEvidenceUsedToDisambiguateDuplicateNumbers()
     {
-        var discoverySource = File.ReadAllText(FindRepositoryFile(
+        var discoverySource = File.ReadAllText(RepositoryFiles.Path(
             "TiaMcpServer.OpennessWorker", "Openness", "Network", "NetworkObjectIndexReader.cs"));
-        var resolverSource = File.ReadAllText(FindRepositoryFile(
+        var resolverSource = File.ReadAllText(RepositoryFiles.Path(
             "TiaMcpServer.OpennessWorker", "Openness", "Network", "NetworkObjectSelectorResolver.cs"));
 
         Assert.Contains("NetworkSelectorFactory.IoSystem(", discoverySource, StringComparison.Ordinal);
@@ -141,7 +140,7 @@ public class NetworkIntrospectionWorkerDispatchTests
     [Fact]
     public void ModeledAdapters_DoNotUseReflectionOrArbitraryToStringPublication()
     {
-        var source = File.ReadAllText(FindRepositoryFile(
+        var source = File.ReadAllText(RepositoryFiles.Path(
             "TiaMcpServer.OpennessWorker", "Openness", "Network", "NetworkModeledAttributeAdapters.cs"));
 
         Assert.DoesNotContain("System.Reflection", source, StringComparison.Ordinal);
@@ -152,7 +151,7 @@ public class NetworkIntrospectionWorkerDispatchTests
     [Fact]
     public void DiscoveryReader_UsesTypedV21TraversalAndExactDynamicStringReads()
     {
-        var source = File.ReadAllText(FindRepositoryFile(
+        var source = File.ReadAllText(RepositoryFiles.Path(
             "TiaMcpServer.OpennessWorker", "Openness", "Network", "NetworkObjectIndexReader.cs"));
 
         Assert.Contains("device.Name", source, StringComparison.Ordinal);
@@ -178,7 +177,7 @@ public class NetworkIntrospectionWorkerDispatchTests
     [Fact]
     public void DiscoveryReader_OptionalNamesDoNotGateOtherwiseCompleteSelectors()
     {
-        var source = File.ReadAllText(FindRepositoryFile(
+        var source = File.ReadAllText(RepositoryFiles.Path(
             "TiaMcpServer.OpennessWorker", "Openness", "Network", "NetworkObjectIndexReader.cs"));
 
         Assert.DoesNotContain("interfaceName.Diagnostic", source, StringComparison.Ordinal);
@@ -190,7 +189,7 @@ public class NetworkIntrospectionWorkerDispatchTests
     [Fact]
     public void HardwareReader_UsesTypedIdentityReadsWithoutReflectionOrStringCoercion()
     {
-        var source = File.ReadAllText(FindRepositoryFile(
+        var source = File.ReadAllText(RepositoryFiles.Path(
             "TiaMcpServer.OpennessWorker", "Openness", "Network", "HardwareConfigReader.cs"));
 
         Assert.Contains("item.Name", source, StringComparison.Ordinal);
@@ -208,7 +207,7 @@ public class NetworkIntrospectionWorkerDispatchTests
     [Fact]
     public void HardwareReader_NormalizesNegativeIoAddressesAndCoercesDynamic64BitChannelAttributes()
     {
-        var source = File.ReadAllText(FindRepositoryFile(
+        var source = File.ReadAllText(RepositoryFiles.Path(
             "TiaMcpServer.OpennessWorker", "Openness", "Network", "HardwareIoMapReader.cs"));
 
         // Diagnosis-type addresses can report StartAddress = -1 (and Length = -1) on V21; the
@@ -230,10 +229,10 @@ public class NetworkIntrospectionWorkerDispatchTests
     [Fact]
     public void EngineeringAttributeInspector_UsesReadOnlyDynamicMetadataSurface()
     {
-        var source = File.ReadAllText(FindRepositoryFile(
+        var source = File.ReadAllText(RepositoryFiles.Path(
             "TiaMcpServer.OpennessWorker", "Openness", "Network", "EngineeringAttributeInspector.cs"));
 
-        Assert.Equal(1, CountOccurrences(source, "GetAttributeInfos()"));
+        Assert.Equal(1, RepositoryFiles.CountOccurrences(source, "GetAttributeInfos()"));
         Assert.Contains("GetAttribute(", source);
         Assert.Contains("NetworkAttributeMetadataProcessor.Process", source, StringComparison.Ordinal);
         Assert.Contains("ReadName = () => info.Name", source, StringComparison.Ordinal);
@@ -247,7 +246,7 @@ public class NetworkIntrospectionWorkerDispatchTests
     [Fact]
     public void ConnectionReader_RoutesLocalIdReadFailureIntoSelectorIdentityDiagnostics()
     {
-        var source = File.ReadAllText(FindRepositoryFile(
+        var source = File.ReadAllText(RepositoryFiles.Path(
             "TiaMcpServer.OpennessWorker", "Openness", "Network", "CommunicationConnectionReader.cs"));
 
         Assert.Contains("RequiresLocalConnectionId(connectionType)", source, StringComparison.Ordinal);
@@ -258,7 +257,7 @@ public class NetworkIntrospectionWorkerDispatchTests
     [Fact]
     public void SelectorResolver_RequiresAndVerifiesNonHmiLocalConnectionIdEvidence()
     {
-        var source = File.ReadAllText(FindRepositoryFile(
+        var source = File.ReadAllText(RepositoryFiles.Path(
             "TiaMcpServer.OpennessWorker", "Openness", "Network", "NetworkObjectSelectorResolver.cs"));
 
         Assert.Contains("RequiresLocalConnectionId(connectionType!)", source, StringComparison.Ordinal);
@@ -266,31 +265,5 @@ public class NetworkIntrospectionWorkerDispatchTests
         Assert.Contains("localConnectionId,", source, StringComparison.Ordinal);
         Assert.Contains("target.LocalConnectionId,", source, StringComparison.Ordinal);
         Assert.Contains("does not expose local-ID evidence", source, StringComparison.Ordinal);
-    }
-
-    private static int CountOccurrences(string source, string value)
-    {
-        var count = 0;
-        var startIndex = 0;
-        while ((startIndex = source.IndexOf(value, startIndex, StringComparison.Ordinal)) >= 0)
-        {
-            count++;
-            startIndex += value.Length;
-        }
-
-        return count;
-    }
-
-    private static string FindRepositoryFile(params string[] segments)
-    {
-        for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
-        {
-            if (File.Exists(Path.Combine(directory.FullName, "TiaMcpServer.slnx")))
-            {
-                return Path.Combine(new[] { directory.FullName }.Concat(segments).ToArray());
-            }
-        }
-
-        throw new InvalidOperationException("Could not locate the repository root.");
     }
 }

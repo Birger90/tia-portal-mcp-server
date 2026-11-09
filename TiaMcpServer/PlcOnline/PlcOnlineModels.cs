@@ -42,6 +42,12 @@ public sealed record PlcOnlineConnectionItem : IOperationBatchItem
 
     /// <summary>Audit T1, go_online only: <c>allowInsecurePasswordTransfer</c> (default false; go_offline refuses true).</summary>
     public bool AllowInsecurePasswordTransfer { get; init; }
+
+    /// <summary>Audit N2, go_online only: the caller's <c>onlineUser</c> (go_offline refuses it).</summary>
+    public TiaMcpServer.PlcDownload.PlcOnlineUserArgument? OnlineUser { get; init; }
+
+    /// <summary>Audit N4, go_online only: the caller's <c>targetAddress</c> (go_offline refuses it).</summary>
+    public string? TargetAddress { get; init; }
 }
 
 public static class PlcOnlineConnectionActions
@@ -87,6 +93,9 @@ public sealed record PlcStationUploadWriteItem : IOperationBatchItem
 
     /// <summary>Audit T1: <c>allowInsecurePasswordTransfer</c> (default false).</summary>
     public bool AllowInsecurePasswordTransfer { get; init; }
+
+    /// <summary>Audit N2: the caller's <c>onlineUser</c> (null when omitted).</summary>
+    public TiaMcpServer.PlcDownload.PlcOnlineUserArgument? OnlineUser { get; init; }
 }
 
 /// <summary>The caller's PC interface selector; both members are required when it is supplied.</summary>
@@ -123,6 +132,14 @@ public sealed record PlcOnlineConnectionEffects(
     /// <summary>Audit T1: true when the caller allowed passwords over a non-secure connection; omitted otherwise.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? AllowInsecurePasswordTransfer { get; init; }
+
+    /// <summary>Audit N2: the user a user-based online login authenticates as; omitted when the call names none.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public PlcOnlineUserInfo? OnlineUser { get; init; }
+
+    /// <summary>Audit N4, go_online: the node address GoOnline(ConfigurationAddress) connects to; omitted when the call names none.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? TargetAddress { get; init; }
 }
 
 /// <summary>
@@ -141,6 +158,10 @@ public sealed record PlcStationUploadEffects(
     /// <summary>Audit T1: true when the caller allowed passwords over a non-secure connection; omitted otherwise.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? AllowInsecurePasswordTransfer { get; init; }
+
+    /// <summary>Audit N2: the user a user-based online login authenticates as; omitted when the call names none.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public PlcOnlineUserInfo? OnlineUser { get; init; }
 }
 
 /// <summary>The plc_tia_online document: the shared write envelope plus typed effects and one typed result outcome.</summary>
@@ -180,6 +201,9 @@ public static class PlcOnlineGuardDefinitions
 
     public const string AddsDevice = "station_upload_adds_device";
 
+    /// <summary>Audit N4: go_online with targetAddress connects to a node address that differs from the configured one.</summary>
+    public const string CustomAddress = "online_custom_address";
+
     public static IReadOnlyList<WriteGuardDefinition> Definitions { get; } = Array.AsReadOnly(new[]
     {
         new WriteGuardDefinition(HardwareTarget, WriteGuardSeverities.Info,
@@ -188,6 +212,8 @@ public static class PlcOnlineGuardDefinitions
             "go_offline closes TIA Portal's online connection to the PLC, including one opened in the TIA Portal UI."),
         new WriteGuardDefinition(AddsDevice, WriteGuardSeverities.Info,
             "Station upload reads the station at the address and adds it as a new device to the offline project (not saved); the tool sends nothing to the device (not live-verified)."),
+        new WriteGuardDefinition(CustomAddress, WriteGuardSeverities.Info,
+            "go_online with targetAddress connects to a node address that differs from the configured one (GoOnline(ConfigurationAddress)); the device there may not be the configured PLC. Not live-tested."),
     });
 }
 
@@ -251,7 +277,8 @@ public static class PlcOnlinePathResolver
         };
         return new(new PlcOnlineConnectionEffects(item.Action, plc.PlcName, plc.DeviceName, path, item.TargetInterface is null, plc.State,
             string.Equals(pcInterface.Name, "PLCSIM", StringComparison.Ordinal), item.TimeoutSeconds, passwordKeys, item.PortalConfirmations,
-            Trusted(item.TrustedCertificates)) { AllowInsecurePasswordTransfer = item.AllowInsecurePasswordTransfer ? true : null }, null);
+            Trusted(item.TrustedCertificates)) { AllowInsecurePasswordTransfer = item.AllowInsecurePasswordTransfer ? true : null, OnlineUser = item.OnlineUser?.ToInfo(),
+            TargetAddress = item.TargetAddress }, null);
     }
 
     public static PlcOnlineResolution<PlcStationUploadEffects> ResolveUpload(PlcStationUploadInterfacesInfo interfaces, PlcStationUploadWriteItem item)
@@ -270,7 +297,7 @@ public static class PlcOnlinePathResolver
         };
         return new(new PlcStationUploadEffects(item.Address, path, item.Decisions.Select(d => d.Type).ToArray(),
             item.Passwords.Select(p => p.Type).ToArray(), AddsDeviceToProject: true, item.PortalConfirmations, Trusted(item.TrustedCertificates))
-            { AllowInsecurePasswordTransfer = item.AllowInsecurePasswordTransfer ? true : null }, null);
+            { AllowInsecurePasswordTransfer = item.AllowInsecurePasswordTransfer ? true : null, OnlineUser = item.OnlineUser?.ToInfo() }, null);
     }
 
     /// <summary>The normalized fingerprints (validated before planning; an invalid list trusts nothing).</summary>

@@ -45,9 +45,9 @@ public sealed partial class PlcOperationRequest
     [Description("find_objects: page size, 1 to 1000; default 100. The result's nextOffset continues the listing. get_technology_object_parameters: parameters per page, 1 to 2000, default 200. list_safety_blocks: F-blocks per PLC, 1 to 2000, default 200.")]
     public int? Limit { get; set; }
 
-    [Description("scan_accessible_devices: exact connection mode name as plc_read get_online_state lists it (for example PN/IE). Required; there is no default.")]
+    [Description("scan_accessible_devices and get_station_fingerprint_data: exact connection mode name as plc_read get_online_state lists it (for example PN/IE). Required; there is no default.")]
     public string? Mode { get; set; }
 
-    [Description("scan_accessible_devices: the PC interface { name, number } to scan through, exactly as get_online_state lists it. Required; there is no default interface.")]
+    [Description("scan_accessible_devices and get_station_fingerprint_data: the PC interface { name, number } to scan or connect through, exactly as get_online_state lists it. Required; there is no default interface.")]
     public PlcOnlinePcInterfaceArgument? PcInterface { get; set; }
 }

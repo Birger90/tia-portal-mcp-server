@@ -36,6 +36,25 @@ Updates sind strikte Updates eines existierenden Objekts:
 - Die Deklaration im übermittelten Inhalt muss mit dem Namen des adressierten Objekts übereinstimmen.
 - Der Import legt keine Objekte an, benennt sie nicht um, löscht sie nicht und führt kein Upsert durch.
 - XML-Bausteinimporte verwenden `ImportOptions.Override`.
+- `update_block_logic` und `update_type_content` mit Format `xml` nehmen das optionale `swImportOptions` (Audit N8, nicht
+  live getestet): eines oder mehrere der dokumentierten `SWImportOptions`-Mitglieder `IgnoreStructuralChanges`,
+  `IgnoreMissingReferencedObjects`, `IgnoreUnitAttributes` (V21 `Siemens.Engineering.Step7.xml`: „Import is not aborted in case of
+  referenced object changed structurally.“ / „... referenced object is missing.“ / „... unit related attributes are present.“).
+  Das Dokument wird dann mit `PlcBlockComposition.Import(FileInfo, ImportOptions, SWImportOptions)` bzw.
+  `PlcTypeComposition.Import(FileInfo, ImportOptions, SWImportOptions)` und `ImportOptions.Override` importiert; die Überladung
+  steht nicht in den Compile-Stubs und wird vor dem Import zur Laufzeit über die exakten Parametertypnamen gebunden
+  (`api_member_missing`, wenn sie fehlt). Das XML sagt nicht, dass `SWImportOptions` ein Flags-Enum ist: Mehrere Mitglieder
+  werden nur kombiniert, wenn das installierte Enum `[Flags]` trägt, sonst scheitert der Eintrag mit `unsupported_capability`,
+  bevor etwas importiert wird. Eine strukturelle Änderung kann Instanzdaten verlieren (Siemens-V21-Skill `tia-import-export`,
+  plc-blocks §15, nicht verifiziert). Die Optionen gehören nur zum SimaticML-Weg: Mit Format `source`/`sd` oder einem Bündel,
+  das den SIMATIC-SD-Weg nimmt, ist der Eintrag ein `validation_error`.
+- SIMATIC-SD-Importe (`update_block_logic` Format `sd` oder ein SD-Bündel sowie `create_block_from_document`) nehmen das
+  optionale `documentImportOption` (Audit N7, nicht live getestet): `SkipInactiveCultures` oder `ActivateInactiveCultures`
+  (V21: „Skip the cultures and texts if the cultures indicated in a document are not active in the project“ / „Activate the
+  culture and import the text as well, if the cultures ... are valid and supported ... but are not active“), kombiniert mit
+  `ImportDocumentOptions.Override` für `PlcBlockComposition.ImportFromDocuments`; der Weg für den Haupt-Sicherheitsbaustein gibt
+  es an den Import seines temporären F-Bausteins weiter. Auch die Kombination mit `Override` braucht ein Flags-Enum (sonst
+  `unsupported_capability`).
 - Die Generierung aus externen Quellen verwendet `GenerateBlockOption.None`.
 - Root-Gruppen, Benutzergruppen und Gruppen externer Quellen, die einer Software Unit gehören, werden gemäß dem adressierten Pfad aufgelöst.
 
@@ -159,8 +178,8 @@ Berichtet von rickgaiser/TiaMcp, auf V21 nicht verifiziert; siehe [V21-Fallstric
 | Anlegen, Umbenennen, Löschen oder Upsert über den Import | Nicht unterstützt |
 | Zielrouting für Root, Benutzergruppe und Software Unit | Unterstützt |
 | Vom Aufrufer gewählte Openness-`ExportOptions` | Teilweise: XML-Export verwendet `None` |
-| Vom Aufrufer gewählte Openness-`ImportOptions` | Teilweise: Importe verwenden `Override` |
-| `SWImportOptions` für strukturelle Änderungen oder fehlende Referenzen | Nicht unterstützt |
+| Vom Aufrufer gewählte Openness-`ImportOptions` | Teilweise: Importe verwenden `Override`; SIMATIC-SD-Importe ergänzen `SkipInactiveCultures`/`ActivateInactiveCultures` über `documentImportOption` (nicht live getestet) |
+| `SWImportOptions` für strukturelle Änderungen oder fehlende Referenzen | Unterstützt (nicht live getestet): `swImportOptions` von `update_block_logic`/`update_type_content` Format `xml` |
 | Austausch know-how-geschützter Bausteine | Teilweise: Der generische Export kann nur die öffentliche Schnittstelle offenlegen oder scheitern; geschützter Import ist nicht verfügbar |
 | Eigener Austausch fehlersicherer Bausteine | Nicht unterstützt; kompatible konsistente F-Bausteine können die generische XML-Route verwenden |
 | Austausch von Systembausteinen | Nicht unterstützt |

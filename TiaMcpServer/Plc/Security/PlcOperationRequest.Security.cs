@@ -20,7 +20,7 @@ public sealed partial class PlcOperationRequest
     [JsonConverter(typeof(PlcSafetyPasswordVariableConverter))]
     public string? NewPasswordVariable { get; set; }
 
-    [Description("compare_to_online and compare_hardware_to_online: online password configurations answered while the compare connects (e.g. OnlineReadAccessPassword of a protected CPU): key = the configuration type short name, value = where the password is (an environment variable NAME or { \"credential\": \"<prefix>...\" }), never the password. Entries the call omits come from the server password map (purpose = the type short name).")]
+    [Description("compare_to_online, compare_hardware_to_online and get_station_fingerprint_data: online password configurations answered while the compare connects (e.g. OnlineReadAccessPassword of a protected CPU): key = the configuration type short name, value = where the password is (an environment variable NAME or { \"credential\": \"<prefix>...\" }), never the password. Entries the call omits come from the server password map (purpose = the type short name).")]
     public PlcDownloadPasswordMap? Passwords { get; set; }
 
     [Description("protect_plc_confidential_data: true uses ProtectAllPlcConfigurationWithPassword (with passwordVariable) or ProtectAllPlcConfiguration() (without; the additional protection of the downloadable configuration data); disable_plc_confidential_data_protection: true calls UnprotectAllPlcConfiguration() (removes only that additional protection). Default false.")]

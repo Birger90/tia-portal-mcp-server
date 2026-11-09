@@ -14,12 +14,12 @@ public class AccessModeDiscoveryTests
     private static readonly string[] Edits = { "compile_check", "network_write", "plc_write", "hmi_write", "vci_write", "plc_station_upload", "library_write" };
     private static readonly string[] Online = { "plc_download", "plc_online_write", "plc_tia_online" };
     private static readonly string[] Simulation = { "plcsim_test", "plcsim_write" };
-    private static readonly string[] Lifecycle = { "archive_project", "close_project", "create_project", "open_project", "retrieve_project", "save_project", "save_project_as" };
+    private static readonly string[] Lifecycle = { "archive_project", "close_project", "create_project", "open_project", "project_server_write", "retrieve_project", "save_project", "save_project_as" };
 
     [Theory]
     [InlineData(McpAccessMode.ReadOnly, 13)]
-    [InlineData(McpAccessMode.ReadWrite, 32)]
-    [InlineData(McpAccessMode.Full, 32)]
+    [InlineData(McpAccessMode.ReadWrite, 33)]
+    [InlineData(McpAccessMode.Full, 33)]
     public async Task ToolsList_AdvertisesOnlyTheModeSurface(McpAccessMode mode, int count)
     {
         await using var harness = await McpProtocolTestHarness.StartProductionSurfaceAsync(mode);

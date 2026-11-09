@@ -44,7 +44,8 @@ internal static class MainSafetyBlockSdUpdate
         return PlcMainSafetyBlockSdRouteWorker.Find(project, blockPath);
     }
 
-    public static WorkerResponse Run(ProjectBase project, PlcMainSafetyBlockSdRouteWorker.Target target, string blockPath, string content, string format, string? expectedContentHash)
+    public static WorkerResponse Run(ProjectBase project, PlcMainSafetyBlockSdRouteWorker.Target target, string blockPath, string content, string format, string? expectedContentHash,
+        string? documentImportOption = null)
     {
         var fallback = Path.GetFileName(blockPath) + (format == SourceFormatNames.Sd ? SimaticSdText.BundleExtension : ".xml");
         var (s7dcl, s7res) = BlockImportCoordinator.ExecuteWithPreTargetOutcome(
@@ -62,7 +63,7 @@ internal static class MainSafetyBlockSdUpdate
 
         try
         {
-            var (result, info, warnings) = PlcMainSafetyBlockSdRouteWorker.Run(project, target, "update_block_logic", s7dcl, s7res);
+            var (result, info, warnings) = PlcMainSafetyBlockSdRouteWorker.Run(project, target, "update_block_logic", s7dcl, s7res, documentImportOption);
             return new WorkerResponse
             {
                 Success = true,

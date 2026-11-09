@@ -311,13 +311,7 @@ public sealed class TechnologyObjectRealsTests
         Assert.False(RealFormattingIlScanner.IsTechnologyObjectSource("/src/TiaMcpServer/TiaMcpServer/Plc/PlcOperationCatalog.cs", "TiaMcpServer"));
     }
 
-    private static string SolutionRoot()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "TiaMcpServer.slnx"))) directory = directory.Parent;
-        Assert.NotNull(directory);
-        return directory!.FullName;
-    }
+    private static string SolutionRoot() => TiaMcpServer.Tests.TestSupport.RepositoryFiles.Root;
 
     /// <summary>The path below the project folder of a PDB document (separators normalized).</summary>
     private static string ProjectRelative(string document, string project)

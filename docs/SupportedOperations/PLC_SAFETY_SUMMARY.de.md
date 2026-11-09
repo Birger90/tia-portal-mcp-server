@@ -18,7 +18,7 @@ installierten Option STEP 7 Safety gehört und fehlen kann.
 > Signaturen, Rücklesungen), ist ein Abnahmenachweis. Jeder fehlersichere Schreibvorgang trägt diesen Hinweis in seinem Guard, seiner Abfrage und
 > seinem Ergebnis.
 
-Die Oberfläche bleibt 13/32/32: Die Operationen gehören zu `plc_read` und `plc_write`, weil das Sicherheitsprogramm PLC-Software
+Die Oberfläche bleibt 13/33/33: Die Operationen gehören zu `plc_read` und `plc_write`, weil das Sicherheitsprogramm PLC-Software
 ist. Methodennamen stehen in `PlcSafetyMethods` (Contracts), Parameter in `WorkerRequest.PlcSafety`, die Verteilung in
 `TiaMcpServer.OpennessWorker/Program.PlcSafety.cs`, der Host-Code in `TiaMcpServer/Plc/Safety/`.
 

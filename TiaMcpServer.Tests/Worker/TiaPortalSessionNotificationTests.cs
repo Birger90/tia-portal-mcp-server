@@ -8,8 +8,8 @@ namespace TiaMcpServer.Tests.Worker;
 
 /// <summary>
 /// K75 (live 2026-11-03): TIA Portal's modal information message after export_project_texts blocked the Openness call until a human
-/// clicked OK. The session handles every <c>Notification</c> (IsHandled = true), records it for the running request and reports
-/// those that arrive between requests to the next one, against the Portal boundary doubles.
+/// clicked OK. The session handles every <c>Notification</c> raised during a request (IsHandled = true) and records it; K98: those
+/// that arrive between requests are left to TIA Portal and reported to the next one, against the Portal boundary doubles.
 /// </summary>
 [Collection("Portal session boundary")]
 public sealed class TiaPortalSessionNotificationTests
@@ -81,7 +81,7 @@ public sealed class TiaPortalSessionNotificationTests
     }
 
     [Fact]
-    public void NotificationBetweenRequests_IsHandled_AndReportedToTheNextRequestOnce()
+    public void NotificationBetweenRequests_IsLeftToTiaPortal_AndReportedToTheNextRequestOnce()
     {
         using var f = new Fixture();
         f.Session.BeginRequestNotifications();
@@ -98,9 +98,10 @@ public sealed class TiaPortalSessionNotificationTests
             Console.SetError(original);
         }
 
-        Assert.True(args.IsHandled);
+        // K98: outside an MCP call the notification is the user's (e.g. the Add-In's reply display) and is not handled.
+        Assert.False(args.IsHandled);
         var line = Assert.Single(f.Session.BeginRequestNotifications());
-        Assert.StartsWith("1 TIA Portal notification(s) arrived while no MCP call was running and were handled", line);
+        Assert.StartsWith("1 TIA Portal notification(s) arrived while no MCP call was running and were left to TIA Portal", line);
         Assert.Contains("Übersetzen abgeschlossen [Warning]", line);
         // Not part of the new request's own record, and reported once.
         Assert.Empty(f.Session.RequestNotifications());

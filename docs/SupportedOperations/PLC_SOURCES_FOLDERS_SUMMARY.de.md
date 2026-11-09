@@ -13,7 +13,7 @@ das nur Payload-Formen modelliert) und benötigt die [Live-Abnahmeliste](#live-a
 | `plc_write` | `import_external_source`, `generate_blocks_from_source`, `delete_external_source`, `export_source_file`, `rename_block_group`, `rename_type_group`, `rename_tag_table_group`, `rename_watch_table_group`, `create_type_group`, `delete_type_group`, `create_tag_table_group`, `delete_tag_table_group`, `create_software_unit`, `delete_software_unit`, `rename_software_unit`, `export_tag_tables_csv`, `export_watch_tables_csv`, `export_force_tables_csv`, `export_blocks` |
 | `library_write` | `instantiate_master_copy` Zielart `externalSources` (eine Kopiervorlage in die externen Quellen der PLC) |
 
-Die Tool-Anzahlen bleiben 13/32/32. Die Methodennamen sind `PlcSourceFolderMethods` in
+Die Tool-Anzahlen bleiben 13/33/33. Die Methodennamen sind `PlcSourceFolderMethods` in
 `TiaMcpServer.Contracts/Plc`; die Worker-Parameter werden in `WorkerRequest.PlcSourceFolder` übertragen; der
 Worker-Dispatch besteht aus einer Zeile plus `Program.SourcesFolders.cs`.
 

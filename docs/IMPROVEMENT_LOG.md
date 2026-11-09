@@ -7,6 +7,25 @@ History lives in the ADRs, the acceptance reports and the archive tag; see
 are recorded in the [orchestration ledger](https://github.com/Czarnak/tia-portal-mcp/blob/docs-archive-2026-10-30/docs/superpowers/plans/2026-10-24-workstream-c-followups-orchestration.md).
 An accepted implementation does not establish unexecuted native or plant acceptance.
 
+## Open: audit N2-N9 package, live acceptance and left-out items (2026-11-09)
+
+Built, not live-tested (see the PLC download, PLC online, project and import/export references):
+- N2 user-based login (`onlineUser`): which `UserType` TIA Portal presets, whether `Name` must be set before `SetPassword`,
+  `IsSecureCommunication` on a UMAC CPU.
+- N3 `get_station_fingerprint_data`: which object offers `FingerprintDataProvider`, the value types, whether the PLC must be
+  offline in TIA Portal first.
+- N4 `targetAddress`: whether the download address must come from the target interface's `Addresses` (chosen) or the PC
+  interface's; `GoOnline(ConfigurationAddress)` after `ApplyConfiguration(target)`.
+- N5 `open_project upgrade:true`: where the upgraded project is stored and whether the binding then holds.
+- N7/N8 import options: whether `SWImportOptions`/`ImportDocumentOptions` are flags enums (several members are refused
+  otherwise).
+
+Left out:
+- N9 project graphics (`GraphicsProvider.Graphics`): members usable, owner undocumented; build a project-wide list/export/import
+  family once a live check shows which object lists the provider.
+- N1 `RHOnlineProvider` (go online to an R/H primary/backup): needs an R/H path inventory in `get_online_state` and a
+  `plc_tia_online` field; not part of this package.
+
 ## Open: siemens_docs live acceptance on the Windows PC (2026-11-03)
 
 `siemens_docs` was built and tested offline; its endpoints were checked live only from the Linux cloud container
@@ -258,8 +277,9 @@ Offline-qualified only. Open:
   particular for `compare_to_online`, which is allowed in read-only and never prompts.
 - The same for `go_online`, `plc_station_upload` (its provider's `Configuration`) and
   `compare_to_online`.
-- Online authentication (`OnlineAuthenticationConfiguration`, `OnlineCredentials`) still aborts; decide
-  whether an approved authentication policy is wanted.
+- Online authentication (`OnlineAuthenticationConfiguration`, `OnlineCredentials`) is answered only with the caller's
+  `onlineUser` and password source (audit N2, not live-tested): live-test a UMAC-protected CPU (which `UserType` TIA Portal
+  presets, whether `Name` must be set before `SetPassword`, the secure-channel flag).
 
 ## Open: V21 pitfall guards live acceptance and follow-ups (2026-11-01)
 

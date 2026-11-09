@@ -17,7 +17,7 @@ public class HmiTextListFileMcpTests
     {
         var reply = await harness.Client.CallToolAsync("hmi_write", new Dictionary<string, object?> { ["operations"] = operations, ["dryRun"] = dryRun });
         Assert.True(reply.StructuredContent is not null, string.Join(" ", reply.Content.OfType<ModelContextProtocol.Protocol.TextContentBlock>().Select(t => t.Text)));
-        return NetworkGuardedWriteMcpTests.Document(reply);
+        return TiaMcpServer.Tests.TestSupport.CanonicalToolDocument.Read(reply);
     }
 
     private static string Failure(System.Text.Json.JsonElement document, int index)

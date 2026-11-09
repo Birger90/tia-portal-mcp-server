@@ -25,7 +25,7 @@ This reference covers the two library tools this fork adds:
 > fails closed with `unsupported_capability` when the installed V21 does not expose it, and every one must be
 > exercised by the [live acceptance checks](#live-acceptance-checks) before the tools are relied on.
 
-Tool counts: 13 tools in read-only, 32 in read-write and 32 in full since `siemens_docs` (12/31/31 since `tia_inbox`, 11/30/30 before; `library_read` is the eleventh
+Tool counts: 13 tools in read-only, 33 in read-write and 33 in full since `project_server_write` (13/32/32 since `siemens_docs`, 12/31/31 since `tia_inbox`, 11/30/30 before; `library_read` is the eleventh
 read-only tool, `library_write` the twenty-ninth writable one).
 
 ## Why two tools

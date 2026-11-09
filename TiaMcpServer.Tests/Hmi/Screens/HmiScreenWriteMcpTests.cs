@@ -14,7 +14,7 @@ public class HmiScreenWriteMcpTests
     private const string Scenario = "hmi-write-roundtrip";
 
     private static async Task<System.Text.Json.JsonElement> WriteAsync(McpProtocolTestHarness harness, object[] operations, bool dryRun = false)
-        => NetworkGuardedWriteMcpTests.Document(await harness.Client.CallToolAsync("hmi_write",
+        => TiaMcpServer.Tests.TestSupport.CanonicalToolDocument.Read(await harness.Client.CallToolAsync("hmi_write",
             new Dictionary<string, object?> { ["operations"] = operations, ["dryRun"] = dryRun }));
 
     [Fact]

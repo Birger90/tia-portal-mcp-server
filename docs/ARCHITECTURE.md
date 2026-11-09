@@ -369,13 +369,14 @@ dialog) and fails the item when a dialog was declined.
 These Siemens dialogs are independent of MCP user-confirmation elicitation.
 
 TIA Portal `Notification` events (information messages such as "Export erfolgreich abgeschlossen. (0032:000002)", which
-blocked `export_project_texts` live until a human clicked OK, K75) are handled for every operation in every access mode: the
-session's handler reads `Caption`, `Text`, `DetailText` and `Icon` and sets `IsHandled = true`, all by reflection through the
+blocked `export_project_texts` live until a human clicked OK, K75) raised while a worker request runs are handled for every
+operation in every access mode: the session's handler reads `Caption`, `Text`, `DetailText` and `Icon` and sets `IsHandled = true`, all by reflection through the
 Siemens-free `PortalNotificationHandling` (Contracts `Worker/PortalNotifications.cs`; the stubs declare only `Text`). While a
 worker request runs (`TiaPortalSession.BeginRequestNotifications`/`EndRequestNotifications` around every request) each one is
 recorded for the request and written as a warning of its response; the project language operations also copy them into the
-item's `result.portalNotifications`. A notification between requests is logged at once and reported as a warning on the next
-response, like a late confirmation. Not live-tested: V21 documents `IsHandled` but not that setting it closes the message.
+item's `result.portalNotifications`. A notification between requests comes from the user's own TIA Portal window (K98, live
+2026-11-09: the "Claude in TIA" Add-In's reply display was swallowed): it is read but not handled (`PortalNotificationHandling.Read`),
+logged at once and reported as a warning on the next response, like a late confirmation. Not live-tested: V21 documents `IsHandled` but not that setting it closes the message.
 
 ## 5. Project attachment and binding
 
@@ -484,7 +485,7 @@ null and active connection observation `unknown` without a supported owner/endpo
 Explicit endpoint inventory has separate attachment/endpoint-scoped history; refresh timestamps
 do not create identity churn or prove an active-session reconnection. Capability descriptions
 grant no permission. Strict required-member/coherence decoding precedes existing 60,000-value
-and 180,000-document budgets. Current counts are 13/32/32 (read-only/read-write/full; `tia_inbox` of "Claude in TIA" is in every mode).
+and 180,000-document budgets. Current counts are 13/33/33 (read-only/read-write/full; `tia_inbox` of "Claude in TIA" is in every mode; the Portal-level `project_server_write` (Project Server administration, no binding, acknowledge guards for deletes and uploads; see the [Project Server reference](SupportedOperations/PROJECT_SERVER_WRITE_SUMMARY.md)) is in read-write and full).
 PR4's [scoped live report](superpowers/acceptance/reports/2026-10-08-multiuser-pr4-live-verification.md)
 retains both failed noninteractive offline opens, UI-assisted success, restoration and
 unexecuted rows. Content/session/markings/mutations remain undelivered; see the
@@ -510,11 +511,10 @@ format, used by the worker, `PersistentWorkerTransport`, and the FakeWorker.
 `WorkerJson.Envelope` reads `WorkerRequest` and `WorkerResponse` (camelCase,
 case-insensitive) and writes responses with null members omitted;
 `WorkerJson.Request` writes requests with every member, null or not.
-`WorkerJson.SerializePayload` renders the `payload` document and writes null
-members unless the payload root carries `[LegacyNullOmission(reason)]`; a
-collection payload follows its element type. The marked set, and the reason each
-type has not switched yet, is pinned by `WorkerPayloadNullPolicyRegisterTests`
-(see [the JSON contract roadmap](roadmap/json-contract.md)).
+`WorkerJson.SerializePayload` renders the `payload` document with `ExplicitNullPayload`,
+writing null members except those explicitly declared conditional with
+`[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]`. This applies to
+object roots and collection elements alike (see [the JSON contract roadmap](roadmap/json-contract.md)).
 
 Before the permissive envelope decode, `PersistentWorkerTransport` calls
 `NetworkPayloadContract.ValidateEnvelopeOutcome` on raw `configureNetworkDeviceOutcome` JSON.
@@ -588,7 +588,7 @@ directories and remove them in `finally` blocks.
 
 ## 7. Batch and network execution
 
-`PlcOperationCatalog` and `PlcWorkerInvoker` own the 63 `plc_read` operations and the 212 `plc_write`
+`PlcOperationCatalog` and `PlcWorkerInvoker` own the 64 `plc_read` operations and the 212 `plc_write`
 operations, sharing one `PlcOperationRequest` between read and write. The granular block edits
 (`PlcBlockEditMethods`) keep that split: interface member edits are planned by
 `PlcInterfaceEditPlanner` on the exported SimaticML with the Siemens-free
@@ -647,12 +647,10 @@ registered tool is now structured; the three batch tools were removed rather tha
   runs an optional semantic validator). It applies the strict rules above plus
   `RespectNullableAnnotations` and a rule that every settable member is required, except a member
   declared `[JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]`. A rejected payload
-  throws `JsonException`, which the decoders turn into `protocol_error`. The rule applies to a
-  payload whose root writes explicit nulls, so the reader refuses (`InvalidOperationException`) a
-  root type, or an array root's element type, that carries `[LegacyNullOmission]`: that payload
-  omits nulls on the wire and cannot be read with required members. The reader does not check
-  collection elements, dictionary values or generic arguments, so the typed validators keep their
-  null-element checks alongside their semantic rules.
+  throws `JsonException`, which the decoders turn into `protocol_error`. Required-member checks
+  also apply inside nested objects and collection elements. Nullable annotation enforcement does
+  not check collection elements, dictionary values or generic arguments, so the typed validators
+  keep their null-element checks alongside their semantic rules.
 - A member the worker legitimately omits is conditional, marked `WhenWritingNull` and described
   in `ConditionalMemberRegisterTests`. This includes optional I/O/pagination and Network connection
   evidence, and the carried partial `ConfigureNetworkDeviceOutcome` and `HmiWriteOutcome`;
@@ -1519,7 +1517,7 @@ types is bound at runtime by the Siemens-free `PlcAccessibleDeviceProjection` (C
 ### PLC alarms, alarm classes, text lists, supervisions and ProDiag (`plc_read`, `plc_write`)
 
 The six reads and sixteen writes are `plc_read`/`plc_write` operations (`PlcAlarmMethods`, Contracts) whose worker
-methods carry the public names and whose parameters travel in `WorkerRequest.PlcAlarm`; the tool surface stays 13/32/32.
+methods carry the public names and whose parameters travel in `WorkerRequest.PlcAlarm`; the tool surface stays 13/33/33.
 Host code lives in `TiaMcpServer/PlcAlarms/`: the catalog partial `PlcOperationCatalog.Alarms.cs` (field sets and shape
 rules, including "a cell update cannot follow another change of the same PLC in one call"), `PlcAlarmPayloadContract`
 (one declared result type per operation; TIA Portal confirmation evidence checked and declined dialogs failing the item),

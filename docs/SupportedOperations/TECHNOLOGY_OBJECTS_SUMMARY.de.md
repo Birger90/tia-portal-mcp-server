@@ -24,7 +24,7 @@ Mechanismus mit, den die Domäne braucht (die abgesicherte Single-Call-Pipeline 
 Rücklese-Verifikation und Audit; den PLC-Arbeitszustand, mit dem ein späteres Item ein Objekt verwenden kann, das
 ein früheres Item angelegt hat; den Content-Hash-Roundtrip der Beobachtungs- und Forcetabellen), daher wurden die
 Operationen dort ergänzt statt in einem neuen Tool-Paar. Die Tool-Oberfläche bleibt bei **13 Tools in read-only,
-32 in read-write und 32 in full** (seit `siemens_docs`; 12/31/31 seit `tia_inbox`; 11/30/30 seit `retrieve_project`) (`library_read`/`library_write` wurden ein eigenes Paar, weil ein
+33 in read-write und 33 in full** (seit `project_server_write`; 13/32/32 seit `siemens_docs`; 12/31/31 seit `tia_inbox`; 11/30/30 seit `retrieve_project`) (`library_read`/`library_write` wurden ein eigenes Paar, weil ein
 Bibliotheksselektor keine PLC ist). Die Feldmenge von `PlcOperationRequest` wächst; jedes Feld ist je Operation
 durch den Katalog eingeschränkt (`PlcOperationCatalog.TechnologyObjects.cs`), sodass ein nicht verwendetes Feld ein
 `validation_error` ist.

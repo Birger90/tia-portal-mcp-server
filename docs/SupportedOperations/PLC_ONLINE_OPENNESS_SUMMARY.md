@@ -26,7 +26,7 @@ This reference covers the Openness V21 features this fork adds around the PLC on
 > real-DLL compile before any live test; the first live checks are listed under
 > [live acceptance checks](#live-acceptance-checks).
 
-Tool counts: 13 tools in read-only, 32 in read-write and 32 in full since `siemens_docs` (31 since `tia_inbox`, 30 since `retrieve_project`, 29 since the library tools, 27 when these tools were added; `plc_tia_online` and
+Tool counts: 13 tools in read-only, 33 in read-write and 33 in full since `project_server_write` (13/32/32 since `siemens_docs`, 31 since `tia_inbox`, 30 since `retrieve_project`, 29 since the library tools, 27 when these tools were added; `plc_tia_online` and
 `plc_station_upload` are the two writable tools added here; every other operation lives in
 `plc_read`/`plc_write`).
 
@@ -109,6 +109,7 @@ also work on Multiuser local sessions.
 | `compare_software` | `compareTarget` `plc` (with `targetName` = other PLC), `project_library`, or `master_copy` (with `targetName` = master copy in the project library's root master copy folder), or `secondary_plc` (with `targetName` = a PLC of the open secondary project `targetProject`; issue #20, not live-tested); optional `plcName` and the caps above; `trustedCertificates` is refused | the same shape; online members are null, `configurationsSeen` is empty and `abort` null |
 | `compare_hardware` | `compareTarget` `plc` (with `targetName` = other PLC) or `master_copy` (with `targetName` = master copy in the project library's root master copy folder); optional `plcName`, `hardwareScope` (`device`, default: the PLC's station; `cpu`: its CPU device item; for `plc` the other PLC's object of the same scope) and the caps above; `trustedCertificates` is refused | the same shape as `compare_software`; see [Hardware compare](#hardware-compare) |
 | `compare_hardware_to_online` | optional `plcName`, `hardwareScope`, the caps, `trustedCertificates`, `passwords` (exactly as `compare_to_online`) | the same shape as `compare_to_online` |
+| `get_station_fingerprint_data` | `mode`, `pcInterface`, `targetAddress`; optional `maxElements` (1-2000, default 200), `trustedCertificates`, `passwords`, `onlineUser` | `PlcStationFingerprintDataInfo`; see [Station fingerprint data](#station-fingerprint-data-get_station_fingerprint_data) (audit N3, not live-tested) |
 | `get_online_state` | optional `plcName` (omitted lists every PLC) | `{ plcs[{ plcName, deviceName, onlineProviderAvailable, state, isConfigured, modes[{ name, pcInterfaces[{ name, number, targetInterfaces[{ name }] }] }] }] }` from `OnlineProvider.State`, `Configuration.IsConfigured` and `Configuration.Modes` (offline; never `GetAccessibleDevices()`) |
 | `list_station_upload_interfaces` | none | `{ available, modes[{ name, pcInterfaces[{ name, number, targetInterfaces: [] }] }] }` from `StationUploadProvider.Configuration` |
 | `list_watch_and_force_tables` | optional `plcName` | per PLC: `groups` (user group paths), `watchTables` and `forceTables` `{ groupPath, name, isConsistent }`, `complete` (5,000 entries at most) |
@@ -122,6 +123,27 @@ texts are cut at 1,000 characters. With `differencesOnly` an element whose state
 When the depth or element cap stops the walk, `complete` is false, `omission` says which cap, and
 every cut parent has `elementsTruncated: true`. `identical` is true when the root state is one of the
 two identical states. A result over the value budget is omitted whole with guidance (lower the caps).
+
+### Station fingerprint data (`get_station_fingerprint_data`)
+
+> **Not live-tested** (audit N3). Evidence: V21 `Siemens.Engineering.Base.xml` (members.txt):
+> `T:Siemens.Engineering.FingerprintData.FingerprintDataProvider` ("Service provides fingerprintdata functionality") with
+> `Configuration` ("Connection Configuration.") and `GetFingerprintData(ConfigurationAddress, OnlineConfigurationDelegate)`;
+> `FingerprintDataResult.FingerprintDataItems`; `FingerprintDataItem.FingerprintDataIdentifier` and `.FingerprintDataValue`.
+
+`plc_read get_station_fingerprint_data` (`OnlineObserve`, every mode, standalone projects only) reads the fingerprint data of the
+station at a node address for a quick station compare. Fields: `mode` and `targetAddress` (required), `pcInterface { name, number }`
+(required, no default), optional `maxElements` (1-2000, default 200), `trustedCertificates`, `passwords` and `onlineUser`. The XML
+does not say which object offers the provider: the worker looks for it by exact full name among the `GetServiceInfos()` of the TIA
+Portal, then of the bound project (`unsupported_capability` when neither lists it; nothing else is guessed). Mode and PC interface
+are resolved exactly on the provider's own `Configuration` (a `ConnectionConfiguration`), the address is created there with
+`ConfigurationPcInterface.Addresses.Create(String)`, and `GetFingerprintData` is bound at runtime (no stub). Online prompts are
+answered by the shared callback recorder under the `compare_to_online` rules (password sources and the map, `onlineUser`,
+`trustedCertificates`; anything else aborts and nothing is returned); every TIA Portal dialog is answered No and fails the item. The
+result lists `providerOwner` (`portal` or `project`), the path and address, `itemCount`, `truncated`, `items[]` with `identifier` and
+`value` as text `{ state, value, runtimeType, error }` (their types are undocumented; byte sequences become hexadecimal) and
+`configurationsSeen`. The read reaches the device and changes neither device nor project. **Live acceptance still required:** which
+object offers the provider, the value types, and whether the PLC must be offline in TIA Portal first (a third-party guide says so).
 
 ### Hardware compare
 
@@ -225,8 +247,14 @@ Online legitimation is answered only by the caller: password configurations by `
 (`SetPassword(SecureString)` from the named environment variable, the value never recorded), the TLS
 certificate check (`TlsVerificationConfiguration`) only by `trustedCertificates` (`Trusted` when every
 presented certificate's SHA-256 fingerprint is listed, otherwise `NonTrusted` and abort with the
-certificate evidence; see [TLS certificate trust](#tls-certificate-trust-trustedcertificates)). Every
-other presented configuration (for example `OnlineAuthenticationConfiguration`) aborts the connection;
+certificate evidence; see [TLS certificate trust](#tls-certificate-trust-trustedcertificates)), and a user-based login
+(`OnlineAuthenticationConfiguration`, audit N2, not live-tested) only with `onlineUser { userName, userType? }` plus the password
+source `passwords["OnlineAuthenticationConfiguration"]` (`OnlineCredentials.Name`, `.Type` when given, `.SetPassword`; the same
+`IsSecureCommunication` rule; the full rule is in the [PLC download reference](PLC_DOWNLOAD_SUMMARY.md)). `onlineUser` is a go_online,
+`plc_station_upload`, `compare_to_online` and `compare_hardware_to_online` argument; go_offline refuses it. The host evidence
+check of the two online compares accepts a `password_set` entry whose source is any valid password source (the merged list of item
+sources and password map is built at the call); before audit N2 it refused such compare evidence as `protocol_error`. Every
+other presented configuration aborts the connection;
 the result's `configurationsSeen` and `abort` name it with its kind and, for a selection, its
 `availableSelections`. The prompt in read-write lists the password keys and every trusted fingerprint.
 
@@ -485,7 +513,8 @@ by `PlcOnlineReferenceStubTests`.
 | `VerificationCertificate.Certificate` → `X509Certificate2` (`RawData`, `Thumbprint`, `Subject`, `Issuer`, `NotBefore`, `NotAfter` are .NET members) | Base | b, h | runtime lookup; type from source ("exposing the target `X509Certificate2` through `Certificate`") |
 | `TlsVerificationConfiguration.CurrentSelection` of type `TlsVerificationConfigurationSelection`; members `Trusted`, `NonTrusted` set by name (`NonVerified` never) | Base | b, h | runtime lookup; property, type and members from source (callback sample and catalogue), type name in h; the property type's full name is compared, members checked with `Enum.IsDefined` |
 | `IsSecureCommunication` of `OnlinePasswordConfiguration`/`UploadPasswordConfiguration` | Base | members.txt | runtime lookup (`PlcPasswordChannel`, audit T1): read before every `SetPassword`; false or unreadable without `allowInsecurePasswordTransfer` aborts `insecure_communication`; not live-tested |
-| `OnlineAuthenticationConfiguration`, `OnlineCredentials`, `UserType`, `AuthenticationType`, `OnlineAuthenticationConfiguration.IsSecureCommunication`, `EnableLegacyCommunication` | Base | b, h | not used (authentication aborts; `EnableLegacyCommunication` is never read or set) |
+| `OnlineAuthenticationConfiguration` (`OnlineCredentials`, `IsSecureCommunication`), `OnlineCredentials` (`Name`, `Type`, `SetPassword(SecureString)`), `UserType` | Base | b, h; V21 members.txt | reflection (audit N2, not live-tested): answered from `onlineUser` and its password source |
+| `AuthenticationType`, `OnlineAuthenticationConfiguration.GetSupportedAuthenticationTypes()`, `EnableLegacyCommunication` | Base | b, h | not used (`EnableLegacyCommunication` is never read or set) |
 | `OnlineConfigurationDelegate` = `void (OnlineConfiguration)`; `Online.Configurations.OnlineConfiguration` | Base | b, h | signature from source |
 | `ConnectionConfiguration.Modes`, `ConfigurationMode.Name/.PcInterfaces`, `ConfigurationPcInterface.Name/.Number/.TargetInterfaces`, `ConfigurationTargetInterface.Name` | Base | b, e, f | existing (plc_download) |
 | `ConfigurationPcInterface.Addresses` → `ConfigurationAddressComposition`; `.Create(string)` → `ConfigurationAddress` | Base | b, c, e | signature from source |
@@ -529,16 +558,16 @@ Parameter names in stub signatures are placeholders.
 - **Hardware compare against an object other than a PLC's station/CPU, a root master copy or the CPU's `OnlineProvider`.**
   `HardwareObject.CompareTo(IHardwareCompareTarget)` is implemented as `compare_hardware`/`compare_hardware_to_online` (issue #7);
   the V21 XML names no implementer of `IHardwareCompareTarget`, so no other target is guessed.
-- **`GoOnline(ConfigurationAddress)`, `ApplyConfiguration(ConfigurationAddress)` (gateway/subnet
-  paths), `RHOnlineProvider`** are documented but not used: the path is always the exact mode → PC
-  interface → target interface the download already uses. Going online to an R/H primary or backup
+- **`ApplyConfiguration(ConfigurationAddress)` (gateway/subnet paths), `RHOnlineProvider`** are documented but not used: the
+  path is always the exact mode → PC interface → target interface the download already uses. `GoOnline(ConfigurationAddress)` is
+  used only for go_online `targetAddress` (audit N4, not live-tested: the address from the PC interface's `Addresses.Create`, after
+  `ApplyConfiguration(target)`, bound at runtime; info guard `online_custom_address`). Going online to an R/H primary or backup
   (`RHOnlineProvider.GoOnlineToPrimary/GoOnlineToBackup`, `PrimaryState`/`BackupState`, audit N1) needs a new
   `plc_tia_online` field and a path inventory from `RHOnlineProvider.Configuration` in `get_online_state`; it is left for a
   later package. The worker's provider lookup (`RhSystemProviders`: CPU device item, then parents up to the `Device`,
   audit T3) already covers `RHOnlineProvider` by name for it.
-- **Online authentication answers** (`OnlineAuthenticationConfiguration`, `OnlineCredentials`,
-  `UserType`): no approved authentication policy exists for this tool, so these configurations abort with
-  evidence. TLS trust is answered, but only from the user-approved `trustedCertificates` (see
+- **Online authentication without `onlineUser`** (`OnlineAuthenticationConfiguration`): without the caller's `onlineUser` and
+  password source the login aborts with evidence; the server never chooses a user (audit N2 added the explicit answer). TLS trust is answered, but only from the user-approved `trustedCertificates` (see
   [TLS certificate trust](#tls-certificate-trust-trustedcertificates)). `EnableLegacyCommunication` is
   never touched (a TLS downgrade). `TlsVerificationConfigurationSelection.NonVerified` is never set.
 - **Binding `PlcName` to the target**: the source asks to bind `PlcName`, `VerificationInfo` and every

@@ -48,7 +48,7 @@ jobs:
           "commit=$env:GITHUB_SHA" | Out-File ./publish-bin/BUILD-INFO.txt -Encoding utf8
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tia-mcp-windows-x64-${{ github.sha }}
           path: publish-bin/
@@ -72,7 +72,7 @@ jobs:
           "commit=$env:GITHUB_SHA" | Out-File (Join-Path $out 'BUILD-INFO.txt') -Encoding utf8
 
       - name: Upload framework-dependent artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tia-mcp-windows-dotnet-${{ github.sha }}
           path: TiaMcpServer/bin/Release/net10.0/
@@ -101,7 +101,7 @@ jobs:
           "commit=$env:GITHUB_SHA`nThis DLL is a compile check against the reference stubs. Install with install-claude-in-tia.ps1 from a source checkout (it rebuilds against the installed TIA Portal V21)." | Out-File ./addin-bin/BUILD-INFO.txt -Encoding utf8
 
       - name: Upload Add-In artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: claude-in-tia-addin-${{ github.sha }}
           path: addin-bin/

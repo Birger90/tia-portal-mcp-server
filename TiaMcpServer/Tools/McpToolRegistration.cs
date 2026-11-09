@@ -83,6 +83,9 @@ public static class McpToolRegistration
             [typeof(ProjectWriteTools)] = builder => builder.WithClosedTools(typeof(ProjectWriteTools),
                 (services, tool, message) => WriteRejection(new LifecycleWriteDomain(Client(services), new LifecycleWriteItem(tool)), message),
                 closeNestedSchemas: false),
+            [typeof(ProjectServers.ProjectServerWriteTools)] = builder => builder.WithClosedTools(typeof(ProjectServers.ProjectServerWriteTools),
+                (services, _, message) => WriteRejection(new ProjectServers.ProjectServerWriteDomain(Client(services)), message),
+                closeNestedSchemas: true),
             [typeof(PlcDownload.PlcDownloadTools)] = builder => builder.WithClosedTools(typeof(PlcDownload.PlcDownloadTools),
                 (services, _, message) => WriteRejection(new PlcDownload.PlcDownloadWriteDomain(Client(services)), message),
                 closeNestedSchemas: true, transformSchemaNode: PlcDownload.PlcDownloadToolRegistration.TransformSchema),
@@ -115,7 +118,10 @@ public static class McpToolRegistration
                          typeof(PlcOnline.PlcStationUploadTools), typeof(Library.LibraryWriteTools) })
                 builder.WithProductionTools(type);
         if (OperationPolicyCatalog.IsCapabilityAllowed(mode, OperationCapability.ProjectLifecycle))
+        {
             builder.WithProductionTools(typeof(ProjectWriteTools));
+            builder.WithProductionTools(typeof(ProjectServers.ProjectServerWriteTools));
+        }
         if (OperationPolicyCatalog.IsCapabilityAllowed(mode, OperationCapability.OnlineControl))
             foreach (var type in new[] { typeof(PlcDownload.PlcDownloadTools), typeof(PlcWebApi.PlcWebApiWriteTools), typeof(PlcOnline.PlcOnlineConnectionTools) })
                 builder.WithProductionTools(type);
@@ -146,12 +152,13 @@ public static class McpToolRegistration
             WritePhases.Error, false, new WriteToolError(ValidationError, message), [], [], [], null, default))), isError: true);
 }
 
-/// <summary>The one production guard catalog: lifecycle, Network, PLC, HMI, VCI, PLC-download, PLC-online and library guard definitions.</summary>
+/// <summary>The one production guard catalog: lifecycle, Network, PLC, HMI, VCI, PLC-download, PLC-online, library and Project Server guard definitions.</summary>
 public static class WriteGuardRegistration
 {
     public static WriteGuardCatalog ProductionCatalog()
         => new(LifecycleWriteDomain.GuardDefinitions.Concat(NetworkGuardDefinitions.Definitions).Concat(PlcGuardDefinitions.Definitions)
             .Concat(Hmi.HmiGuardDefinitions.Definitions).Concat(Vci.VciGuardDefinitions.Definitions)
             .Concat(PlcDownload.PlcDownloadGuardDefinitions.Definitions).Concat(PlcOnline.PlcOnlineGuardDefinitions.Definitions)
-            .Concat(Library.LibraryGuardDefinitions.Definitions));
+            .Concat(Library.LibraryGuardDefinitions.Definitions)
+            .Concat(ProjectServers.ProjectServerGuardDefinitions.Definitions));
 }

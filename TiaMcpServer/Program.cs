@@ -5,6 +5,7 @@ using TiaMcpServer.Cli;
 using TiaMcpServer.Cli.Install;
 using TiaMcpServer.Cursors;
 using TiaMcpServer.Hmi;
+using TiaMcpServer.McpContext;
 using TiaMcpServer.Network;
 using TiaMcpServer.OperationBatches;
 using TiaMcpServer.ProjectTree;
@@ -186,7 +187,8 @@ namespace TiaMcpServer
             builder.Services
                 .AddMcpServer()
                 .WithStdioServerTransport()
-                .WithAccessModeTools(accessMode);
+                .WithAccessModeTools(accessMode)
+                .WithTiaMcpResourcesAndPrompts(accessMode);
 
             using var host = builder.Build();
             await host.RunAsync();

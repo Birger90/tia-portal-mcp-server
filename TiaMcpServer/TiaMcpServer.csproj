@@ -28,6 +28,9 @@
     <ProjectReference Include="..\TiaMcpServer.Contracts\TiaMcpServer.Contracts.csproj" />
   </ItemGroup>
 
+  <!-- Reference documents served as MCP resources (tia-mcp://docs/...). -->
+  <Import Project="McpContext\EmbeddedDocs.props" />
+
   <ItemGroup>
     <None Include="../README.md" Pack="true" PackagePath="/" />
     <None Include="../LICENSE" Pack="true" PackagePath="/" />

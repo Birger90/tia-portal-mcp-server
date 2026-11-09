@@ -20,7 +20,8 @@ public sealed class PlcOnlineCatalogTests
         Assert.Equal(OperationCapability.OnlineObserve, Enum.GetValues<OperationCapability>().Max());
         foreach (var mode in new[] { McpAccessMode.ReadOnly, McpAccessMode.ReadWrite, McpAccessMode.Full })
             Assert.True(OperationPolicyCatalog.IsCapabilityAllowed(mode, OperationCapability.OnlineObserve));
-        Assert.Equal(new[] { PlcOnlineMethods.CompareToOnline, PlcOnlineMethods.CompareHardwareToOnline, TiaMcpServer.Contracts.Plc.PlcSourceFolderMethods.ScanAccessibleDevices }
+        Assert.Equal(new[] { PlcOnlineMethods.CompareToOnline, PlcOnlineMethods.CompareHardwareToOnline, TiaMcpServer.Contracts.Plc.PlcSourceFolderMethods.ScanAccessibleDevices,
+                PlcOnlineMethods.GetStationFingerprintData /* audit N3 */ }
             .Concat(TiaMcpServer.Contracts.Plc.Settings.PlcUmacMethods.UmcServerReads) // package G: the UMC server reads
             .OrderBy(name => name, StringComparer.Ordinal), OperationPolicyCatalog.AllOperationNames
             .Where(name => OperationPolicyCatalog.GetCapability(name) == OperationCapability.OnlineObserve).OrderBy(name => name, StringComparer.Ordinal));
@@ -156,7 +157,7 @@ public sealed class PlcOnlineCatalogTests
     {
         var readOps = PlcOperationCatalog.ReadOperationNames.Where(name => PlcOnlineMethods.ObserveMethods.Concat(PlcOnlineMethods.TemporaryExportMethods)
             .Concat(PlcOnlineMethods.OnlineObserveMethods).Contains(name)).ToArray();
-        Assert.Equal(11, readOps.Length);
+        Assert.Equal(12, readOps.Length); // 11 + get_station_fingerprint_data (audit N3)
         Assert.Equal(PlcOnlineMethods.ContentWriteMethods.OrderBy(n => n), PlcOperationCatalog.WriteOperationNames
             .Where(name => PlcOnlineMethods.ProjectMutationMethods.Contains(name)).OrderBy(n => n));
     }

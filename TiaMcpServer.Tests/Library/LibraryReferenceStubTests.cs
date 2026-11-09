@@ -113,7 +113,7 @@ public sealed class LibraryReferenceStubTests
         Assert.DoesNotContain(Lib + "Types.LibraryTypeVersionComposition", types);
     }
 
-    private static string Path(string assembly) => System.IO.Path.Combine(ReferenceStubArtifactTests.RepositoryRoot, "ref", assembly + ".dll");
+    private static string Path(string assembly) => System.IO.Path.Combine(TiaMcpServer.Tests.TestSupport.RepositoryFiles.Root, "ref", assembly + ".dll");
 
     private static HashSet<string> PublicTypes(string assembly)
     {

@@ -27,7 +27,7 @@ network operations and the current guarded canonical contract. Historical Phase4
 ## Supported operations
 
 Phase 4 adds exactly three write operations to the existing `network_write` tool. No new MCP tool
-was added. The current surface is 13 tools in read-only and 32 in each writable mode. `network_write` is available in read-write and full.
+was added. The current surface is 13 tools in read-only and 33 in each writable mode. `network_write` is available in read-write and full.
 
 | Operation | Purpose | Required request fields |
 |---|---|---|

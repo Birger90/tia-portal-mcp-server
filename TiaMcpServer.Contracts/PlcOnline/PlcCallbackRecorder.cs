@@ -139,6 +139,17 @@ public static class PlcCallbackPolicy
     }
 }
 
+/// <summary>
+/// Audit N2: thrown by <see cref="IPlcCallbackAccess.ApplyPassword"/> when a user-based online login cannot be answered before anything
+/// was set (no <c>onlineUser</c>, an unknown <c>userType</c>, a missing member); the recorder turns it into its abort.
+/// </summary>
+public sealed class PlcOnlineLoginNotApplicableException : Exception
+{
+    public PlcOnlineLoginNotApplicableException(string message, bool selectionUnavailable) : base(message) => SelectionUnavailable = selectionUnavailable;
+
+    public bool SelectionUnavailable { get; }
+}
+
 /// <summary>Thrown from a callback to abort the Siemens operation; the recorder already holds the evidence.</summary>
 public sealed class PlcCallbackAbortedException : Exception
 {
@@ -198,18 +209,21 @@ public sealed class PlcCallbackReflectionAccess : IPlcCallbackAccess
     private readonly Func<object, string?> _readMessage;
     private readonly Func<string, string?> _readEnvironment;
     private readonly Shared.ICredentialReader? _credentials;
+    private readonly PlcOnlineUserInfo? _onlineUser;
 
+    /// <param name="onlineUser">Audit N2: the user of a user-based online login (<see cref="PlcOnlineAuthentication"/>); null answers none.</param>
     public PlcCallbackReflectionAccess(string configurationsNamespace, Func<object, string?> readMessage, Func<string, string?> readEnvironment,
-        Shared.ICredentialReader? credentials = null)
-        : this(new[] { configurationsNamespace ?? throw new ArgumentNullException(nameof(configurationsNamespace)) }, readMessage, readEnvironment, credentials)
+        Shared.ICredentialReader? credentials = null, PlcOnlineUserInfo? onlineUser = null)
+        : this(new[] { configurationsNamespace ?? throw new ArgumentNullException(nameof(configurationsNamespace)) }, readMessage, readEnvironment, credentials, onlineUser)
     {
     }
 
     /// <summary>For a recorder that answers configurations of several namespaces (station upload and its online legitimation).</summary>
     public PlcCallbackReflectionAccess(IReadOnlyCollection<string> configurationsNamespaces, Func<object, string?> readMessage, Func<string, string?> readEnvironment,
-        Shared.ICredentialReader? credentials = null)
+        Shared.ICredentialReader? credentials = null, PlcOnlineUserInfo? onlineUser = null)
     {
         _credentials = credentials;
+        _onlineUser = onlineUser;
         if (configurationsNamespaces is null || configurationsNamespaces.Count == 0 || configurationsNamespaces.Any(string.IsNullOrEmpty))
             throw new ArgumentException("At least one configurations namespace is required.", nameof(configurationsNamespaces));
         _namespaces = configurationsNamespaces.ToArray();
@@ -226,7 +240,8 @@ public sealed class PlcCallbackReflectionAccess : IPlcCallbackAccess
     public PlcCallbackShape Describe(object configuration)
     {
         var type = configuration.GetType();
-        if (PasswordSetter(type) is not null) return new PlcCallbackShape(PlcCallbackPolicy.Kinds.Password);
+        // Audit N2: a user-based online login (OnlineCredentials with SetPassword) is a password configuration too.
+        if (PasswordSetter(type) is not null || PlcOnlineAuthentication.IsAuthenticationType(type)) return new PlcCallbackShape(PlcCallbackPolicy.Kinds.Password);
         if (SelectionProperty(type) is { } selection)
             return new PlcCallbackShape(PlcCallbackPolicy.Kinds.Selection,
                 Enum.GetNames(selection.PropertyType).Take(PlcCallbackPolicy.MaxAvailableSelections).ToArray());
@@ -244,10 +259,20 @@ public sealed class PlcCallbackReflectionAccess : IPlcCallbackAccess
 
     public bool ApplyPassword(object configuration, string variable)
     {
-        var setter = PasswordSetter(configuration.GetType()) ?? throw new InvalidOperationException("The configuration has no password setter.");
+        var setter = PasswordSetter(configuration.GetType());
+        PlcOnlineAuthentication.Binding? login = null;
+        if (setter is null && PlcOnlineAuthentication.IsAuthenticationType(configuration.GetType()))
+        {
+            // Audit N2: bound before the password is resolved; a binding error is the recorder's decision_not_applicable/selection_unavailable.
+            login = PlcOnlineAuthentication.Bind(configuration, _onlineUser);
+            if (login.Error is { } error) throw new PlcOnlineLoginNotApplicableException(error, login.SelectionUnavailable);
+        }
+        else if (setter is null)
+            throw new InvalidOperationException("The configuration has no password setter.");
         using var secure = Shared.PasswordSources.Resolve(variable, _readEnvironment, _credentials, out _);
         if (secure is null) return false;
-        Invoke(() => setter.Invoke(configuration, new object[] { secure }));
+        if (login is not null) login.Apply(secure);
+        else Invoke(() => setter!.Invoke(configuration, new object[] { secure }));
         return true;
     }
 
@@ -502,6 +527,12 @@ public sealed class PlcCallbackRecorder
         try
         {
             applied = _access.ApplyPassword(configuration, variable!);
+        }
+        catch (PlcOnlineLoginNotApplicableException notApplicable)
+        {
+            // Audit N2: the user-based login could not be answered (no onlineUser, an unknown userType, a missing member); nothing was set.
+            Fail(entry, PlcCallbackPolicy.AbortReasons.DecisionNotApplicable, notApplicable.Message);
+            return;
         }
         catch (Exception ex)
         {

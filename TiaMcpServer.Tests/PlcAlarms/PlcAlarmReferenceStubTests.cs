@@ -96,7 +96,7 @@ public sealed class PlcAlarmReferenceStubTests
         Assert.DoesNotContain("Siemens.Engineering.SW.Alarm.PlcAlarm", types);
     }
 
-    private static string Path(string assembly) => System.IO.Path.Combine(ReferenceStubArtifactTests.RepositoryRoot, "ref", assembly + ".dll");
+    private static string Path(string assembly) => System.IO.Path.Combine(TiaMcpServer.Tests.TestSupport.RepositoryFiles.Root, "ref", assembly + ".dll");
 
     private static HashSet<string> PublicTypes(string assembly)
     {

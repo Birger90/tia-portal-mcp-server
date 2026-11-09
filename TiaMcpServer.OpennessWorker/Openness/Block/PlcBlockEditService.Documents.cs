@@ -58,8 +58,10 @@ internal static partial class PlcBlockEditService
         // The main safety block of an F-runtime group is never replaced by a SIMATIC SD import (live 2026-11-02, L1-L4): the
         // document goes through a temporary F-block and is imported onto the block as SimaticML.
         if (existing is not null && Safety.PlcMainSafetyBlockSdRouteWorker.Find(project, address.PlcName, plc, existing) is { } route)
-            return CreateOntoMainSafetyBlock(project, plc, target, existing, document, route, links, messages);
+            return CreateOntoMainSafetyBlock(project, plc, target, existing, document, route, links, messages, request.DocumentImportOption);
 
+        // Audit N7: Override, or Override combined with the caller's culture member; refused before anything is written.
+        var documentOptions = BlockImporter.DocumentImportOptions(request.DocumentImportOption);
         var directory = Path.Combine(Path.GetTempPath(), "tia-mcp-sd-create-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
         try
@@ -68,7 +70,7 @@ internal static partial class PlcBlockEditService
             // The .s7res is optional: TIA Portal's own export of a block without texts has none (live 2026-11-02, E1/E5).
             if (document.S7res is not null)
                 File.WriteAllBytes(Path.Combine(directory, document.BaseName + SimaticSdText.ResourceExtension), SimaticSdFileText.Encode(document.S7res));
-            DocumentImportResultForBlocks result = target.Group.Blocks.ImportFromDocuments(new DirectoryInfo(directory), document.BaseName, ImportDocumentOptions.Override);
+            DocumentImportResultForBlocks result = target.Group.Blocks.ImportFromDocuments(new DirectoryInfo(directory), document.BaseName, documentOptions);
             var importMessages = SimaticSdImportMessages.Read(result);
             if (result.State != DocumentResultState.Success)
                 throw new WorkerOperationException(WorkerFailureCategories.WorkerOperationFailed,
@@ -110,11 +112,12 @@ internal static partial class PlcBlockEditService
     /// reported, never applied: move it with move_block). A failure carries the route evidence as the item's result.
     /// </summary>
     private static PlcBlockEditResultInfo CreateOntoMainSafetyBlock(ProjectBase project, PlcSoftware plc, LocatedBlockGroup target, LocatedBlock existing,
-        SimaticSdBlockDocument document, Safety.PlcMainSafetyBlockSdRouteWorker.Target route, Safety.PlcMainSafetyBlockLinkGuard? links, List<string> messages)
+        SimaticSdBlockDocument document, Safety.PlcMainSafetyBlockSdRouteWorker.Target route, Safety.PlcMainSafetyBlockLinkGuard? links, List<string> messages,
+        string? documentImportOption)
     {
         try
         {
-            var (result, info, warnings) = Safety.PlcMainSafetyBlockSdRouteWorker.Run(project, route, SimaticSdMethods.CreateBlockFromDocument, document.S7dcl, document.S7res);
+            var (result, info, warnings) = Safety.PlcMainSafetyBlockSdRouteWorker.Run(project, route, SimaticSdMethods.CreateBlockFromDocument, document.S7dcl, document.S7res, documentImportOption);
             links?.After();
             foreach (var warning in result.Warnings.Concat(warnings)) Console.Error.WriteLine(warning);
             messages.Add($"'{existing.CanonicalPath}' is the main safety block of F-runtime group(s) {string.Join(", ", info.RuntimeGroups.Select(g => $"'{g}'"))}: the document was imported "

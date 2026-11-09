@@ -74,9 +74,27 @@ namespace Siemens.Engineering.Online.Configurations
         public void SetPassword(System.Security.SecureString password) => PasswordSupplied = password.Length > 0;
     }
 
-    /// <summary>An online configuration that is neither a selection nor a password (for example authentication): it cannot be answered.</summary>
+    /// <summary>Audit N2: the documented V21 UserType members (values are the test's, not Siemens').</summary>
+    public enum UserType { None, AnonymousUser, GlobalUser, PasswordOnly, ProjectUser, SingleSignOnUser }
+
+    /// <summary>Audit N2: OnlineCredentials with the documented Name, Type and SetPassword(SecureString).</summary>
+    public class OnlineCredentials
+    {
+        public string Name { get; set; } = string.Empty;
+
+        public UserType Type { get; set; } = UserType.None;
+
+        public int PasswordLength { get; private set; }
+
+        public void SetPassword(System.Security.SecureString password) => PasswordLength = password.Length;
+    }
+
+    /// <summary>Audit N2: a user-based online login (documented OnlineCredentials and IsSecureCommunication).</summary>
     public class OnlineAuthenticationConfiguration
     {
+        public bool IsSecureCommunication { get; set; } = true;
+
+        public OnlineCredentials OnlineCredentials { get; } = new();
     }
 }
 

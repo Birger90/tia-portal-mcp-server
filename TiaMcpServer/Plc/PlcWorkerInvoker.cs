@@ -51,6 +51,19 @@ public static class PlcWorkerInvoker
                     Passwords = PlcOnlineMethods.IsOnlineCompare(operation.Operation)
                         ? PlcOnline.PlcOnlineConnectionTools.Passwords(operation.Passwords, null, client.BindingSnapshot.ProjectPath, operation.PlcName).ToList()
                         : new List<PlcCallbackPasswordInfo>(),
+                    OnlineUser = PlcOnlineMethods.IsOnlineCompare(operation.Operation) ? operation.OnlineUser?.ToInfo() : null,
+                }),
+                PlcOnlineMethods.GetStationFingerprintData => client.ComparePlcAsync(operation.Operation, new PlcOnlineRequestInfo
+                {
+                    // Audit N3: the provider's own connection path and the node address the caller names; nothing defaults.
+                    Mode = operation.Mode,
+                    PcInterfaceName = operation.PcInterface?.Name,
+                    PcInterfaceNumber = operation.PcInterface?.Number ?? -1,
+                    TargetAddress = operation.TargetAddress,
+                    MaxElements = operation.MaxElements ?? PlcFingerprintData.DefaultMaxItems,
+                    TrustedCertificates = PlcOperationCatalog.TrustedCertificates(operation).ToList(),
+                    Passwords = PlcOnline.PlcOnlineConnectionTools.Passwords(operation.Passwords, null, client.BindingSnapshot.ProjectPath, operation.PlcName).ToList(),
+                    OnlineUser = operation.OnlineUser?.ToInfo(),
                 }),
                 PlcOnlineMethods.GetOnlineState => client.GetOnlineStateAsync(operation.PlcName),
                 PlcOnlineMethods.ListStationUploadInterfaces => client.ListStationUploadInterfacesAsync(),
@@ -173,6 +186,7 @@ public static class PlcWorkerInvoker
         Overwrite = PlcBlockEditMethods.CallerFileWrites.Contains(op.Operation, StringComparer.Ordinal) || op.Operation == Contracts.Plc.SimaticSd.SimaticSdMethods.CreateBlockFromDocument ? op.Overwrite : null,
         Content = op.Operation == Contracts.Plc.SimaticSd.SimaticSdMethods.CreateBlockFromDocument ? op.Content : null,
         TemporaryStamp = op.Operation is PlcBlockEditMethods.RenameTags or PlcBlockEditMethods.RenameObjects ? Guid.NewGuid().ToString("N").Substring(0, 8) : null,
+        DocumentImportOption = op.Operation == Contracts.Plc.SimaticSd.SimaticSdMethods.CreateBlockFromDocument ? op.DocumentImportOption : null,
     };
 
     private static Task<WorkerCallResult> InvokeUpdateBlockLogic(OpennessWorkerClient client, PlcOperationRequest op)
@@ -189,11 +203,12 @@ public static class PlcWorkerInvoker
             });
         }
 
-        return client.UpdateBlockLogicAsync(op.BlockPath!, op.Content!, format: format, expectedContentHash: op.ExpectedContentHash);
+        return client.UpdateBlockLogicAsync(op.BlockPath!, op.Content!, format: format, expectedContentHash: op.ExpectedContentHash,
+            swImportOptions: op.SwImportOptions, documentImportOption: op.DocumentImportOption);
     }
 
     private static Task<WorkerCallResult> InvokeUpdateTypeContent(OpennessWorkerClient client, PlcOperationRequest op)
         => PlcFormatNames.TryNormalize(op.Operation, op.Format, out var format, out var error)
-            ? client.UpdateTypeContentAsync(op.TypePath!, op.Content!, format: format, expectedContentHash: op.ExpectedContentHash)
+            ? client.UpdateTypeContentAsync(op.TypePath!, op.Content!, format: format, expectedContentHash: op.ExpectedContentHash, swImportOptions: op.SwImportOptions)
             : Task.FromResult(WorkerCallResult.Fail(WorkerFailureCategories.ValidationError, error!));
 }

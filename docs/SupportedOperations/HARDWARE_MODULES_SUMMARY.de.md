@@ -8,7 +8,7 @@ installiertes TIA Portal V21 verifiziert. Die FakeWorker-Fixture modelliert nur 
 Verhalten von Siemens. Vor dem Verlass auf diese Operationen die [Live-Abnahmeliste](#live-abnahmeliste) an einem Wegwerfprojekt
 abarbeiten.
 
-Die Operationen erweitern bestehende Tools; sie haben kein Tool hinzugefügt (die Zählungen waren 10/27/27, 11/30/30 seit den Bibliotheks-Tools, 12/31/31 seit `tia_inbox`, 13/32/32 seit `siemens_docs`):
+Die Operationen erweitern bestehende Tools; sie haben kein Tool hinzugefügt (die Zählungen waren 10/27/27, 11/30/30 seit den Bibliotheks-Tools, 12/31/31 seit `tia_inbox`, 13/32/32 seit `siemens_docs`, 13/33/33 seit `project_server_write`):
 
 | Tool | Hinzugefügte Operationen |
 |---|---|

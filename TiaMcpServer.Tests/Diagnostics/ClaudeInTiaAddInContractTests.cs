@@ -54,7 +54,7 @@ public sealed class ClaudeInTiaAddInContractTests
         var tia = document.Descendants(ns + "TIAPermissions").Single().Elements().Select(e => e.Name.LocalName).ToArray();
         Assert.Equal(new[] { "TIA.ReadOnly" }, tia);
         var security = document.Descendants(ns + "SecurityPermissions").Single().Elements().Select(e => e.Name.LocalName).ToArray();
-        Assert.Equal(new[] { "System.Security.Permissions.FileIOPermission-UNRESTRICTED" }, security);
+        Assert.Equal(new[] { "System.Security.Permissions.FileIOPermission" }, security);
         Assert.Empty(document.Descendants(ns + "UnrestrictedPermissions"));
     }
 

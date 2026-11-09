@@ -71,6 +71,7 @@ sealed partial class PlcWriteRoundtripScenario
             Throw(WorkerFailureCategories.ValidationError, $"The .s7dcl document declares '{declared}' but '{request.BlockPath}' resolves to '{block}'.");
         RequireFailSafeImportPermitted(plc, block, request.Content);
         RequireHash(request, SourceFormatNames.Sd, ExportSd(plc, block, path));
+        ApplyDocumentImportOption(request.DocumentImportOption, request.Content);
         // Onto a main safety block the worker never imports the SD document (live 2026-11-02, L1-L4): the temporary F-block route.
         if (MainSafetyGroups(plc, block) is { Count: > 0 } groups)
             return UpdateMainSafetyBlockThroughRoute(request, plc, ResolveBlock(request.BlockPath!).Group, block, path, groups);
@@ -98,6 +99,7 @@ sealed partial class PlcWriteRoundtripScenario
         RequireFailSafeImportPermitted(plc, document.BlockName, edit.Content, SimaticSdMethods.CreateBlockFromDocument);
         if (document.BlockName == RejectedTagName)
             Throw(WorkerFailureCategories.WorkerOperationFailed, $"TIA Portal returned SIMATIC SD import state 'Failure' for '{document.BaseName}': Syntax Error: scripted rejection");
+        ApplyDocumentImportOption(edit.DocumentImportOption, edit.Content);
         var replacedPath = existing.Count > 0 ? BlocksPath(plc, existing[0].Folders, existing[0].Block) : null;
         var messages = new List<string>();
         if (document.CultureNote is { } cultureNote) messages.Add(cultureNote);

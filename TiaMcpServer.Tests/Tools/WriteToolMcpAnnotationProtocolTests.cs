@@ -46,6 +46,7 @@ public class WriteToolMcpAnnotationProtocolTests
         "plcsim_read",
         "plcsim_test",
         "plcsim_write",
+        "project_server_write",
         "read_cross_references",
         "retrieve_project",
         "save_project",
@@ -69,6 +70,7 @@ public class WriteToolMcpAnnotationProtocolTests
         ("hmi_write", false, true, null, false),
         ("vci_write", false, true, null, false),
         ("library_write", false, true, null, false),
+        ("project_server_write", false, true, null, true),
         ("plc_download", false, true, null, true),
         ("plc_tia_online", false, false, null, true),
         ("plc_station_upload", false, false, null, true),
@@ -86,7 +88,7 @@ public class WriteToolMcpAnnotationProtocolTests
         var byName = tools.ToDictionary(tool => tool.Name, StringComparer.Ordinal);
 
         Assert.Equal(FullToolNames, tools.Select(tool => tool.Name));
-        Assert.Equal(32, tools.Length);
+        Assert.Equal(33, tools.Length);
         Assert.All(
             tools,
             tool => Assert.Equal(

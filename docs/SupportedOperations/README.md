@@ -26,7 +26,7 @@ plus the online/offline compare, online-state, station-upload-interface and watc
 `read_cross_references` is a standalone tool. `execute_read_batch` was retired.
 Hardware/catalog reads use `network_read`. WinCC Unified HMI reads use `hmi_read`; tag-table/tag/alarm writes use `hmi_write`. See [HMI_OPERATIONS_SUMMARY.md](HMI_OPERATIONS_SUMMARY.md).
 
-Project binding, status, project-tree browsing, and compilation are separate tools: `bind_project`, `get_project_status`, `browse_project_tree`, and `compile_check`. The first three are available in every mode; compile, lifecycle, `plc_download`, `plc_online_write`, `plc_tia_online` and `plc_station_upload` are available in read-write and full. Full adds no tools or operations; the Openness PLC run/stop (`start_plc`/`stop_plc`) was removed, and a real CPU's operating mode changes only through `plc_online_write change_operating_mode` over the Web API. See [Installation](../guides/installation.md#access-modes) for the 13/32/32 surfaces and confirmation policy.
+Project binding, status, project-tree browsing, and compilation are separate tools: `bind_project`, `get_project_status`, `browse_project_tree`, and `compile_check`. The first three are available in every mode; compile, lifecycle, `plc_download`, `plc_online_write`, `plc_tia_online` and `plc_station_upload` are available in read-write and full. Full adds no tools or operations; the Openness PLC run/stop (`start_plc`/`stop_plc`) was removed, and a real CPU's operating mode changes only through `plc_online_write change_operating_mode` over the Web API. See [Installation](../guides/installation.md#access-modes) for the 13/33/33 surfaces and confirmation policy.
 
 `plc_download` downloads the bound standalone project's PLC to PLC simulation (the `PLCSIM` PC interface) or to a real controller (any other PC interface), confirming every actual read-write call; the access mode is the only control over hardware downloads. See the [PLC download reference](PLC_DOWNLOAD_SUMMARY.md); it is not live-tested.
 
@@ -124,6 +124,7 @@ Read responses may include `warnings` for partial or degraded data. Hardware rea
 | Standalone VCI workspaces (`vci_read`, `vci_write`) | [VCI_OPERATIONS_SUMMARY.md](VCI_OPERATIONS_SUMMARY.md) |
 | Project and global libraries, types, master copies (`library_read`, `library_write`) | [LIBRARY_OPERATIONS_SUMMARY.md](LIBRARY_OPERATIONS_SUMMARY.md) |
 | "Claude in TIA": TIA Portal Add-In, inbox/outbox hand-over to Claude (`tia_inbox`), Claude bridge | [CLAUDE_IN_TIA.md](CLAUDE_IN_TIA.md) |
+| MCP resources (embedded reference documents, operation reference) and prompts (workflows) | [MCP_RESOURCES_PROMPTS_SUMMARY.md](MCP_RESOURCES_PROMPTS_SUMMARY.md) |
 | External sources, project-tree folders (find, rename, type and tag-table group create/delete), software units (create, delete, rename), tag comments, CSV and batch file exports, accessible-device scan | [PLC_SOURCES_FOLDERS_SUMMARY.md](PLC_SOURCES_FOLDERS_SUMMARY.md) |
 | PLC alarms, alarm classes, text lists, ProDiag supervisions and assignments (`plc_read`, `plc_write`) | [PLC_ALARMS_TEXTLISTS_SUMMARY.md](PLC_ALARMS_TEXTLISTS_SUMMARY.md) |
 | Technology objects: list, parameters, hardware connections, export/import (`plc_read`, `plc_write`) | [TECHNOLOGY_OBJECTS_SUMMARY.md](TECHNOLOGY_OBJECTS_SUMMARY.md) |
@@ -137,6 +138,7 @@ Read responses may include `warnings` for partial or degraded data. Hardware rea
 | SIMATIC drives / Startdrive | [SIMATIC_DRIVES_OPERATIONS_SUMMARY.md](SIMATIC_DRIVES_OPERATIONS_SUMMARY.md) |
 | PLC import/export formats | [IMPORT_EXPORT_OPTIONS_SUMMARY.md](IMPORT_EXPORT_OPTIONS_SUMMARY.md) |
 | Multiuser inventory through `bind_project`, passive context and acceptance boundary | [MULTIUSER_OPERATIONS_SUMMARY.md](MULTIUSER_OPERATIONS_SUMMARY.md) |
+| Project Server administration (`project_server_write`): connections, upload, local sessions | [PROJECT_SERVER_WRITE_SUMMARY.md](PROJECT_SERVER_WRITE_SUMMARY.md) |
 | Teamcenter | [TEAMCENTER_OPERATIONS_SUMMARY.md](TEAMCENTER_OPERATIONS_SUMMARY.md) |
 | TestSuite | [TESTSUITE_OPERATIONS_SUMMARY.md](TESTSUITE_OPERATIONS_SUMMARY.md) |
 

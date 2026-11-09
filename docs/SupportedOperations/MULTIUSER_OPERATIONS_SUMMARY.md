@@ -4,7 +4,7 @@
 
 `bind_project` exposes explicit Portal discovery and five Project Server inventory actions in
 all modes. Omitted/null `action` or `action:"bind"` selects already-open standalone `.ap21`
-or typed local-session `.amc21` owners. Current discovery is **13/32/32** tools in
+or typed local-session `.amc21` owners. Current discovery is **13/33/33** tools in
 read-only/read-write/full. PR4 adds explicit existing `.als21` opening in writable modes and
 basic local status; PR5 adds local content reads and PR6 local content writes, compilation and
 `LocalSession.Save()` (see [Internal context](#internal-context)). PR1/PR2 ownership contracts remain the foundation; Issue #65 is incomplete.
@@ -203,7 +203,7 @@ without session save, discard or commit. See the [project reference](PROJECT_OPE
 ## Public Multiuser work still pending
 
 `get_session_state`, `get_markings`, mark/unmark, lock-aware write preconditions, discard,
-commit and server mutation remain undelivered. `.als21` remains an opening input,
+and commit remain undelivered. Server administration (connections, project upload, creating and deleting local sessions) is the separate Portal-level tool `project_server_write` (not live-tested; [reference](PROJECT_SERVER_WRITE_SUMMARY.md)); `bind_project` stays read-only. `.als21` remains an opening input,
 never a bind/status/startup assertion; those use observed `.amc21` identity. Inventory
 does not open/bind implicitly to satisfy an open-project prerequisite; current-PR live evidence
 must establish the prerequisite and scope. Generic standalone lifecycle cannot replace a synthetic

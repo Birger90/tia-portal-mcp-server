@@ -34,7 +34,7 @@ Use `bind_project` in any mode to adopt or switch to an already-open project; a 
 requires `forceRebind:true`. Ordinary PLC reads never bind, switch or open. Only `open_project` and
 `create_project` open projects. Lifecycle runs in read-write with one confirmation form per actual
 call, or in full without server elicitation; block guards stop the call in every mode. The complete
-tool counts are 13/32/32. Read-only never opens, creates, saves or closes a project. Downloading a PLC to
+tool counts are 13/33/33. Read-only never opens, creates, saves or closes a project. Downloading a PLC to
 PLCSIM or real hardware is the separate `plc_download` tool; see the [PLC download reference](PLC_DOWNLOAD_SUMMARY.md).
 Going online/offline and station upload are the separate `plc_tia_online` and `plc_station_upload` tools; see the [PLC online Openness reference](PLC_ONLINE_OPENNESS_SUMMARY.md).
 Simulated CPUs are driven by the `plcsim_*` tools; see the [PLCSIM operations reference](PLCSIM_OPERATIONS_SUMMARY.md).
@@ -615,9 +615,10 @@ Two `plc_read` operations (every mode; `Observe`; standalone projects and local 
   `Properties`, `ProgramCode`, but the type of `Fingerprint.Id` is not stated, so nothing is assumed).
 - **No stub member** was added: every member is bound at runtime by the Siemens-free `PlcChangeDetectionRun` and
   `RuntimeServiceValues` (Contracts `Shared`), shared with the FakeWorker.
-- **Left out:** the online `Siemens.Engineering.FingerprintData.FingerprintDataProvider`
-  (`GetFingerprintData(ConfigurationAddress, OnlineConfigurationDelegate)`, `Configuration`): it reads fingerprint data from
-  a device online (a connection configuration and online callbacks), which these offline reads do not do.
+- **Online counterpart:** the online `Siemens.Engineering.FingerprintData.FingerprintDataProvider`
+  (`GetFingerprintData(ConfigurationAddress, OnlineConfigurationDelegate)`) is the separate `OnlineObserve` read
+  `get_station_fingerprint_data` (audit N3, not live-tested; see the
+  [PLC online reference](PLC_ONLINE_OPENNESS_SUMMARY.md#station-fingerprint-data-get_station_fingerprint_data)).
 - **Live acceptance still required:** which objects list the two providers, the runtime types of the checksums, `Id` and
   `Value`, and whether the checksums are empty after a change and filled after `compile_check`.
 
@@ -761,7 +762,8 @@ Siemens-free `ProjectLanguagesRun`; a missing one is `api_member_missing` with n
   `updateSourceLanguage:false` the source-language column is not imported. Info guard `plc_imports_project_texts`.
 - **TIA Portal notifications (K75).** Live 2026-11-03 TIA Portal showed a modal information message after the export
   ("Export erfolgreich abgeschlossen. (0032:000002)") and the Openness call waited until a human clicked OK. The worker now
-  handles every `Notification` (`NotificationEventArgs.IsHandled = true`, for every operation, see ARCHITECTURE §4); the
+  handles every `Notification` raised during an MCP call (`NotificationEventArgs.IsHandled = true`, for every operation, see
+  ARCHITECTURE §4; K98: outside a call they are left to TIA Portal); the
   three project language writes list the ones handled during the call in `result.portalNotifications`
   (`{ caption, text, detailText, icon, handled }`), and each is also a warning. Not live-tested.
 - **Left out.** Nothing of the documented surface. Not offered: reading or writing single multilingual texts (other operations
@@ -1064,8 +1066,10 @@ other blocks and in instance DBs are not updated; the next compile reports them 
   interface (`Subelement` is not evidenced); DB values take them through `update_db_member`.
 - Creating or deleting interface sections, adding members inside array or UDT-typed members, and
   editing instance or array DB interfaces (an instance DB's interface is its FB's).
-- Imports that accept structural changes (`SWImportOptions.IgnoreStructuralChanges`) — the
-  existing importer path is reused unchanged.
+- Interface edits that accept structural changes (`SWImportOptions.IgnoreStructuralChanges`): the interface edits reuse the
+  importer path without import options. A caller-written SimaticML document can be imported with them through
+  `update_block_logic`/`update_type_content` `swImportOptions` (audit N8, see the
+  [import/export reference](IMPORT_EXPORT_OPTIONS_SUMMARY.md#update-contract); not live-tested).
 - A native block or tag-table move: none is documented, so moves are export/delete/import with the
   limits above; copy and move across software units or PLCs.
 - Network logic: LAD/FBD/SCL bodies are never edited by these operations.

@@ -7,6 +7,7 @@ using ModelContextProtocol.Server;
 using TiaMcpServer.Contracts.Project;
 using TiaMcpServer.Contracts.Safety;
 using TiaMcpServer.Cursors;
+using TiaMcpServer.McpContext;
 using TiaMcpServer.Network;
 using TiaMcpServer.ProjectTree;
 using TiaMcpServer.Safety;
@@ -127,7 +128,7 @@ internal sealed class McpProtocolTestHarness : IAsyncDisposable
         string? workerExecutablePath = null)
         => StartCoreAsync(
             accessMode,
-            builder => builder.WithAccessModeTools(accessMode),
+            builder => builder.WithAccessModeTools(accessMode).WithTiaMcpResourcesAndPrompts(accessMode),
             auditDirectory,
             startupProjectPath,
             clientOptions,
@@ -157,12 +158,8 @@ internal sealed class McpProtocolTestHarness : IAsyncDisposable
 
         var binding = new ProjectSessionBinding(skipHardwarePreverification ? startupProjectPath : null);
         var accessPolicy = new OperationAccessPolicy(accessMode);
-        var workerClient = new OpennessWorkerClient(
-            binding,
-            logger: null,
-            workerExecutablePath: workerExecutablePath ?? FakeWorkerLocator.Locate(),
-            requestTimeout: requestTimeout,
-            accessPolicy: accessPolicy);
+        var workerClient = FakeWorkerClients.Create(
+            accessPolicy.Mode, binding: binding, workerPath: workerExecutablePath, requestTimeout: requestTimeout);
 
         var collection = new ServiceCollection();
         collection.AddLogging();

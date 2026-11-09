@@ -133,7 +133,7 @@ internal sealed class WriteRun<TItem, TEffect, TVerification, TResponse>
             }
         }
 
-        if (_binding.IsVerified && _binding.Context is { } projectContext
+        if (!_domain.IsPortalScoped && _binding.IsVerified && _binding.Context is { } projectContext
             && !ProjectCapabilityCatalog.Supports(projectContext.ContainerKind, _domain.ToolName))
         {
             return Finish(Failure(WritePhases.Error, new WriteToolError(

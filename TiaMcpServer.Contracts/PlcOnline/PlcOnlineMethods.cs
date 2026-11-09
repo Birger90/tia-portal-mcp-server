@@ -36,6 +36,12 @@ public static class PlcOnlineMethods
     /// </summary>
     public const string CompareHardwareToOnline = "compare_hardware_to_online";
 
+    /// <summary>
+    /// Audit N3 (not live-tested): <c>FingerprintDataProvider.GetFingerprintData(ConfigurationAddress, OnlineConfigurationDelegate)</c>
+    /// reads the fingerprint data of the station at a node address (quick station compare); see <see cref="PlcFingerprintData"/>.
+    /// </summary>
+    public const string GetStationFingerprintData = "get_station_fingerprint_data";
+
     // plc_write: offline project mutations (ProjectMutation).
     public const string CreateWatchTable = "create_watch_table";
     public const string DeleteWatchTable = "delete_watch_table";
@@ -64,7 +70,7 @@ public static class PlcOnlineMethods
 
     public static IReadOnlyList<string> TemporaryExportMethods { get; } = new[] { GetWatchTableContent, GetForceTableContent };
 
-    public static IReadOnlyList<string> OnlineObserveMethods { get; } = new[] { CompareToOnline, CompareHardwareToOnline };
+    public static IReadOnlyList<string> OnlineObserveMethods { get; } = new[] { CompareToOnline, CompareHardwareToOnline, GetStationFingerprintData };
 
     public static IReadOnlyList<string> ProjectMutationMethods { get; } = new[]
     {
@@ -90,7 +96,7 @@ public static class PlcOnlineMethods
     public static IReadOnlyList<string> StandaloneOnlyOperations { get; } = new[]
     {
         CompareToOnline, CompareSoftware, GetOnlineState, ListStationUploadInterfaces, OnlineTool, StationUpload,
-        CompareHardware, CompareHardwareToOnline,
+        CompareHardware, CompareHardwareToOnline, GetStationFingerprintData,
     };
 
     /// <summary>The four compare operations (one result type, <c>PlcCompareResultInfo</c>).</summary>

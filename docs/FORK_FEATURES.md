@@ -13,7 +13,7 @@ checked offline only (unit tests, FakeWorker).
 
 | | Original | Fork |
 | --- | --- | --- |
-| MCP tools | 19 | 32 |
+| MCP tools | 19 | 33 |
 | `plc_read` operations | 3 | 63 |
 | `plc_write` operations | 14 | 212 |
 | `network_read` / `network_write` | 4 / 5 | 17 / 35 |
@@ -22,8 +22,9 @@ checked offline only (unit tests, FakeWorker).
 | `plc_online_read` / `plc_online_write` (S7-1500 Web API) | – | 18 / 7 |
 | `vci_read` / `vci_write` | 3 / 6 | 3 / 6 |
 | `siemens_docs` (Siemens documentation) | – | 4 |
+| `project_server_write` (Project Server administration) | – | 6 |
 
-New tools: `retrieve_project` (retrieve a project archive; not live-tested), `plc_download`, `plc_tia_online`, `plc_station_upload`, `plcsim_read`, `plcsim_write`, `plcsim_test`,
+New tools: `retrieve_project` (retrieve a project archive; not live-tested), `project_server_write` (Project Server connections, uploads and local sessions; not live-tested), `plc_download`, `plc_tia_online`, `plc_station_upload`, `plcsim_read`, `plcsim_write`, `plcsim_test`,
 `plc_online_read`, `plc_online_write`, `library_read`, `library_write`, `tia_inbox` (Claude in TIA; not live-tested), `siemens_docs` (search and read the Siemens documentation without TIA Portal; own C# port of Czarnak/siemens-docs-mcp, MIT; not live-tested on the Windows PC).
 
 ## Features the original does not have
@@ -58,12 +59,14 @@ New tools: `retrieve_project` (retrieve a project archive; not live-tested), `pl
 | Compile | compile hardware (`scope:"hardware"`), set "support simulation during block compilation" | yes |
 | Change detection | software and text list checksums of a PLC, fingerprints of a block or PLC data type (`get_plc_checksums`, `get_fingerprints`) | no |
 | Libraries | project and global libraries, types, versions, master copies and their folders, clean-up, harmonize, types from documents, exports, detailed compares | no |
+| Project Server (Multiuser) | `project_server_write`: create, change and delete server connections, upload a project, create and delete local sessions; acknowledge guards for deletes and uploads ([reference](SupportedOperations/PROJECT_SERVER_WRITE_SUMMARY.md)) | no |
 | Claude in TIA (`tia_inbox`, TIA Portal Add-In, Claude bridge) | context menu "Claude" in TIA Portal hands the selected objects to Claude (inbox/outbox files, names only), replies shown in TIA Portal; optional bridge starts a headless Claude run per request ([reference](SupportedOperations/CLAUDE_IN_TIA.md)) | no |
 | Alarms and text lists | text lists, alarm texts, supervisions, ProDiag, alarm classes, system diagnostics settings as a file | no |
 | External sources, folders, software units | import and generate sources, manage groups and units, file exports | no |
 | WinCC Unified | screens, scripts and batch renames in addition to tags and alarms | no |
 | OPC UA export | export the CPU's OPC UA XML | no |
 | Password manager | Windows program "TiaMcp Passwortverwaltung": passwords in Windows Credential Manager, never in the chat; sets the access mode | no |
+| MCP resources and prompts | the bilingual reference documents and the operation reference (`tia-mcp://docs/...`, `tia-mcp://operations/{tool}/{operation}`) as read-only resources in every mode; eight workflow prompts (explain, review, revise safely, document, check hardware, safety overview, download to PLCSIM, Claude-in-TIA inbox) | no |
 
 ## Behavior that differs from the original
 

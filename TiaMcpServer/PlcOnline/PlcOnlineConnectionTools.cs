@@ -49,6 +49,9 @@ public class PlcOnlineConnectionTools
             + "(answered Yes and recorded).")] string portalConfirmations = PlcDownloadPolicy.PortalConfirmationPolicies.Decline,
         [Description("go_online only. " + PlcTrustedCertificatesDescription.Text)] PlcTrustedCertificateList? trustedCertificates = null,
         [Description("go_online only. " + PlcPasswordChannelDescription.Text)] bool allowInsecurePasswordTransfer = false,
+        [Description("go_online only. " + TiaMcpServer.PlcDownload.PlcOnlineUserDescription.Text)] TiaMcpServer.PlcDownload.PlcOnlineUserArgument? onlineUser = null,
+        [Description("go_online only, optional: a node address (e.g. the running IP when it differs from the project's offline IP), created with the PC interface's "
+            + "Addresses.Create and passed to OnlineProvider.GoOnline(ConfigurationAddress) after ApplyConfiguration; info guard online_custom_address. Not live-tested.")] string? targetAddress = null,
         [Description("Resolve the path and evaluate guards without connecting or asking for confirmation.")] bool dryRun = false,
         McpServer? server = null, CancellationToken cancellationToken = default)
     {
@@ -67,6 +70,8 @@ public class PlcOnlineConnectionTools
             // An explicit JSON null means omitted.
             TrustedCertificates = trustedCertificates?.Entries,
             AllowInsecurePasswordTransfer = allowInsecurePasswordTransfer,
+            OnlineUser = onlineUser,
+            TargetAddress = targetAddress,
         };
         return execution.RunAsync(new PlcOnlineConnectionWriteDomain(workerClient), new WriteCall<PlcOnlineConnectionItem>(new[] { item }, dryRun),
             new WriteConfirmationContext(server is null ? null : UserConfirmation.For(server, TimeSpan.FromMinutes(2))),
@@ -116,6 +121,7 @@ public class PlcStationUploadTools
             + "(answered Yes and recorded).")] string portalConfirmations = PlcDownloadPolicy.PortalConfirmationPolicies.Decline,
         [Description(PlcTrustedCertificatesDescription.Text)] PlcTrustedCertificateList? trustedCertificates = null,
         [Description(PlcPasswordChannelDescription.Text)] bool allowInsecurePasswordTransfer = false,
+        [Description(TiaMcpServer.PlcDownload.PlcOnlineUserDescription.Text)] TiaMcpServer.PlcDownload.PlcOnlineUserArgument? onlineUser = null,
         [Description("Resolve the path and evaluate guards without connecting or asking for confirmation.")] bool dryRun = false,
         McpServer? server = null, CancellationToken cancellationToken = default)
     {
@@ -133,6 +139,7 @@ public class PlcStationUploadTools
             // An explicit JSON null means omitted.
             TrustedCertificates = trustedCertificates?.Entries ?? Array.Empty<string>(),
             AllowInsecurePasswordTransfer = allowInsecurePasswordTransfer,
+            OnlineUser = onlineUser,
         };
         return execution.RunAsync(new PlcStationUploadWriteDomain(workerClient), new WriteCall<PlcStationUploadWriteItem>(new[] { item }, dryRun),
             new WriteConfirmationContext(server is null ? null : UserConfirmation.For(server, TimeSpan.FromMinutes(2))),

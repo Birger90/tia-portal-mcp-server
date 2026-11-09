@@ -97,9 +97,7 @@ public sealed class SimaticSdWorkerTests
 
     private static string WorkerSource(params string[] segments)
     {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "TiaMcpServer.slnx"))) directory = directory.Parent;
-        return File.ReadAllText(Path.Combine(new[] { directory!.FullName, "TiaMcpServer.OpennessWorker", "Openness" }.Concat(segments).ToArray()));
+        return File.ReadAllText(Path.Combine(new[] { TiaMcpServer.Tests.TestSupport.RepositoryFiles.Root, "TiaMcpServer.OpennessWorker", "Openness" }.Concat(segments).ToArray()));
     }
 
     [Fact]
@@ -107,7 +105,10 @@ public sealed class SimaticSdWorkerTests
     {
         var importer = WorkerSource("Block", "BlockImporter.SimaticSd.cs");
         Assert.Contains("target.Group.Blocks.ImportFromDocuments(", importer);
-        Assert.Contains("ImportDocumentOptions.Override);", importer);
+        // Audit N7: Override alone, or OR-combined with the caller's culture member through the shared PlcImportOptionNames.
+        Assert.Contains("return ImportDocumentOptions.Override;", importer);
+        Assert.Contains("PlcImportOptionNames.DocumentOptions(typeof(ImportDocumentOptions), cultureOption)", importer);
+        Assert.Contains("var options = DocumentImportOptions(documentImportOption);", importer);
         var safety = importer.IndexOf("Safety.PlcSafetyGate.RequireImportPermitted(", StringComparison.Ordinal);
         var hash = importer.IndexOf("BlockExporter.Export(project, blockPath, SourceFormatNames.Sd));", StringComparison.Ordinal);
         var name = importer.IndexOf("BlockImportRouting.RequireDeclaredName(", StringComparison.Ordinal);

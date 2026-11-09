@@ -88,7 +88,7 @@ Results add conditional `result.value.inspection`, with observed PID and typed n
 `transition:"none"` and `project:null`. Whole-value omission includes the inventory. See the
 [Multiuser reference](MULTIUSER_OPERATIONS_SUMMARY.md) for selectors, examples, current-user scope,
 lock/error/omission limits and scoped live evidence. PR3 discovery was 7/17/17;
-current discovery is 13/32/32 with the standalone VCI and library tools, `plc_download`, `plc_tia_online`, `plc_station_upload`, the S7-PLCSIM Advanced tools and the S7-1500 Web API tools.
+current discovery is 13/33/33 with the standalone VCI and library tools, `plc_download`, `plc_tia_online`, `plc_station_upload`, the S7-PLCSIM Advanced tools and the S7-1500 Web API tools.
 
 ### Local-session identity and basic status
 
@@ -314,13 +314,13 @@ the plain project status only — it never enumerates history or the extended me
 ## Lifecycle operations
 
 All seven lifecycle tools are available in read-write and full; the complete mode counts are
-13/32/32. Read-write requires one confirmation form per actual call; full executes under policy
+13/33/33. Read-write requires one confirmation form per actual call; full executes under policy
 without server elicitation. Block guards stop a call in every mode. Ordinary reads never bind,
 switch or open; use `bind_project` for already-open projects and open/create for deliberate opening.
 
 | Tool | Behavior | Main inputs |
 |---|---|---|
-| `open_project` | Opens a standalone project or existing local session and binds its verified engineering identity. | Absolute `.ap21` or existing file-only `.als21` `projectPath`; optional `forceRebind`. |
+| `open_project` | Opens a standalone project or existing local session and binds its verified engineering identity; `upgrade:true` opens an `.ap21` with `OpenWithUpgrade` (see [Opening with upgrade](#opening-with-upgrade-open_project-upgrade)). | Absolute `.ap21` or existing file-only `.als21` `projectPath`; optional `forceRebind`, `upgrade`. |
 | `create_project` | Creates a project and binds the session to it. | Absolute `projectDirectory`, `projectName`; optional `author`, `comment`. |
 | `retrieve_project` | Retrieves a project archive into a directory and binds the session to the retrieved project (not live-tested; see [Retrieving an archive](#retrieving-an-archive-retrieve_project)). | Absolute existing `archivePath`, existing absolute `targetDirectory`; optional `upgrade`, `forceRebind`. |
 | `save_project` | Saves the active project. | No operation inputs (acts on the bound project). |
@@ -411,6 +411,26 @@ attempted-operation failures, so inspect state before a new call.
   (the diagnostics folder is named from a third-party guide, not verified). A read timeout says a retry changes nothing in
   the project but may hang TIA Portal again.
 
+### Opening with upgrade (`open_project` `upgrade`)
+
+> **Not live-tested** (audit N5). Evidence: V21 `Siemens.Engineering.Base.xml`,
+> `M:Siemens.Engineering.ProjectComposition.OpenWithUpgrade(System.IO.FileInfo)` ("Open Action with project update is necessary",
+> returns `Siemens.Engineering.Project`, documents `MissingProductsException`).
+
+`open_project` takes `upgrade` (default false). `true` opens an `.ap21` with `ProjectComposition.OpenWithUpgrade(FileInfo)`
+instead of `Open(FileInfo)`; an `.als21` with `upgrade:true` is a `validation_error` (local sessions open through
+`LocalSessions.Open`, which has no upgrade). The overload is not in the compile stubs: the worker binds it on the live composition by
+exact name and parameter type before anything is closed or opened (missing: `api_member_missing`, nothing changed). Every
+`upgrade:true` call fires the acknowledge guard `open_project_upgrades_project` (read-write shows it in the confirmation prompt,
+which also names `OpenWithUpgrade`; full satisfies it by policy): TIA Portal upgrades the project to the current version, so an
+older TIA Portal may no longer open it; archive or copy it first. Where TIA Portal stores the upgraded project is not documented: the
+worker still requires the returned project at the requested path, so a project returned under another path fails
+`postcondition_failed` and stays open (bind it with `bind_project`). A project that is already open is adopted without an open call,
+so nothing is upgraded then. The `UmacDelegate` and `ProjectOpenMode` overloads are left out like those of `Open`. `retrieve_project`
+already offers `RetrieveWithUpgrade` (`upgrade:true`, below); it writes a new retrieved project and keeps its prompt wording without
+this guard. **Live acceptance still required:** the upgrade of a V20 project, where the upgraded project is stored, and the binding
+afterwards.
+
 ### Retrieving an archive (`retrieve_project`)
 
 > **Not live-tested** (GitHub issue #4). Evidence: the V21 IntelliSense file `Siemens.Engineering.Base.xml`,
@@ -456,6 +476,7 @@ Not live-tested.
 | `archive_inside_project_folder` | Archive destination is the project folder or a descendant; TIA Portal decides (block until 2026-11-01). | `info` |
 | `target_exists` | Create or save-as destination directory exists; TIA Portal decides (block until 2026-11-01). | `info` |
 | `create_project_requires_no_open_project` | create_project while a project is open in the TIA Portal it would use (`effects.openProject`); TIA Portal V21 refused this live on 2026-11-02. Acknowledge, not block: the refusal was observed once (standalone project, one TIA Portal instance); that TIA Portal always refuses (local sessions, other Portal states) is not shown, so TIA Portal decides. The read-write prompt shows it. Not live-tested as a guard. | `acknowledge` |
+| `open_project_upgrades_project` | open_project with `upgrade:true` (audit N5): TIA Portal upgrades the project with `OpenWithUpgrade`; archive or copy it first if an older TIA Portal must still open it. Not live-tested. | `acknowledge` |
 | `retrieve_project_requires_no_open_project` | retrieve_project while a project is open in the TIA Portal it would use (`effects.openProject`, observed as for create_project); TIA Portal V21 refused opening a second project for create_project and open_project live on 2026-11-02. Acknowledge, not block: TIA Portal decides. Not live-tested. | `acknowledge` |
 | `local_session_requires_terminal_operation` | A different open would replace a worker-owned local session, including a clean one. | `block` |
 | `local_session_source_preservation_unproved` | A borrowed local source or duplicate destination cannot be proved preserved. | `block` |

@@ -186,7 +186,7 @@ public sealed class NetworkObjectTarget
     [Description("Exact device name. Required for deviceItem, networkInterface, node, and communicationConnection kinds.")]
     public string? DeviceName { get; set; }
 
-    [Description("Path through the device item hierarchy. Required and non-empty for deviceItem, networkInterface, and communicationConnection kinds; every segment requires a non-negative index and positionNumber plus nonblank name and typeIdentifier.")]
+    [Description("Path through the device item hierarchy. Required and non-empty for deviceItem, networkInterface, and communicationConnection kinds; every segment requires a non-negative index and positionNumber plus a nonblank name; typeIdentifier is optional (null, absent or empty when TIA reports none, as for built-in interfaces and ports).")]
     public IReadOnlyList<NetworkDeviceItemPathSegment>? ItemPath { get; set; }
 
     [Description("Optional exact interface-name constraint for networkInterface kind or node kind with an owner path; must be nonblank when supplied.")]

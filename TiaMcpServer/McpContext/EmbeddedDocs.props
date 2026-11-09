@@ -1,0 +1,14 @@
+<Project>
+  <!--
+    The user-facing reference documents served as MCP resources (tia-mcp://docs/...). Imported by the server and by the
+    test project (which links the host sources and must carry the same resources). Text only; nothing from the user's machine.
+    WithCulture=false keeps the *.de.md files in the main assembly (MSBuild would otherwise treat ".de" as a culture
+    and move them into a satellite assembly).
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)..\..\docs\SupportedOperations\*.md"
+      LogicalName="TiaMcpDocs/ops/%(Filename)%(Extension)" WithCulture="false" Link="McpContext\Docs\ops\%(Filename)%(Extension)" />
+    <EmbeddedResource Include="$(MSBuildThisFileDirectory)..\..\README.md;$(MSBuildThisFileDirectory)..\..\README.de.md;$(MSBuildThisFileDirectory)..\..\docs\FORK_FEATURES.md;$(MSBuildThisFileDirectory)..\..\docs\FORK_FEATURES.de.md"
+      LogicalName="TiaMcpDocs/server/%(Filename)%(Extension)" WithCulture="false" Link="McpContext\Docs\server\%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

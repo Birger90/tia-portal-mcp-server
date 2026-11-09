@@ -20,7 +20,7 @@ public class HmiScreenEventsMcpTests
         if (dryRun is not null) arguments["dryRun"] = dryRun;
         var reply = await harness.Client.CallToolAsync(tool, arguments);
         Assert.True(reply.StructuredContent is not null, string.Join(" ", reply.Content.OfType<ModelContextProtocol.Protocol.TextContentBlock>().Select(t => t.Text)));
-        return NetworkGuardedWriteMcpTests.Document(reply);
+        return TiaMcpServer.Tests.TestSupport.CanonicalToolDocument.Read(reply);
     }
 
     private static JsonElement Item(JsonElement document, int index) => document.GetProperty("batch").GetProperty("operations")[index];

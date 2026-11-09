@@ -36,6 +36,23 @@ Updates are strict updates to an existing object:
 - The declaration in the submitted content must match the addressed object name.
 - Import does not create, rename, delete, or upsert objects.
 - XML block imports use `ImportOptions.Override`.
+- `update_block_logic` and `update_type_content` with format `xml` take the optional `swImportOptions` (audit N8, not
+  live-tested): one or more of the documented `SWImportOptions` members `IgnoreStructuralChanges`,
+  `IgnoreMissingReferencedObjects`, `IgnoreUnitAttributes` (V21 `Siemens.Engineering.Step7.xml`: "Import is not aborted in case of
+  referenced object changed structurally." / "... referenced object is missing." / "... unit related attributes are present.").
+  The document is then imported with `PlcBlockComposition.Import(FileInfo, ImportOptions, SWImportOptions)` or
+  `PlcTypeComposition.Import(FileInfo, ImportOptions, SWImportOptions)` with `ImportOptions.Override`; the overload is not in the
+  compile stubs and is bound at runtime by exact parameter type names before the import (`api_member_missing` when absent).
+  The XML does not say that `SWImportOptions` is a flags enum: several members are combined only when the installed enum
+  carries `[Flags]`, otherwise the item fails `unsupported_capability` before anything is imported. A structural change can
+  lose instance data (Siemens V21 skill `tia-import-export`, plc-blocks §15, not verified). The options belong to the SimaticML
+  route only: with format `source`/`sd`, or a bundle that takes the SIMATIC SD route, the item is a `validation_error`.
+- SIMATIC SD imports (`update_block_logic` format `sd` or an SD bundle, and `create_block_from_document`) take the optional
+  `documentImportOption` (audit N7, not live-tested): `SkipInactiveCultures` or `ActivateInactiveCultures` (V21:
+  "Skip the cultures and texts if the cultures indicated in a document are not active in the project" / "Activate the culture
+  and import the text as well, if the cultures ... are valid and supported ... but are not active"), combined with
+  `ImportDocumentOptions.Override` for `PlcBlockComposition.ImportFromDocuments`; the main safety block route passes it to the
+  import of its temporary F-block. Combining with `Override` again needs a flags enum (`unsupported_capability` otherwise).
 - External-source generation uses `GenerateBlockOption.None`.
 - Root groups, user groups, and software-unit-owned external-source groups are resolved according to the addressed path.
 
@@ -159,8 +176,8 @@ Reported by rickgaiser/TiaMcp, not verified on V21; see [V21 pitfalls](V21_PITFA
 | Create, rename, delete, or upsert through import | Not supported |
 | Root, user-group, and software-unit target routing | Supported |
 | Caller-selected Openness `ExportOptions` | Partial: XML export uses `None` |
-| Caller-selected Openness `ImportOptions` | Partial: imports use `Override` |
-| `SWImportOptions` for structural changes or missing references | Not supported |
+| Caller-selected Openness `ImportOptions` | Partial: imports use `Override`; SIMATIC SD imports add `SkipInactiveCultures`/`ActivateInactiveCultures` through `documentImportOption` (not live-tested) |
+| `SWImportOptions` for structural changes or missing references | Supported (not live-tested): `swImportOptions` of `update_block_logic`/`update_type_content` format `xml` |
 | Know-how-protected block exchange | Partial: generic export may expose only the public interface or fail; protected import is unavailable |
 | Dedicated failsafe block exchange | Not supported; compatible consistent F-blocks may use the generic XML route |
 | System-block exchange | Not supported |

@@ -65,6 +65,10 @@ public sealed class PlcOnlineConnectionWriteDomain
                 ? "Any password prompt aborts the connection."
                 : $"Password prompts are answered only for {ConfirmationText.Line(string.Join(", ", effect.PasswordKeys))} from the named environment variables.")
             + TiaMcpServer.PlcDownload.PlcDownloadWriteDomain.PasswordChannelSentence(effect.PasswordKeys.Count > 0, effect.AllowInsecurePasswordTransfer == true)
+            + TiaMcpServer.PlcDownload.PlcDownloadWriteDomain.OnlineUserSentence(effect.OnlineUser)
+            + (effect.TargetAddress is { } address
+                ? $" TIA Portal goes online to node address {ConfirmationText.Quote(address)} (GoOnline(ConfigurationAddress)) instead of the configured one."
+                : string.Empty)
             + TiaMcpServer.PlcDownload.PlcDownloadWriteDomain.TrustSentence(effect.TrustedCertificates, "connection")
             + " Any other prompt aborts. "
             + PortalConfirmationSentence(effect.PortalConfirmations);
@@ -110,9 +114,9 @@ public sealed class PlcOnlineConnectionWriteDomain
         if (item.Action == PlcOnlineConnectionActions.GoOffline)
         {
             if (item.PcInterface is not null || item.TargetInterface is not null || item.Passwords.Count > 0 || item.Mode is not null
-                || item.TrustedCertificates is not null || item.AllowInsecurePasswordTransfer)
+                || item.TrustedCertificates is not null || item.AllowInsecurePasswordTransfer || item.OnlineUser is not null || item.TargetAddress is not null)
                 return Invalid("go_offline takes only plcName, timeoutSeconds, portalConfirmations and dryRun; mode, pcInterface, targetInterface, passwords "
-                    + "and trustedCertificates apply to go_online (so does allowInsecurePasswordTransfer).");
+                    + "and trustedCertificates apply to go_online (so do allowInsecurePasswordTransfer, onlineUser and targetAddress).");
             return WriteValidation.Valid();
         }
 
@@ -123,6 +127,8 @@ public sealed class PlcOnlineConnectionWriteDomain
         if (item.TargetInterface is not null && Bad(item.TargetInterface))
             return Invalid("targetInterface must be nonblank and at most 256 characters when supplied.");
         if (PlcTlsTrustPolicy.NormalizeList(item.TrustedCertificates, out _) is { } trusted) return Invalid(trusted);
+        if (item.OnlineUser?.Validate() is { } onlineUser) return Invalid(onlineUser);
+        if (item.TargetAddress is not null && PlcOnlinePolicy.ValidateAddress(item.TargetAddress) is { } address) return Invalid("targetAddress: " + address);
         return UnsetPassword(item.Passwords) ?? (PlcCallbackPolicy.ValidateEntries(null, item.Passwords) is { } entries ? Invalid(entries) : WriteValidation.Valid());
     }
 
@@ -165,11 +171,16 @@ public sealed class PlcOnlineConnectionWriteDomain
         if (effect.Action == PlcOnlineConnectionActions.GoOffline)
             return new[] { new FiredGuard(PlcOnlineGuardDefinitions.Disconnects, operationId,
                 $"go_offline closes TIA Portal's online connection to PLC '{effect.PlcName}' (currently '{effect.StateBefore}'), including one opened in the TIA Portal UI.") };
-        return effect.SimulationInterface == true
-            ? Array.Empty<FiredGuard>()
-            : new[] { new FiredGuard(PlcOnlineGuardDefinitions.HardwareTarget, operationId,
+        var guards = new List<FiredGuard>();
+        if (effect.SimulationInterface != true)
+            guards.Add(new FiredGuard(PlcOnlineGuardDefinitions.HardwareTarget, operationId,
                 $"PC interface '{effect.Path!.PcInterface.Name}' #{effect.Path.PcInterface.Number} is not the PLCSIM simulation interface: "
-                + $"TIA Portal connects to the device behind it. Going online downloads nothing to PLC '{effect.PlcName}'.") };
+                + $"TIA Portal connects to the device behind it. Going online downloads nothing to PLC '{effect.PlcName}'."));
+        if (effect.TargetAddress is { } custom)
+            guards.Add(new FiredGuard(PlcOnlineGuardDefinitions.CustomAddress, operationId,
+                $"targetAddress '{custom}': TIA Portal goes online for PLC '{effect.PlcName}' to that node address instead of the configured one "
+                + "(GoOnline(ConfigurationAddress)); the device there may not be the configured PLC."));
+        return guards;
     }
 
     public async Task<ItemReplan<PlcOnlineConnectionEffects>> ReplanAsync(PlcOnlineConnectionItem item)
@@ -195,6 +206,8 @@ public sealed class PlcOnlineConnectionWriteDomain
             PortalConfirmations = planned.PortalConfirmations,
             TrustedCertificates = planned.TrustedCertificates.ToList(),
             AllowInsecurePasswordTransfer = planned.AllowInsecurePasswordTransfer == true,
+            OnlineUser = planned.OnlineUser,
+            TargetAddress = planned.TargetAddress,
         });
     }
 

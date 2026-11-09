@@ -111,6 +111,20 @@ public static class PlcDownloadService
         }
         var target = ResolveExact(connection, request);
         var downloadOptions = (DownloadOptions)Enum.Parse(typeof(DownloadOptions), options, ignoreCase: false);
+        // Audit N4: a caller node address and the documented ConfigurationAddress overload, both resolved before anything is sent.
+        ConfigurationAddress? customAddress = null;
+        System.Reflection.MethodInfo? addressedDownload = null;
+        if (request.TargetAddress is { } targetAddress)
+        {
+            const string nothing = "Nothing was downloaded.";
+            var name = rhProvider is null ? "Download" : request.RhTarget == "primary" ? "DownloadToPrimary" : "DownloadToBackup";
+            var owner = rhProvider ?? provider!;
+            addressedDownload = PlcOnline.PlcTargetAddresses.Bind(owner, name,
+                new[] { typeof(Siemens.Engineering.Connection.IConfiguration), typeof(ConfigurationAddress), typeof(DownloadConfigurationDelegate), typeof(DownloadConfigurationDelegate), typeof(DownloadOptions) },
+                $"{(rhProvider is null ? "DownloadProvider" : "RHDownloadProvider")}.{name}(IConfiguration, ConfigurationAddress, DownloadConfigurationDelegate, DownloadConfigurationDelegate, DownloadOptions)",
+                nothing);
+            customAddress = PlcOnline.PlcTargetAddresses.OnTargetInterface(target, targetAddress, nothing);
+        }
 
         var result = new PlcDownloadResultInfo
         {
@@ -131,7 +145,7 @@ public static class PlcDownloadService
         };
         var recorder = new PlcDownloadCallbackRecorder(PlcDownloadDecisionSet.For(request), result,
             new PlcDownloadReflectionAccess(configuration => configuration is DownloadConfiguration download ? ReadMessage(download) : null,
-                Environment.GetEnvironmentVariable),
+                Environment.GetEnvironmentVariable, onlineUser: request.OnlineUser),
             isFatal: exception => exception is NonRecoverableException or EngineeringObjectDisposedException);
 
         // Registered before Download and removed in finally (online-status.md): TIA Portal delivers the TLS
@@ -144,7 +158,10 @@ public static class PlcDownloadService
         {
             DownloadConfigurationDelegate pre = configuration => recorder.PreDownload(configuration);
             DownloadConfigurationDelegate post = configuration => recorder.PostDownload(configuration);
-            downloaded = rhProvider is null
+            downloaded = addressedDownload is not null
+                ? Contracts.Shared.RuntimeServiceValues.Call(addressedDownload, rhProvider ?? provider!, new object[] { target, customAddress!, pre, post, downloadOptions }) as DownloadResult
+                    ?? throw new WorkerOperationException(WorkerFailureCategories.PostconditionFailed, "The download to targetAddress returned no DownloadResult; inspect the PLC.")
+                : rhProvider is null
                 ? provider!.Download(target, pre, post, downloadOptions)
                 : Contracts.Shared.RuntimeServiceValues.Invoke(rhProvider, request.RhTarget == "primary" ? "DownloadToPrimary" : "DownloadToBackup",
                         new[] { typeof(Siemens.Engineering.Connection.IConfiguration), typeof(DownloadConfigurationDelegate), typeof(DownloadConfigurationDelegate), typeof(DownloadOptions) },

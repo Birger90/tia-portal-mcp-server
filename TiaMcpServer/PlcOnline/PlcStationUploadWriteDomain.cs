@@ -66,6 +66,7 @@ public sealed class PlcStationUploadWriteDomain
                 ? "Any upload decision or password prompt aborts the upload."
                 : $"Prompts are answered only for: {ConfirmationText.Line(string.Join(", ", effect.DecisionKeys.Concat(effect.PasswordKeys)))}; any other aborts.")
             + TiaMcpServer.PlcDownload.PlcDownloadWriteDomain.PasswordChannelSentence(effect.PasswordKeys.Count > 0, effect.AllowInsecurePasswordTransfer == true)
+            + TiaMcpServer.PlcDownload.PlcDownloadWriteDomain.OnlineUserSentence(effect.OnlineUser)
             + TiaMcpServer.PlcDownload.PlcDownloadWriteDomain.TrustSentence(effect.TrustedCertificates, "upload") + " "
             + PlcOnlineConnectionWriteDomain.PortalConfirmationSentence(effect.PortalConfirmations);
     }
@@ -86,6 +87,7 @@ public sealed class PlcStationUploadWriteDomain
         if (!PlcDownloadPolicy.PortalConfirmationPolicies.IsKnown(item.PortalConfirmations))
             return Invalid($"portalConfirmations must be one of: {string.Join(", ", PlcDownloadPolicy.PortalConfirmationPolicies.All)}.");
         if (PlcTlsTrustPolicy.NormalizeList(item.TrustedCertificates, out _) is { } trusted) return Invalid(trusted);
+        if (item.OnlineUser?.Validate() is { } onlineUser) return Invalid(onlineUser);
         return PlcOnlineConnectionWriteDomain.UnsetPassword(item.Passwords)
             ?? (PlcCallbackPolicy.ValidateEntries(item.Decisions, item.Passwords) is { } entries ? Invalid(entries) : WriteValidation.Valid());
     }
@@ -153,6 +155,7 @@ public sealed class PlcStationUploadWriteDomain
             PortalConfirmations = planned.PortalConfirmations,
             TrustedCertificates = planned.TrustedCertificates.ToList(),
             AllowInsecurePasswordTransfer = planned.AllowInsecurePasswordTransfer == true,
+            OnlineUser = planned.OnlineUser,
         });
     }
 

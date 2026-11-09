@@ -19,8 +19,8 @@ TOs are PLC software content, addressed like tag tables and watch tables: a PLC 
 and a group path (`folderPath`). The existing PLC tools already carry every mechanism the domain needs (the guarded
 single-call pipeline with dry run, info guards, read-back verification and audit; the PLC working state that lets a
 later item use an object an earlier item created; the content-hash round trip of the watch/force tables), so the
-operations were added there instead of a new tool pair. The tool surface stays **13 tools in read-only, 32 in
-read-write and 32 in full** (since `siemens_docs`; 12/31/31 since `tia_inbox`; 11/30/30 since `retrieve_project`) (`library_read`/`library_write` became a pair because a library selector is not a PLC).
+operations were added there instead of a new tool pair. The tool surface stays **13 tools in read-only, 33 in
+read-write and 33 in full** (since `project_server_write`; 13/32/32 since `siemens_docs`; 12/31/31 since `tia_inbox`; 11/30/30 since `retrieve_project`) (`library_read`/`library_write` became a pair because a library selector is not a PLC).
 The field set of `PlcOperationRequest` grows; every field is restricted per operation by the catalog
 (`PlcOperationCatalog.TechnologyObjects.cs`), so an unused field is a `validation_error`.
 

@@ -41,6 +41,7 @@ public static class PlcOnlineWorkerDispatch
             PlcOnlineMethods.CompareSoftware => Json(PlcCompareService.CompareSoftware(project, Require(online))),
             PlcOnlineMethods.CompareHardware => Json(PlcHardwareCompareService.CompareHardware(project, Require(online))),
             PlcOnlineMethods.CompareHardwareToOnline => Json(NothingDeclined(PlcHardwareCompareService.CompareHardwareToOnline(project, Require(online), sleep), confirmations)),
+            PlcOnlineMethods.GetStationFingerprintData => Json(PlcFingerprintDataService.Read(project, portal, Require(online), confirmations)),
             PlcOnlineMethods.GetOnlineState => Json(PlcOnlineService.ListOnlineState(project, request.PlcName)),
             PlcOnlineMethods.ListStationUploadInterfaces => Json(PlcOnlineService.ListStationUploadInterfaces(project)),
             PlcOnlineMethods.GoOnline => Json(PlcOnlineService.GoOnline(project, Require(online), sleep, confirmations, deferred)),

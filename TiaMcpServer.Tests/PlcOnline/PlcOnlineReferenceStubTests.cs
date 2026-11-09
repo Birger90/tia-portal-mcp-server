@@ -84,7 +84,7 @@ public sealed class PlcOnlineReferenceStubTests
         Assert.DoesNotContain("Siemens.Engineering.Upload.Configurations.UploadMissingProducts", PublicTypes(Base));
     }
 
-    private static string Path(string assembly) => System.IO.Path.Combine(ReferenceStubArtifactTests.RepositoryRoot, "ref", assembly + ".dll");
+    private static string Path(string assembly) => System.IO.Path.Combine(TiaMcpServer.Tests.TestSupport.RepositoryFiles.Root, "ref", assembly + ".dll");
 
     private static HashSet<string> PublicTypes(string assembly)
     {

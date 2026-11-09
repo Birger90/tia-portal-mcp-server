@@ -138,8 +138,9 @@ Left out (issue #12):
   the lifecycle tools (`open_project`, `retrieve_project`) and their binding/confirmation pipeline; they are not changed by this
   package. Today such a project is opened in the TIA Portal UI (with the user's login) and then bound with `bind_project`.
 - **Online UMAC legitimation** (`OnlineAuthenticationConfiguration`, `OnlineCredentials.Name`/`.Type`/`.SetPassword`, manual
-  "Supporting UMAC on PLC device"): the online callbacks of `plc_download`, `plc_tia_online` and `compare_to_online` answer only
-  password configurations; answering a user name and user type is a change of those tools and is not made here.
+  "Supporting UMAC on PLC device") is not a settings operation: audit N2 added it to the online tools themselves (`onlineUser` of
+  `plc_download`, `plc_tia_online` go_online, `plc_station_upload` and the online compares; see the
+  [PLC download reference](PLC_DOWNLOAD_SUMMARY.md); not live-tested).
 - **User management download selection** (`UserManagementDownload` with `UserManagementPreDownloadSelections`, manual
   "Downloading User Management data") is a `plc_download` callback configuration, outside this family.
 - **Importing UMC users and groups** from a UMC server (`UmcServerConfigurator`, `UmcCredentials`): the V21 XML lists the types

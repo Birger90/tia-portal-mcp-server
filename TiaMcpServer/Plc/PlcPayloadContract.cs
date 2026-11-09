@@ -126,6 +126,9 @@ public static class PlcPayloadContract
                 => PlcBlockEditPayloadContract.DecodeRead(operation.Operation, payload),
             var compare when PlcOnlineMethods.IsCompare(compare)
                 => PlcOnline.PlcOnlinePayloadContract.NormalizeCompare(payload, operation.Operation, PlcOperationCatalog.TrustedCertificates(operation)),
+            PlcOnlineMethods.GetStationFingerprintData => PlcOnline.PlcOnlinePayloadContract.NormalizeFingerprintData(payload, operation.Mode, operation.PcInterface?.Name,
+                operation.PcInterface?.Number, operation.TargetAddress, operation.MaxElements ?? Contracts.PlcOnline.PlcFingerprintData.DefaultMaxItems,
+                PlcOperationCatalog.TrustedCertificates(operation)),
             PlcOnlineMethods.GetOnlineState => PlcOnline.PlcOnlinePayloadContract.NormalizeOnlineState(payload),
             PlcOnlineMethods.ListStationUploadInterfaces => PlcOnline.PlcOnlinePayloadContract.NormalizeUploadInterfaces(payload),
             PlcOnlineMethods.ListWatchAndForceTables => PlcOnline.PlcOnlinePayloadContract.NormalizeWatchTables(payload),

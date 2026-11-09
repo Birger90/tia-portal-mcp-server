@@ -36,16 +36,25 @@ public static class PortalNotificationHandling
     /// <summary>At most this many notifications are kept per request (and between requests); the rest are only counted.</summary>
     public const int MaxRecorded = 20;
 
-    public static PortalNotificationInfo Handle(object eventArgs)
+    /// <summary>
+    /// Reads Caption/Text/DetailText/Icon and leaves <c>IsHandled</c> untouched (K98: a notification outside any MCP call belongs to
+    /// the user's own TIA Portal window, e.g. the "Claude in TIA" Add-In's <c>ShowNotification</c>, and must reach the user).
+    /// </summary>
+    public static PortalNotificationInfo Read(object eventArgs)
     {
         if (eventArgs is null) throw new ArgumentNullException(nameof(eventArgs));
-        var info = new PortalNotificationInfo
+        return new PortalNotificationInfo
         {
             Caption = ReadText(eventArgs, "Caption"),
             Text = ReadText(eventArgs, "Text"),
             DetailText = ReadText(eventArgs, "DetailText"),
             Icon = ReadText(eventArgs, "Icon"),
         };
+    }
+
+    public static PortalNotificationInfo Handle(object eventArgs)
+    {
+        var info = Read(eventArgs);
         try
         {
             var property = eventArgs.GetType().GetProperty("IsHandled", PublicInstance);

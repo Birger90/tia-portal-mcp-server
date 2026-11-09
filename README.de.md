@@ -35,7 +35,7 @@ Download-, Simulations- und Online-Werkzeuge sind noch nicht live getestet.
 
 ## Werkzeuge
 
-Der Server stellt im Modus `read-only` 13 Werkzeuge bereit, in `read-write` (Standard beim Start) 32 und in `full` dieselben 32.
+Der Server stellt im Modus `read-only` 13 Werkzeuge bereit, in `read-write` (Standard beim Start) 33 und in `full` dieselben 33.
 
 `read-write` erlaubt:
 - Änderungen im Projekt und Übersetzen,
@@ -45,9 +45,9 @@ Der Server stellt im Modus `read-only` 13 Werkzeuge bereit, in `read-write` (Sta
 - Online-Verbindung herstellen und trennen sowie Station hochladen,
 - die Steuerung der Simulation in S7-PLCSIM Advanced.
 
-Nachgefragt wird einmal pro tatsächlichem Lebenszyklus-, Download-, Online-Schreib-, Online-Verbindungs- oder Upload-Aufruf. Außerdem einmal pro `library_write`-Aufruf, der eine globale Bibliothek öffnet, anlegt, abruft, speichert oder schließt. `full` bringt keine zusätzlichen Werkzeuge oder Operationen mit; es führt diese Aufrufe nur ohne Nachfrage aus.
+Nachgefragt wird einmal pro tatsächlichem Lebenszyklus-, Download-, Online-Schreib-, Online-Verbindungs- oder Upload-Aufruf. Außerdem einmal pro `library_write`-Aufruf, der eine globale Bibliothek öffnet, anlegt, abruft, speichert oder schließt. Und einmal pro `project_server_write`-Aufruf, der eine lokale Sitzung oder eine Serververbindung löscht oder ein Projekt hochlädt. `full` bringt keine zusätzlichen Werkzeuge oder Operationen mit; es führt diese Aufrufe nur ohne Nachfrage aus.
 
-Fast alle schreibenden Werkzeuge laufen über dieselbe abgesicherte Pipeline mit genau einem Aufruf; Sicherheits-Tokens gibt es nicht. Das gilt für `plc_write`, `network_write`, `hmi_write`, `vci_write`, `library_write`, `plc_download`, `plc_online_write`, `plc_tia_online`, `plc_station_upload` und die sechs Lebenszyklus-Werkzeuge. Ausgenommen sind nur die PLCSIM-Werkzeuge.
+Fast alle schreibenden Werkzeuge laufen über dieselbe abgesicherte Pipeline mit genau einem Aufruf; Sicherheits-Tokens gibt es nicht. Das gilt für `plc_write`, `network_write`, `hmi_write`, `vci_write`, `library_write`, `plc_download`, `plc_online_write`, `plc_tia_online`, `plc_station_upload`, `project_server_write` und die sechs Lebenszyklus-Werkzeuge. Ausgenommen sind nur die PLCSIM-Werkzeuge.
 
 RUN/STOP über TIA Portal gibt es nicht. Echte Steuerungen werden nur auf zwei Wegen verändert:
 - durch `plc_download`,
@@ -393,6 +393,10 @@ Große Hardware-Lesezugriffe können mit `pageSize` (`1..200`) oder `cursor` bl�
   - Fünf Inventuraktionen für den Project Server untersuchen die dauerhaft angebundene Instanz, ohne die Projektbindung zu ändern.
   - Ein erneutes Anbinden kann den Openness-Zugriffsdialog von TIA zeigen, den ein Mensch beantworten muss.
   - Siehe [Multiuser-Inventur und Grenzen der Abnahme](https://github.com/Birger90/tia-portal-mcp-server/blob/main/docs/SupportedOperations/MULTIUSER_OPERATIONS_SUMMARY.de.md).
+- `project_server_write(operations, dryRun=false, portalProcessId)` in read-write/full (nicht live getestet): die Project-Server-Verwaltung (Multiuser) einer TIA-Portal-Instanz, ohne gebundenes Projekt.
+  - `create_server_connection`, `set_server_connection` (Host, Port, Protokoll), `delete_server_connection`, `add_project_to_server` (Wurzel oder Gruppe), `create_local_session` (danach mit `open_project` und der gemeldeten `.als21` binden), `delete_local_session_from_server`.
+  - Das Löschen einer lokalen Sitzung oder einer Verbindung und das Hochladen eines Projekts sind acknowledge-Guards: read-write fragt einmal pro Aufruf, full läuft per Richtlinie. Kein Element nimmt ein Passwort. Der Aufrufer nennt jeden Server; nie auf einem Server verwenden, den der Benutzer nicht genannt hat.
+  - Rückgelesen über das `bind_project`-Inventar; siehe die [Project-Server-Referenz](https://github.com/Birger90/tia-portal-mcp-server/blob/main/docs/SupportedOperations/PROJECT_SERVER_WRITE_SUMMARY.de.md).
 - `get_project_status` zeigt die Metadaten des aktiven Projekts, ohne Projekte zu öffnen, zu binden oder zu wechseln; es nimmt keine Argumente.
 - `browse_project_tree` durchsucht einen kanonischen, geblätterten Schnappschuss des Projektbaums (v3).
   - Optional mit typisierten Kopfdaten von PLC-Bausteinen in den `details` der Bausteinknoten: Autor, Version, Familie und Kopfname. Standardmäßig aktiv sind die Felder `HeaderAuthor`, `HeaderVersion`, `HeaderFamily` und `HeaderName`.
@@ -464,6 +468,13 @@ Aufrufer des Projektbaums brauchen `v3.0.0` oder neuer. Die v2-Eingabe `startPat
 - Ein Klick schreibt eine Anfrage (Namen und MCP-Adresshinweise der markierten Objekte, keine Projektdaten) nach `%APPDATA%\TiaMcpServer\inbox`. Claude liest sie mit dem Werkzeug `tia_inbox` (jeder Modus), wenn du „schau in TIA“ sagst, arbeitet mit den übrigen Werkzeugen unter dem Zugriffsmodus und antwortet mit `tia_inbox reply_request`; die Antwort erscheint in TIA Portal.
 - Optional: Die Claude-Brücke (`TiaMcpClaudeBridge.exe`, standardmäßig aus, in der Passwortverwaltung einzuschalten) startet je Anfrage einen Claude-Code-Lauf ohne Chat, einen nach dem anderen, nie zweimal, nur mit den TIA-Werkzeugen.
 - Einmalige Einrichtung: `scripts\install-claude-in-tia.ps1` übersetzt das Add-In gegen das installierte TIA Portal, ruft den Siemens-Publisher auf und kopiert die `.addin`; danach in der Task Card Add-Ins aktivieren. Siehe die [Referenz zu Claude in TIA](https://github.com/Birger90/tia-portal-mcp-server/blob/main/docs/SupportedOperations/CLAUDE_IN_TIA.de.md).
+
+### Ressourcen und Prompts (noch nicht live getestet)
+
+- Neben den Werkzeugen bietet der Server MCP-**Ressourcen** und **Prompts**, in jedem Zugriffsmodus, ohne TIA Portal und ohne etwas von deinem Rechner zu lesen.
+- Ressourcen: jedes Referenzdokument aus `docs/SupportedOperations`, die README und FORK_FEATURES auf Englisch und Deutsch, beim Bauen eingebettet (`tia-mcp://docs/en/PLC_OPERATIONS_SUMMARY.md`, `tia-mcp://docs/de/...`, `text/markdown`), und die Operationsreferenz `tia-mcp://operations`, `tia-mcp://operations/{tool}`, `tia-mcp://operations/{tool}/{operation}` (für `plc_read`/`plc_write` derselbe Eintrag wie `describe_operations`).
+- Prompts: `explain_block`, `review_block`, `revise_block_safely` (mit Hash lesen, planen, Probelauf, mit `expectedContentHash` schreiben, `compile_check`; nie ohne dich speichern oder laden), `document_project`, `check_hardware`, `safety_overview` (nur lesend; die Abnahme bleibt bei einer befähigten Person), `download_to_plcsim` (Ladeziele, Probelauf, Zertifikats-Fingerabdrücke erst nach deiner Freigabe), `handle_tia_inbox`. Nur lesend stehen die sechs in der Liste, die kein schreibendes Werkzeug brauchen.
+- Siehe die [Referenz zu Ressourcen und Prompts](https://github.com/Birger90/tia-portal-mcp-server/blob/main/docs/SupportedOperations/MCP_RESOURCES_PROMPTS_SUMMARY.de.md).
 
 ### Simulationsprojekt ohne Passwort (noch nicht live getestet)
 

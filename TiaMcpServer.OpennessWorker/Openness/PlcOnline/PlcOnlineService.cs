@@ -108,8 +108,19 @@ public static class PlcOnlineService
         // bound to the instance they were enumerated from (Siemens online-and-download guidance).
         var configuration = provider.Configuration;
         var target = ResolveTarget(configuration, checkedRequest);
+        // Audit N4: a caller node address (the PC interface's Addresses.Create) and GoOnline(ConfigurationAddress), resolved before connecting.
+        ConfigurationAddress? customAddress = null;
+        System.Reflection.MethodInfo? addressedGoOnline = null;
+        if (checkedRequest.TargetAddress is { } targetAddress)
+        {
+            const string nothing = "Nothing was applied.";
+            addressedGoOnline = PlcTargetAddresses.Bind(provider, "GoOnline", new[] { typeof(ConfigurationAddress) }, "OnlineProvider.GoOnline(ConfigurationAddress)", nothing);
+            customAddress = PlcTargetAddresses.OnPcInterface(ResolvePcInterface(configuration, checkedRequest), targetAddress, nothing);
+        }
+
         var recorder = new PlcCallbackRecorder(null, checkedRequest.Passwords,
-            new PlcCallbackReflectionAccess(PlcCallbackPolicy.OnlineConfigurationsNamespace, _ => null, Environment.GetEnvironmentVariable),
+            new PlcCallbackReflectionAccess(PlcCallbackPolicy.OnlineConfigurationsNamespace, _ => null, Environment.GetEnvironmentVariable,
+                onlineUser: checkedRequest.OnlineUser),
             IsFatal, checkedRequest.TrustedCertificates, plcSimInterface: PlcTlsTrustPolicy.IsPlcSimInterface(checkedRequest.PcInterfaceName),
             allowInsecurePasswordTransfer: checkedRequest.AllowInsecurePasswordTransfer);
         OnlineConfigurationDelegate legitimation = presented => recorder.Handle(presented);
@@ -125,7 +136,9 @@ public static class PlcOnlineService
                 return Closed(result, confirmations);
             }
 
-            result.GoOnlineReturned = provider.GoOnline().ToString();
+            result.GoOnlineReturned = addressedGoOnline is null
+                ? provider.GoOnline().ToString()
+                : Contracts.Shared.RuntimeServiceValues.Call(addressedGoOnline, provider, new object[] { customAddress! })?.ToString();
             var clock = Stopwatch.StartNew();
             var wait = PlcOnlinePolicy.Wait(() => provider.State.ToString(), PlcOnlinePolicy.States.Online,
                 checkedRequest.TimeoutSeconds * 1000, () => clock.ElapsedMilliseconds, sleep);
@@ -228,7 +241,8 @@ public static class PlcOnlineService
         // configurationsSeen list and one abort (the canonical type tells their namespaces apart).
         var recorder = new PlcCallbackRecorder(checkedRequest.Decisions, checkedRequest.Passwords,
             new PlcCallbackReflectionAccess(new[] { PlcCallbackPolicy.UploadConfigurationsNamespace, PlcCallbackPolicy.OnlineConfigurationsNamespace },
-                configuration => configuration is UploadConfiguration upload ? upload.Message : null, Environment.GetEnvironmentVariable),
+                configuration => configuration is UploadConfiguration upload ? upload.Message : null, Environment.GetEnvironmentVariable,
+                onlineUser: checkedRequest.OnlineUser),
             IsFatal, checkedRequest.TrustedCertificates, plcSimInterface: PlcTlsTrustPolicy.IsPlcSimInterface(checkedRequest.PcInterfaceName),
             allowInsecurePasswordTransfer: checkedRequest.AllowInsecurePasswordTransfer);
         OnlineConfigurationDelegate legitimation = presented => recorder.Handle(presented);

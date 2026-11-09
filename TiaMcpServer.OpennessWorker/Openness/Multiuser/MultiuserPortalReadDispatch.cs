@@ -28,9 +28,11 @@ internal static class MultiuserPortalReadDispatch
 
     private static WorkerResponse Success<T>(T payload) => new() { Success = true, Payload = WorkerJson.SerializePayload(payload) };
 
-    public static WorkerResponse Run(TiaPortalSession session, WorkerRequest request, Func<TiaPortalSession, WorkerResponse> body)
+    /// <param name="validate">The request shape check; null: the inventory selectors (project_server_write passes its own).</param>
+    public static WorkerResponse Run(TiaPortalSession session, WorkerRequest request, Func<TiaPortalSession, WorkerResponse> body,
+        Action<WorkerRequest>? validate = null)
     {
-        Validate(request);
+        (validate ?? Validate)(request);
         session.ValidateExpectedSessionIdentity(request.ExpectedSessionIdentity, true, useCachedIdentity: true);
         session.EnsurePortalConnected(request.PortalProcessId);
         session.ValidateExpectedSessionIdentity(request.ExpectedSessionIdentity, true);

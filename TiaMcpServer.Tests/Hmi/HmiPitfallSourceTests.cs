@@ -67,10 +67,7 @@ public sealed class HmiPitfallSourceTests
 
     private static string[] HmiWorkerSources()
     {
-        var root = new DirectoryInfo(AppContext.BaseDirectory);
-        while (root is not null && !File.Exists(Path.Combine(root.FullName, "TiaMcpServer.slnx")))
-            root = root.Parent;
-        if (root is null) throw new DirectoryNotFoundException("Could not locate the repository root.");
+        var root = new DirectoryInfo(TiaMcpServer.Tests.TestSupport.RepositoryFiles.Root);
         // Openness/HmiExtensions (issue #29: audit classes, runtime settings, plant views) is HMI worker code too.
         var files = Directory.GetFiles(Path.Combine(root.FullName, "TiaMcpServer.OpennessWorker", "Openness", "Hmi"), "*.cs")
             .Concat(Directory.GetFiles(Path.Combine(root.FullName, "TiaMcpServer.OpennessWorker", "Openness", "HmiExtensions"), "*.cs")).ToArray();

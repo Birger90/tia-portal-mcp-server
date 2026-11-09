@@ -3,7 +3,7 @@
 **Sprache:** [English](HMI_OPERATIONS_SUMMARY.md) · Deutsch
 
 `hmi_read` ist das nur lesende HMI-Tool für WinCC Unified. Es ist in jedem Zugriffsmodus registriert (Zählungen
-13/32/32), schreibt nie, übersetzt nie und öffnet, speichert oder schließt nie ein Projekt. Es führt bis zu
+13/33/33), schreibt nie, übersetzt nie und öffnet, speichert oder schließt nie ein Projekt. Es führt bis zu
 50 Elemente pro Aufruf auf dem strukturierten JSON-Vertrag aus (`contractVersion:"1.1"`); Elemente laufen
 unabhängig voneinander, sodass ein fehlschlagendes Element spätere nicht stoppt. Der Design-Hintergrund steht in der
 [Design-Spezifikation von hmi_read](https://github.com/Czarnak/tia-portal-mcp/blob/docs-archive-2026-10-30/docs/superpowers/specs/2026-10-07-hmi-read-design.md), dem

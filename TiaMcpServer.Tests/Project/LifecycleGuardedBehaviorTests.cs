@@ -134,6 +134,53 @@ public sealed class LifecycleGuardedBehaviorTests
     }
 
     [Fact]
+    public async Task OpenWithUpgrade_FiresTheAcknowledgeGuard_AndSendsTheUpgradeOpener()
+    {
+        using var fixture = new Fixture("success");
+        var item = fixture.Item("open_project") with { Upgrade = true };
+
+        var preview = await ProjectWriteTools.ExecuteAsync(fixture.Client, fixture.Execution, item, new(null), dryRun: true);
+        using (var document = JsonDocument.Parse(Assert.IsType<TextContentBlock>(Assert.Single(preview.Content)).Text))
+        {
+            var guard = Assert.Single(document.RootElement.GetProperty("guards").EnumerateArray(),
+                g => g.GetProperty("id").GetString() == LifecycleWriteDomain.OpenUpgradesProject);
+            Assert.Equal(WriteGuardSeverities.Acknowledge, guard.GetProperty("severity").GetString());
+            Assert.Contains("OpenWithUpgrade", guard.GetProperty("message").GetString());
+        }
+
+        // Full mode satisfies the acknowledge guard by policy; the FakeWorker reports the opener it received.
+        var applied = await ProjectWriteTools.ExecuteAsync(fixture.Client, fixture.Execution, item, new(null), dryRun: false);
+        using var appliedDocument = JsonDocument.Parse(Assert.IsType<TextContentBlock>(Assert.Single(applied.Content)).Text);
+        var root = appliedDocument.RootElement;
+        Assert.True(root.GetProperty("success").GetBoolean(), root.GetRawText());
+        Assert.Contains(root.GetProperty("warnings").EnumerateArray(), w => w.GetString()!.Contains("OpenWithUpgrade", StringComparison.Ordinal));
+
+        // Without upgrade neither the guard nor the opener appears.
+        var plain = new LifecycleWriteDomain(null!, fixture.Item("open_project"));
+        var effects = new LifecycleEffects(null, item.ProjectPath, null, null, false, false, false, false, false, null, null);
+        Assert.DoesNotContain(plain.EvaluateGuards(new[] { fixture.Item("open_project") }, new[] { ItemPlan<LifecycleEffects>.Resolved(effects) }),
+            g => g.Id == LifecycleWriteDomain.OpenUpgradesProject);
+    }
+
+    [Fact]
+    public void OpenWithUpgrade_OfALocalSession_IsAValidationError()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "upgrade-" + Guid.NewGuid().ToString("N") + ".als21");
+        File.WriteAllText(path, "fixture");
+        try
+        {
+            var item = new LifecycleWriteItem("open_project") { ProjectPath = path, Upgrade = true };
+            var validation = new LifecycleWriteDomain(null!, item).Validate(new[] { item }, McpAccessMode.Full);
+            Assert.False(validation.IsValid);
+            Assert.Contains("OpenWithUpgrade", validation.Error!.Message);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
     public async Task UnboundDryRuns_DoNotStartAWorker()
     {
         using var fixture = new Fixture("success", configured: false, workerPath: Path.Combine(Path.GetTempPath(), "missing-lifecycle-worker.exe"));
@@ -270,8 +317,8 @@ public sealed class LifecycleGuardedBehaviorTests
             File.WriteAllText(_source, "fixture");
             File.WriteAllText(_destination, "fixture");
             _uiOpen = new FakeWorkerUiOpenProject(configured ? _source : null);
-            Client = new(new ProjectSessionBinding(configured ? _source : null), logger: null,
-                workerExecutablePath: workerPath ?? FakeWorkerLocator.Locate(), accessPolicy: new(McpAccessMode.Full));
+            Client = FakeWorkerClients.Create(McpAccessMode.Full,
+                binding: new ProjectSessionBinding(configured ? _source : null), workerPath: workerPath);
             Execution = new(new OpennessWriteBindingGate(Client), Audit, LifecycleWriteDomain.Catalog, TimeProvider.System);
         }
 

@@ -15,7 +15,7 @@ SIMATIC SD ist das Bausteindokumentformat von TIA Portal V21: `PlcBlock.ExportAs
 Siemens-V21-Skill `simatic-sd` (MIT, Siemens AG, `openness_development/skills/simatic-sd/SKILL.md`) nennt das „the
 correct path for adding LAD/FBD/SCL networks to existing blocks via Openness“. Diese Operationen machen daraus einen Bearbeitungsweg auf
 Netzwerkebene, sodass ein Agent LAD- (KOP), FBD- (FUP) und F-LAD/F-FBD-Logik ohne einen Umweg über SimaticML (FlgNet-XML)
-ändern kann. Es wurde kein Tool hinzugefügt (13/32/32 bleiben); jede Operation ist eine `plc_read`- oder `plc_write`-Operation.
+ändern kann. Es wurde kein Tool hinzugefügt (13/33/33 bleiben); jede Operation ist eine `plc_read`- oder `plc_write`-Operation.
 
 Für die LAD/FBD-Syntax selbst, mit Belegen pro Konstrukt, siehe [LAD und FBD als SIMATIC SD schreiben](../guides/lad-fbd-simatic-sd.de.md).
 
@@ -172,6 +172,7 @@ nur als `result.Messages.Select(m => m.Message)` dokumentiert) werden per Reflec
 | `DocumentExportResult.State`, `.ExportedDocuments` | Compile-Stubs (`Software.cs`); bereits vom xml-Bundle-Export verwendet | Exportergebnis und Dateiliste |
 | `PlcBlockComposition.ImportFromDocuments(DirectoryInfo, string, ImportDocumentOptions)` → `DocumentImportResultForBlocks` | Siemens-Skill §3, §8; Compile-Stubs | `update_block_logic` sd und die implizite Route; `create_block_from_document` |
 | `ImportDocumentOptions.Override` | Siemens-Skill §3; Compile-Stubs (das einzige Member) | jeder SD-Import (`create_block_from_document` ohne `overwrite` prüft zuerst auf einen existierenden Baustein) |
+| `ImportDocumentOptions.SkipInactiveCultures`, `.ActivateInactiveCultures` | V21 `Siemens.Engineering.Step7.xml` (members.txt); nicht in den Compile-Stubs, per Name am installierten Enum geparst | optionales `documentImportOption` von `update_block_logic` sd und `create_block_from_document` (Audit N7, nicht live getestet), mit `Override` nur dann ODER-kombiniert, wenn das installierte Enum ein Flags-Enum ist (sonst `unsupported_capability`, nichts importiert) |
 | `DocumentImportResult.State`, `DocumentResultState.Success` | Siemens-Skill §3; Compile-Stubs | Erfolgstest (alles andere lässt den Import fehlschlagen) |
 | `DocumentImportResultForBlocks.Messages`, `Message` seiner Elemente | Siemens-Skill §3 (`result.Messages.Select(m => m.Message)`); nicht in den Compile-Stubs (Typen undokumentiert) | zur Laufzeit über den exakten Namen gebunden (`SimaticSdImportMessages`); ein nicht lesbares Member ergibt einen Hinweis, nie einen eigenen Fehlschlag |
 | `PlcBlockComposition.Find(string)`, `PlcBlockGroup.Blocks`, `PlcBlock.Name` | Compile-Stubs; bereits verwendet | Rücklesen bei `create_block_from_document` |

@@ -123,6 +123,25 @@ public sealed class PlcDownloadMcpTests
     }
 
     [Fact]
+    public async Task TargetAddress_FiresTheAcknowledgeGuard_AndUsesTheConfigurationAddressOverload()
+    {
+        // Audit N4 (not live-tested): a node address other than the configured one.
+        await using var session = await Session.StartAsync(McpAccessMode.Full, elicitation: "accept");
+        var (document, raw) = await session.CallAsync("plc_download", Args(("plcName", "PLC_1"), ("scope", "software"), ("targetAddress", "192.168.0.77")));
+
+        Assert.False(raw.IsError == true);
+        Assert.True(document.GetProperty("success").GetBoolean(), document.GetRawText());
+        Assert.Equal("192.168.0.77", document.GetProperty("effects").GetProperty("targetAddress").GetString());
+        var guard = Assert.Single(document.GetProperty("guards").EnumerateArray(), g => g.GetProperty("id").GetString() == "download_to_custom_address");
+        Assert.True(guard.GetProperty("acknowledged").GetBoolean());
+        Assert.Contains(document.GetProperty("warnings").EnumerateArray(), w => w.GetString()!.Contains("ConfigurationAddress", StringComparison.Ordinal));
+
+        var (bad, badRaw) = await session.CallAsync("plc_download", Args(("plcName", "PLC_1"), ("targetAddress", " 10.0.0.1"), ("dryRun", true)));
+        Assert.True(badRaw.IsError == true);
+        Assert.Contains("targetAddress", bad.GetProperty("error").GetProperty("message").GetString());
+    }
+
+    [Fact]
     public async Task Full_DownloadsToPlcsim_AndNeverClaimsCompletion()
     {
         await using var session = await Session.StartAsync(McpAccessMode.Full, elicitation: "accept");

@@ -145,8 +145,9 @@ Ausgelassen (Issue #12):
   nicht geändert. Heute wird ein solches Projekt in der TIA-Portal-Oberfläche (mit der Anmeldung des Benutzers) geöffnet und dann
   mit `bind_project` gebunden.
 - **Online-Anmeldung über UMAC** (`OnlineAuthenticationConfiguration`, `OnlineCredentials.Name`/`.Type`/`.SetPassword`, Handbuch
-  „Supporting UMAC on PLC device“): Die Online-Rückrufe von `plc_download`, `plc_tia_online` und `compare_to_online` beantworten nur
-  Passwortkonfigurationen; Benutzername und Benutzertyp zu beantworten ist eine Änderung dieser Werkzeuge und erfolgt hier nicht.
+  „Supporting UMAC on PLC device“) ist keine Einstellungsoperation: Audit N2 ergänzte sie in den Online-Werkzeugen selbst (`onlineUser`
+  von `plc_download`, `plc_tia_online` go_online, `plc_station_upload` und den Online-Vergleichen; siehe die
+  [PLC-Download-Referenz](PLC_DOWNLOAD_SUMMARY.de.md); nicht live getestet).
 - **Auswahl beim Laden der Benutzerverwaltung** (`UserManagementDownload` mit `UserManagementPreDownloadSelections`, Handbuch
   „Downloading User Management data“) ist eine Rückruf-Konfiguration von `plc_download`, außerhalb dieser Familie.
 - **Import von UMC-Benutzern und -Gruppen** von einem UMC-Server (`UmcServerConfigurator`, `UmcCredentials`): Die V21-XML nennt die

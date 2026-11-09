@@ -23,7 +23,7 @@ Diese Referenz behandelt die beiden Bibliotheks-Tools, die dieser Fork hinzufüg
 > bricht mit `unsupported_capability` ab (fail closed), wenn das installierte V21 ihn nicht bereitstellt, und jeder muss
 > durch die [Live-Abnahmeprüfungen](#live-abnahmeprüfungen) durchlaufen werden, bevor man sich auf die Tools verlässt.
 
-Tool-Anzahlen: 13 Tools in read-only, 32 in read-write und 32 in full seit `siemens_docs` (12/31/31 seit `tia_inbox`, vorher 11/30/30; `library_read` ist das elfte
+Tool-Anzahlen: 13 Tools in read-only, 33 in read-write und 33 in full seit `project_server_write` (13/32/32 seit `siemens_docs`, 12/31/31 seit `tia_inbox`, vorher 11/30/30; `library_read` ist das elfte
 Read-only-Tool, `library_write` das neunundzwanzigste schreibfähige).
 
 ## Warum zwei Tools

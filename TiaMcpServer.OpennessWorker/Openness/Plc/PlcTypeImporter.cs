@@ -27,7 +27,8 @@ internal static class PlcTypeImporter
         string typePath,
         string sourceContent,
         string format,
-        string? expectedContentHash = null)
+        string? expectedContentHash = null,
+        IReadOnlyList<string>? swImportOptions = null)
     {
         if (project is null) throw new ArgumentNullException(nameof(project));
         if (sourceContent is null) throw new ArgumentNullException(nameof(sourceContent));
@@ -75,7 +76,7 @@ internal static class PlcTypeImporter
 
         // 4/5. Apply the document.
         var outcome = string.Equals(format, SourceFormatNames.Xml, StringComparison.Ordinal)
-            ? ImportXml(target, sourceContent)
+            ? ImportXml(target, sourceContent, swImportOptions)
             : ImportSource(target, targetName, sourceContent);
 
         // 6. Verify, carrying whether the temporary project node made it back out.
@@ -97,8 +98,10 @@ internal static class PlcTypeImporter
     /// Simatic ML goes straight into the resolved group's own composition — no external source node
     /// is created, so there is nothing that could survive in the project.
     /// </summary>
-    private static ImportOutcome ImportXml(ResolvedTypeTarget target, string sourceContent)
+    private static ImportOutcome ImportXml(ResolvedTypeTarget target, string sourceContent, IReadOnlyList<string>? swImportOptions)
     {
+        // Audit N8: with caller SWImportOptions the documented three-argument overload, bound before anything is staged or imported.
+        var swImport = swImportOptions is { Count: > 0 } ? BlockImporter.BindSwImport(target.Group.Types, swImportOptions) : null;
         var stagingDirectory = Path.Combine(
             Path.GetTempPath(), "tia-mcp-type-import-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(stagingDirectory);
@@ -108,6 +111,8 @@ internal static class PlcTypeImporter
             var path = Path.Combine(stagingDirectory, target.DocumentName + ".xml");
             File.WriteAllText(path, sourceContent, Encoding.UTF8);
 
+            if (swImport is not null)
+                return new ImportOutcome(projectNodeRemoved: true, swImport(new FileInfo(path)) is System.Collections.IEnumerable returned ? returned.Cast<object>().Count() : 0);
             var imported = target.Group.Types.Import(new FileInfo(path), ImportOptions.Override);
             return new ImportOutcome(projectNodeRemoved: true, imported?.Count ?? 0);
         }

@@ -22,6 +22,6 @@ public sealed record LifecycleWriteItem(string Operation) : IOperationBatchItem
     public bool SaveBeforeClose { get; init; } = true;
     /// <summary>retrieve_project: the archive file to retrieve.</summary>
     public string? ArchivePath { get; init; }
-    /// <summary>retrieve_project: RetrieveWithUpgrade instead of Retrieve.</summary>
+    /// <summary>retrieve_project: RetrieveWithUpgrade instead of Retrieve; open_project (audit N5): OpenWithUpgrade instead of Open.</summary>
     public bool Upgrade { get; init; }
 }

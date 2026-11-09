@@ -15,13 +15,16 @@ public static partial class BlockImporter
         string blockPath,
         string yamlContent,
         string format,
-        string? expectedContentHash = null)
+        string? expectedContentHash = null,
+        IReadOnlyList<string>? swImportOptions = null,
+        string? documentImportOption = null)
     {
         if (project is null) throw new ArgumentNullException(nameof(project));
         if (yamlContent is null) throw new ArgumentNullException(nameof(yamlContent));
 
+        RequireImportOptionsFitFormat(format, swImportOptions, documentImportOption);
         if (string.Equals(format, SourceFormatNames.Sd, StringComparison.Ordinal))
-            return ImportSd(project, blockPath, yamlContent, expectedContentHash);
+            return ImportSd(project, blockPath, yamlContent, expectedContentHash, documentImportOption);
 
         if (!string.Equals(format, SourceFormatNames.Xml, StringComparison.Ordinal))
             return ImportSource(project, blockPath, yamlContent, expectedContentHash);
@@ -66,7 +69,9 @@ public static partial class BlockImporter
                 blockPath,
                 directory,
                 bundle,
-                boundary),
+                boundary,
+                swImportOptions,
+                documentImportOption),
             compileAllowed => ObservePostconditions(
                 project,
                 preflight.Prepared.Address,
@@ -77,18 +82,43 @@ public static partial class BlockImporter
                 warnings: null));
     }
 
+    /// <summary>
+    /// Audit N7/N8: swImportOptions belong to the SimaticML import (format xml), documentImportOption to the SIMATIC SD import
+    /// (format sd, or format xml with a bundle without .xml, checked per bundle later); anything else is refused before an import.
+    /// </summary>
+    internal static void RequireImportOptionsFitFormat(string format, IReadOnlyList<string>? swImportOptions, string? documentImportOption)
+    {
+        if (swImportOptions is { Count: > 0 } && !string.Equals(format, SourceFormatNames.Xml, StringComparison.Ordinal))
+            throw new WorkerOperationException(WorkerFailureCategories.ValidationError,
+                $"swImportOptions apply to format xml (SimaticML) only, not to format {format}. Nothing was imported.");
+        if (documentImportOption is not null && !string.Equals(format, SourceFormatNames.Xml, StringComparison.Ordinal)
+            && !string.Equals(format, SourceFormatNames.Sd, StringComparison.Ordinal))
+            throw new WorkerOperationException(WorkerFailureCategories.ValidationError,
+                $"documentImportOption applies to SIMATIC SD imports (format sd) only, not to format {format}. Nothing was imported.");
+    }
+
     private static void ImportDocuments(
         ProjectBase project,
         BlockAddress address,
         string blockPath,
         DirectoryInfo directory,
         ParsedBlockImportBundle bundle,
-        BlockImportInvocationBoundary boundary)
+        BlockImportInvocationBoundary boundary,
+        IReadOnlyList<string>? swImportOptions,
+        string? documentImportOption)
     {
         var target = BlockTargetResolver.ResolveForImport(project, address);
         var plcName = PlcSoftwareLocator.FindUnique(project, address.PlcName).Software.Name;
 
-        if (BlockImportRouting.SelectRoute(bundle) == BlockImportRoute.SimaticMl)
+        var simaticMl = BlockImportRouting.SelectRoute(bundle) == BlockImportRoute.SimaticMl;
+        // Each option belongs to one route; neither is dropped silently (refused before anything is imported).
+        if (simaticMl && documentImportOption is not null)
+            throw new WorkerOperationException(WorkerFailureCategories.ValidationError,
+                "documentImportOption applies to the SIMATIC SD route only (format sd, or a bundle without .xml); this bundle is imported as SimaticML. Nothing was imported.");
+        if (!simaticMl && swImportOptions is { Count: > 0 })
+            throw new WorkerOperationException(WorkerFailureCategories.ValidationError,
+                "swImportOptions apply to the SimaticML route only (a bundle with an .xml document); this bundle is imported as SIMATIC SD documents. Nothing was imported.");
+        if (simaticMl)
         {
             var authoritative = BlockImportRouting.SelectAuthoritativeDocument(bundle);
             if (bundle.Documents.Count > 1)
@@ -103,8 +133,11 @@ public static partial class BlockImporter
             }
 
             var xmlPath = Path.Combine(directory.FullName, authoritative.SafeFileName);
+            // Audit N8: with caller SWImportOptions the documented three-argument overload, bound before the import starts.
+            var swImport = swImportOptions is { Count: > 0 } ? BindSwImport(target.Group.Blocks, swImportOptions) : null;
             boundary.BeforeSiemensCall();
-            target.Group.Blocks.Import(new FileInfo(xmlPath), ImportOptions.Override);
+            if (swImport is not null) swImport(new FileInfo(xmlPath));
+            else target.Group.Blocks.Import(new FileInfo(xmlPath), ImportOptions.Override);
             boundary.AfterSiemensCallReturned();
             // A returned import is a write: the block's export count restarts at zero (BlockExportLedger).
             BlockExportLedger.Shared.RecordWrite(plcName, target.DocumentName);
@@ -112,7 +145,7 @@ public static partial class BlockImporter
             return;
         }
 
-        ImportFromDocuments(target, plcName, directory, BlockImportRouting.SimaticSdBaseName(bundle), boundary);
+        ImportFromDocuments(target, plcName, directory, BlockImportRouting.SimaticSdBaseName(bundle), boundary, documentImportOption);
     }
 
     private static BlockImportResult ImportSource(

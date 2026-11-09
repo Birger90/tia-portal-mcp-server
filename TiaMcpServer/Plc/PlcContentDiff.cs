@@ -1,7 +1,7 @@
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Serialization;
 using TiaMcpServer.Contracts.Plc.Interface;
+using TiaMcpServer.Contracts.Shared;
 
 namespace TiaMcpServer.Plc;
 
@@ -53,8 +53,8 @@ public static class PlcContentDiff
         }
 
         return new PlcContentDiffEvidence(
-            new PlcContentDiffSide(Sha256(current), current.Length, CountLines(current), currentExcerpt),
-            new PlcContentDiffSide(Sha256(requested), requested.Length, CountLines(requested), requestedExcerpt),
+            new PlcContentDiffSide(ContentHashRules.Sha256Hex(current), current.Length, CountLines(current), currentExcerpt),
+            new PlcContentDiffSide(ContentHashRules.Sha256Hex(requested), requested.Length, CountLines(requested), requestedExcerpt),
             compared.RawTextEqual,
             compared.NormalizedLinesEqual,
             compared.LineEndingOnly,
@@ -209,9 +209,6 @@ public static class PlcContentDiff
 
     private static string NormalizeLineEndings(string text)
         => text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
-
-    private static string Sha256(string text)
-        => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text))).ToLowerInvariant();
 
     private sealed record ComparedLines(
         string[] CurrentLines,

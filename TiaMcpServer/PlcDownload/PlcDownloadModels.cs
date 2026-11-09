@@ -54,6 +54,42 @@ public sealed record PlcDownloadWriteItem : IOperationBatchItem
 
     /// <summary>Audit T1: <c>allowInsecurePasswordTransfer</c> (default false).</summary>
     public bool AllowInsecurePasswordTransfer { get; init; }
+
+    /// <summary>Audit N2: the caller's <c>onlineUser</c> (null when omitted).</summary>
+    public PlcOnlineUserArgument? OnlineUser { get; init; }
+
+    /// <summary>Audit N4: the caller's <c>targetAddress</c> (null when omitted).</summary>
+    public string? TargetAddress { get; init; }
+}
+
+/// <summary>
+/// Audit N2: the <c>onlineUser</c> argument of plc_download, plc_tia_online go_online, plc_station_upload and the plc_read online
+/// compares: the user a user-based PLC login (<c>OnlineAuthenticationConfiguration</c>) authenticates as. The password is never part
+/// of it: it comes from <c>passwords</c> (key <c>OnlineAuthenticationConfiguration</c>) or the server password map. Not live-tested.
+/// </summary>
+[System.Text.Json.Serialization.JsonUnmappedMemberHandling(System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
+public sealed record PlcOnlineUserArgument
+{
+    [System.ComponentModel.Description("The user name set on OnlineCredentials.Name (a UMAC project user, a global user, ...).")]
+    public string UserName { get; init; } = string.Empty;
+
+    [System.ComponentModel.Description("Optional UserType member set on OnlineCredentials.Type: ProjectUser, GlobalUser, AnonymousUser, PasswordOnly, SingleSignOnUser or None (exact spelling of the installed enum). Omitted keeps TIA Portal's value.")]
+    public string? UserType { get; init; }
+
+    /// <summary>The worker form.</summary>
+    public PlcOnlineUserInfo ToInfo() => new() { UserName = UserName, UserType = UserType };
+
+    /// <summary>Null when valid (<see cref="PlcOnlineAuthentication.Validate"/>).</summary>
+    public string? Validate() => PlcOnlineAuthentication.Validate(ToInfo());
+}
+
+/// <summary>The one description of the <c>onlineUser</c> argument (audit N2).</summary>
+internal static class PlcOnlineUserDescription
+{
+    internal const string Text = "User-based PLC login (UMAC; OnlineAuthenticationConfiguration): { userName, userType? }. TIA Portal's login is answered "
+        + "with OnlineCredentials Name = userName, Type = userType (when given) and SetPassword from passwords[\"OnlineAuthenticationConfiguration\"] (an "
+        + "environment variable or { credential }; or the server password map), only when IsSecureCommunication is true unless "
+        + "allowInsecurePasswordTransfer is true. Omitted: such a login aborts. Not live-tested.";
 }
 
 /// <summary>
@@ -271,6 +307,14 @@ public sealed record PlcDownloadEffects(
     /// <summary>Audit T1: true when the caller allowed passwords over a non-secure connection; omitted otherwise.</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public bool? AllowInsecurePasswordTransfer { get; init; }
+
+    /// <summary>Audit N2: the user a user-based online login authenticates as; omitted when the call names none.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public PlcOnlineUserInfo? OnlineUser { get; init; }
+
+    /// <summary>Audit N4: the node address the download goes to instead of the configured one; omitted when the call names none.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? TargetAddress { get; init; }
 }
 
 /// <summary>
@@ -309,6 +353,12 @@ public static class PlcDownloadGuardDefinitions
     /// </summary>
     public const string IncludesSafetyProgram = "download_includes_safety_program";
 
+    /// <summary>
+    /// Audit N4: <c>targetAddress</c> sends the download to a node address the project's configuration does not hold, so the device
+    /// reached may not be the configured one (TIA Portal decides whether it matches). Acknowledge, on PLCSIM and real controllers.
+    /// </summary>
+    public const string ToCustomAddress = "download_to_custom_address";
+
     public static IReadOnlyList<WriteGuardDefinition> Definitions { get; } = Array.AsReadOnly(new[]
     {
         new WriteGuardDefinition(ToHardware, WriteGuardSeverities.Acknowledge,
@@ -319,6 +369,9 @@ public static class PlcDownloadGuardDefinitions
         new WriteGuardDefinition(IncludesSafetyProgram, WriteGuardSeverities.Acknowledge,
             "The caller answers TIA Portal's F-program download configuration (SafetyProgram), so the download (to PLCSIM or a real controller) includes the safety program. "
             + Contracts.Plc.Safety.PlcSafetyPolicy.AcceptanceNotice),
+        new WriteGuardDefinition(ToCustomAddress, WriteGuardSeverities.Acknowledge,
+            "targetAddress downloads to a node address that differs from the configured one (Download with a ConfigurationAddress): the device at that "
+            + "address may not be the configured PLC; TIA Portal decides whether it accepts it. Not live-tested."),
     });
 
     public static WriteGuardCatalog Catalog { get; } = new(Definitions);

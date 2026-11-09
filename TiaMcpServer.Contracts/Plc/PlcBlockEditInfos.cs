@@ -83,6 +83,12 @@ public class PlcBlockEditRequestInfo
 
     /// <summary>create_block_from_document: the sd bundle (.s7dcl and .s7res documents).</summary>
     public string? Content { get; set; }
+
+    /// <summary>
+    /// Audit N7, create_block_from_document (optional): <c>SkipInactiveCultures</c> or <c>ActivateInactiveCultures</c>, combined with
+    /// <c>ImportDocumentOptions.Override</c> (<see cref="Block.PlcImportOptionNames.DocumentOptions"/>).
+    /// </summary>
+    public string? DocumentImportOption { get; set; }
 }
 
 /// <summary>Identity of one PLC block as the worker resolved it.</summary>

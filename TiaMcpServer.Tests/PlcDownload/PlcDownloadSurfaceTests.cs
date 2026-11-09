@@ -28,8 +28,8 @@ public sealed class PlcDownloadSurfaceTests
 
     [Theory]
     [InlineData(McpAccessMode.ReadOnly, false, 13)]
-    [InlineData(McpAccessMode.ReadWrite, true, 32)]
-    [InlineData(McpAccessMode.Full, true, 32)]
+    [InlineData(McpAccessMode.ReadWrite, true, 33)]
+    [InlineData(McpAccessMode.Full, true, 33)]
     public async Task PlcDownload_IsRegisteredOnlyInWritableModes(McpAccessMode mode, bool registered, int count)
     {
         await using var harness = await StartAsync(mode);
@@ -60,7 +60,7 @@ public sealed class PlcDownloadSurfaceTests
 
         Assert.False(schema.GetProperty("additionalProperties").GetBoolean());
         var properties = schema.GetProperty("properties");
-        Assert.Equal(new[] { "allowInsecurePasswordTransfer", "decisions", "dryRun", "mode", "passwords", "pcInterface", "plcName", "portalConfirmations", "rhTarget", "scope", "startAfterDownload", "targetInterface",
+        Assert.Equal(new[] { "allowInsecurePasswordTransfer", "decisions", "dryRun", "mode", "onlineUser", "passwords", "pcInterface", "plcName", "portalConfirmations", "rhTarget", "scope", "startAfterDownload", "targetAddress", "targetInterface",
                 "trustedCertificates" },
             properties.EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal));
         Assert.False(schema.TryGetProperty("required", out var required) && required.GetArrayLength() > 0);

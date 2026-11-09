@@ -32,13 +32,6 @@ public sealed class PlcWriteInvokerTests
         ["dataType"] = "Bool",
     };
 
-    private static OpennessWorkerClient CreateClient(string? workerPath = null)
-        => new(
-            new ProjectSessionBinding(null),
-            logger: null,
-            workerExecutablePath: workerPath ?? FakeWorkerLocator.Locate(),
-            accessPolicy: new OperationAccessPolicy(McpAccessMode.Full));
-
     private static object SentinelFor(PropertyInfo property, string fieldName, string operation)
     {
         if (fieldName == "format")
@@ -142,9 +135,7 @@ public sealed class PlcWriteInvokerTests
     {
         var (request, _) = Build(operation);
         var binding = new ProjectSessionBinding(null);
-        using var client = new OpennessWorkerClient(
-            binding, logger: null, workerExecutablePath: FakeWorkerLocator.Locate(),
-            accessPolicy: new OperationAccessPolicy(McpAccessMode.Full));
+        using var client = FakeWorkerClients.Create(McpAccessMode.Full, binding: binding);
         await FakeWorkerBinding.BindVerifiedAsync(client, binding, "echo");
 
         var result = await new PlcWriteDomain(client).MutateAsync(request);
@@ -160,9 +151,7 @@ public sealed class PlcWriteInvokerTests
     {
         var (request, expected) = Build(operation);
         var binding = new ProjectSessionBinding(null);
-        using var client = new OpennessWorkerClient(
-            binding, logger: null, workerExecutablePath: FakeWorkerLocator.Locate(),
-            accessPolicy: new OperationAccessPolicy(McpAccessMode.Full));
+        using var client = FakeWorkerClients.Create(McpAccessMode.Full, binding: binding);
         await FakeWorkerBinding.BindVerifiedAsync(client, binding, "echo");
 
         var result = await PlcWorkerInvoker.InvokeWriteAsync(client, request);
@@ -188,9 +177,7 @@ public sealed class PlcWriteInvokerTests
         var (request, _) = Build(operation);
         request.Format = operation == "update_block_logic" ? "source" : null;
         var binding = new ProjectSessionBinding(null);
-        using var client = new OpennessWorkerClient(
-            binding, logger: null, workerExecutablePath: FakeWorkerLocator.Locate(),
-            accessPolicy: new OperationAccessPolicy(McpAccessMode.Full));
+        using var client = FakeWorkerClients.Create(McpAccessMode.Full, binding: binding);
         await FakeWorkerBinding.BindVerifiedAsync(client, binding, "echo");
 
         var result = await PlcWorkerInvoker.InvokeWriteAsync(client, request);
@@ -204,7 +191,7 @@ public sealed class PlcWriteInvokerTests
     [Fact]
     public async Task InvalidFormatIsValidationErrorWithNotSentOutcome()
     {
-        using var client = CreateClient(Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".exe"));
+        using var client = FakeWorkerClients.Create(McpAccessMode.Full, workerPath: Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".exe"));
 
         var result = await PlcWorkerInvoker.InvokeWriteAsync(client, new PlcOperationRequest
         {
@@ -229,7 +216,7 @@ public sealed class PlcWriteInvokerTests
     [Fact]
     public async Task InvalidTypeFormatIsValidationErrorWithoutOutcome()
     {
-        using var client = CreateClient(Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".exe"));
+        using var client = FakeWorkerClients.Create(McpAccessMode.Full, workerPath: Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".exe"));
 
         var result = await PlcWorkerInvoker.InvokeWriteAsync(client, new PlcOperationRequest
         {
@@ -248,7 +235,7 @@ public sealed class PlcWriteInvokerTests
     [Fact]
     public async Task UnsupportedOperationIsValidationError()
     {
-        using var client = CreateClient(Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".exe"));
+        using var client = FakeWorkerClients.Create(McpAccessMode.Full, workerPath: Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".exe"));
 
         var result = await PlcWorkerInvoker.InvokeWriteAsync(
             client, new PlcOperationRequest { OperationId = "x", Operation = "get_block_content", BlockPath = "a/b" });

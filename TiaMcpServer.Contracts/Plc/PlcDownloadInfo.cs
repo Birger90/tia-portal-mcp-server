@@ -63,6 +63,20 @@ public class PlcDownloadRequestInfo
     /// <c>IsSecureCommunication</c> is false or unreadable is not answered (<c>insecure_communication</c>); true sends it anyway.
     /// </summary>
     public bool AllowInsecurePasswordTransfer { get; set; }
+
+    /// <summary>
+    /// Audit N2: the user of a user-based online login (<c>OnlineAuthenticationConfiguration</c>) during the download's connection;
+    /// its password comes from <see cref="Passwords"/> under that key. Null answers no such login (it aborts).
+    /// </summary>
+    public PlcOnline.PlcOnlineUserInfo? OnlineUser { get; set; }
+
+    /// <summary>
+    /// Audit N4: a node address (e.g. the running IP) that differs from the configured one. The worker creates it with
+    /// <c>ConfigurationTargetInterface.Addresses.Create(String)</c> and downloads with the documented
+    /// <c>Download(IConfiguration, ConfigurationAddress, ...)</c> overload ("Download Hardware and Software to a target with specific
+    /// IP-Address"). Null downloads to the configured address.
+    /// </summary>
+    public string? TargetAddress { get; set; }
 }
 
 /// <summary>One caller decision: a selection enum member name, or a check (<c>Checked = true</c>).</summary>

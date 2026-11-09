@@ -35,7 +35,7 @@ Konfiguriere deinen MCP-Client so, dass er den Werkzeugbefehl startet:
 Ohne explizite Zugriffsargumente startet der Server in `read-write` mit zweiunddreißig Werkzeugen: Änderungen (einschließlich Bibliotheksänderungen),
 Übersetzen, Simulationssteuerung für S7-PLCSIM Advanced, alle sieben Lifecycle-Werkzeuge, `plc_download` (in PLCSIM oder in echte Hardware),
 `plc_online_write` für konfigurierte S7-1500-CPUs, `plc_tia_online` und `plc_station_upload`. Jeder tatsächliche Lifecycle-, Lade-,
-Online-Schreib-, Online-Verbindungs- oder Upload-Aufruf und jeder `library_write`-Aufruf mit einem Lifecycle-Element einer globalen Bibliothek fragt einmal über
+Online-Schreib-, Online-Verbindungs- oder Upload-Aufruf jeder `library_write`-Aufruf mit einem Lifecycle-Element einer globalen Bibliothek und jeder `project_server_write`-Aufruf mit einem Lösch- oder Upload-Element fragt einmal über
 Form-Elicitation `accept` mit booleschem `confirm:true` nach, auch ohne Guards oder nur mit Info-Guards. Ein Client
 ohne diese Capability erhält `access_denied`; Ablehnen, Abbrechen, Timeout oder Transportfehler
 verweigern ebenfalls. Setze `"args": ["--access-mode", "full"]` für dieselben zweiunddreißig Werkzeuge mit Bestätigung per Richtlinie (policy) für Lifecycle, Laden, Online-Schreibvorgänge,

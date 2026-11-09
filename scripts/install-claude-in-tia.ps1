@@ -67,7 +67,10 @@ if ($xsd) {
     $schemaErrors = [System.Collections.Generic.List[string]]::new()
     $settings = [System.Xml.XmlReaderSettings]::new()
     $settings.ValidationType = [System.Xml.ValidationType]::Schema
-    [void]$settings.Schemas.Add($null, $xsd.FullName)
+    # PowerShell turns $null into '' for a [string] parameter, which XmlSchemaSet.Add rejects for a schema with a
+    # targetNamespace (K97): pass the schema's own targetNamespace.
+    $schemaNamespace = ([xml](Get-Content -LiteralPath $xsd.FullName -Raw)).DocumentElement.GetAttribute('targetNamespace')
+    [void]$settings.Schemas.Add($schemaNamespace, $xsd.FullName)
     $settings.add_ValidationEventHandler({ param($sender, $eventArgs) $schemaErrors.Add("line $($eventArgs.Exception.LineNumber): $($eventArgs.Message)") })
     $reader = [System.Xml.XmlReader]::Create($config, $settings)
     try { while ($reader.Read()) { } } finally { $reader.Dispose() }

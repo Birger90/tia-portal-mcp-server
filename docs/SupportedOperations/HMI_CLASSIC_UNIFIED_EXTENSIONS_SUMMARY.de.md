@@ -5,7 +5,7 @@
 Diese Referenz deckt Issue #28 (klassisches WinCC: Comfort/Advanced Panels) und Issue #29 (WinCC Unified: Ereignisse,
 Dynamisierungen, Formen und Widgets, Audit, Anlagenobjekte) ab. Alles hier ist **nicht live getestet**. Beleg für jedes
 Siemens-Member ist die V21-IntelliSense-Beschreibung (`Siemens.Engineering.WinCC.xml`, `Siemens.Engineering.WinCCUnified.xml`,
-`PublicAPI\V21\net48`, 29.10.2025); kein Member außerhalb davon wird verwendet. Tools, Zugriffsmodi und Zählungen (13/32/32)
+`PublicAPI\V21\net48`, 29.10.2025); kein Member außerhalb davon wird verwendet. Tools, Zugriffsmodi und Zählungen (13/33/33)
 bleiben gleich: Es sind weitere `hmi_read`- und `hmi_write`-Operationen mit den Regeln der
 [HMI-Referenz](HMI_OPERATIONS_SUMMARY.de.md) (50 Einträge, Reihenfolge des Aufrufers, Stopp beim ersten Fehler, kein
 Rollback, `dryRun:true` als Vorschau, Schreibvertrag `2.0`, Lesevertrag `1.1`).
@@ -91,7 +91,7 @@ ohne Groß-/Kleinschreibung); bei `tags` grenzt er die Variablentabellen auf die
 | Punkt | Warum |
 | --- | --- |
 | `CreateFrom(MasterCopy)` / `CreateFrom(…LibraryTypeVersion)` von Variablentabellen, Variablen, Bildern, Vorlagen, Pop-ups, VB-Skripten | Instanziieren aus der Bibliothek gehört zu `library_write`; dessen Ziele umfassen klassische HMI-Kompositionen noch nicht. Hier nicht gebaut. |
-| Mehrsprachige Grafiken (`GraphicsProvider.Graphics`, `MultiLingualGraphicComposition`) | V21 dokumentiert den Provider, aber nicht, welches Objekt ihn als Dienst anbietet; nichts wird geraten. |
+| Mehrsprachige Grafiken (`GraphicsProvider.Graphics`, `MultiLingualGraphicComposition`) | V21 dokumentiert den Provider, aber nicht, welches Objekt ihn als Dienst anbietet; nichts wird geraten. Audit N9 (2026-11-09) prüfte members.txt erneut: `MultiLingualGraphicComposition` hat `Import(FileInfo, ImportOptions)`, `Find(String)` und Enumeration, `MultiLingualGraphic` hat `Name`, `Export(FileInfo, ExportOptions)` und `Delete()`; Auflisten/Export/Import wären also zur Laufzeit bindbar, sobald der Besitzer bekannt ist (eine Suche über `GetServiceInfos()` von Projekt und TIA Portal wie bei `FingerprintDataProvider`). In diesem Paket nicht gebaut: Projektgrafiken sind projektweit (eine neue `plc_read`/`plc_write`-Familie mit den Regeln für Aufruferdateien und einem Rücklesen), und der Besitzer sollte zuerst live geprüft werden; Folgepunkt im [Improvement Log](../IMPROVEMENT_LOG.md). |
 | `Hmi.Alarm`, `Hmi.Recipe`, `Hmi.Logging`, `Hmi.Report`, `Hmi.Scheduler`, `Hmi.Faceplate` | V21 dokumentiert in diesen Namensräumen nur Enums (und Namen von Bibliothekstypen), keine Komposition, keinen Export oder Import. |
 | Inhalt klassischer Objekte (Eigenschaften einer Variable, Bildobjekte, Verbindungsparameter) | V21 dokumentiert keine typisierten Member; der Inhalt läuft über den SimaticML-Export/-Import oben. |
 | Löschen von Slide-in-Bildern, globalen Elementen, Bildübersicht | Kein `Delete()` dokumentiert. |

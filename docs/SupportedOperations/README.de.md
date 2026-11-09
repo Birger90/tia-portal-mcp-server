@@ -26,7 +26,7 @@ dazu die Lesezugriffe für Online/Offline-Vergleich, Online-Zustand, Station-Upl
 `read_cross_references` ist ein eigenständiges Tool. `execute_read_batch` wurde außer Dienst gestellt.
 Hardware-/Kataloglesezugriffe nutzen `network_read`. Lesezugriffe auf WinCC-Unified-HMIs nutzen `hmi_read`; Schreibzugriffe auf Variablentabellen, Variablen und Meldungen nutzen `hmi_write`. Siehe [HMI_OPERATIONS_SUMMARY.md](HMI_OPERATIONS_SUMMARY.de.md).
 
-Projektbindung, Status, Durchsuchen des Projektbaums und Übersetzen sind getrennte Tools: `bind_project`, `get_project_status`, `browse_project_tree` und `compile_check`. Die ersten drei sind in jedem Modus verfügbar; Übersetzen, Lebenszyklus, `plc_download`, `plc_online_write`, `plc_tia_online` und `plc_station_upload` sind in read-write und full verfügbar. Full fügt keine Tools oder Operationen hinzu; das Openness-PLC-Run/Stop (`start_plc`/`stop_plc`) wurde entfernt, und der Betriebszustand einer realen CPU ändert sich nur über `plc_online_write change_operating_mode` über die Web API. Siehe [Installation](../guides/installation.md#access-modes) für die Oberflächen 13/32/32 und die Bestätigungsrichtlinie.
+Projektbindung, Status, Durchsuchen des Projektbaums und Übersetzen sind getrennte Tools: `bind_project`, `get_project_status`, `browse_project_tree` und `compile_check`. Die ersten drei sind in jedem Modus verfügbar; Übersetzen, Lebenszyklus, `plc_download`, `plc_online_write`, `plc_tia_online` und `plc_station_upload` sind in read-write und full verfügbar. Full fügt keine Tools oder Operationen hinzu; das Openness-PLC-Run/Stop (`start_plc`/`stop_plc`) wurde entfernt, und der Betriebszustand einer realen CPU ändert sich nur über `plc_online_write change_operating_mode` über die Web API. Siehe [Installation](../guides/installation.md#access-modes) für die Oberflächen 13/33/33 und die Bestätigungsrichtlinie.
 
 `plc_download` lädt die PLC des gebundenen eigenständigen Projekts in die PLC-Simulation (die PC-Schnittstelle `PLCSIM`) oder in eine reale Steuerung (jede andere PC-Schnittstelle) und bestätigt jeden tatsächlichen read-write-Aufruf; der Zugriffsmodus ist die einzige Kontrolle über Hardware-Downloads. Siehe die [PLC-Download-Referenz](PLC_DOWNLOAD_SUMMARY.de.md); sie ist nicht live getestet.
 
@@ -124,6 +124,7 @@ Leseantworten können `warnings` für unvollständige oder eingeschränkte Daten
 | Eigenständige VCI-Arbeitsbereiche (`vci_read`, `vci_write`) | [VCI_OPERATIONS_SUMMARY.md](VCI_OPERATIONS_SUMMARY.de.md) |
 | Projekt- und globale Bibliotheken, Typen, Kopiervorlagen (`library_read`, `library_write`) | [LIBRARY_OPERATIONS_SUMMARY.md](LIBRARY_OPERATIONS_SUMMARY.de.md) |
 | „Claude in TIA“: TIA-Portal-Add-In, Übergabe an Claude über Ein- und Ausgang (`tia_inbox`), Claude-Brücke | [CLAUDE_IN_TIA.md](CLAUDE_IN_TIA.de.md) |
+| MCP-Ressourcen (eingebettete Referenzdokumente, Operationsreferenz) und Prompts (Arbeitsabläufe) | [MCP_RESOURCES_PROMPTS_SUMMARY.md](MCP_RESOURCES_PROMPTS_SUMMARY.de.md) |
 | Externe Quellen, Projektbaumordner (Suchen, Umbenennen, Erstellen/Löschen von Typ- und Variablentabellengruppen), Software Units (Erstellen, Löschen, Umbenennen), Variablenkommentare, CSV- und Batch-Dateiexporte, Scan erreichbarer Geräte | [PLC_SOURCES_FOLDERS_SUMMARY.md](PLC_SOURCES_FOLDERS_SUMMARY.de.md) |
 | PLC-Meldungen, Meldeklassen, Textlisten, ProDiag-Überwachungen und -Zuordnungen (`plc_read`, `plc_write`) | [PLC_ALARMS_TEXTLISTS_SUMMARY.md](PLC_ALARMS_TEXTLISTS_SUMMARY.de.md) |
 | Technologieobjekte: Auflisten, Parameter, Hardwareverbindungen, Export/Import (`plc_read`, `plc_write`) | [TECHNOLOGY_OBJECTS_SUMMARY.md](TECHNOLOGY_OBJECTS_SUMMARY.de.md) |
@@ -137,6 +138,7 @@ Leseantworten können `warnings` für unvollständige oder eingeschränkte Daten
 | SIMATIC-Antriebe / Startdrive | [SIMATIC_DRIVES_OPERATIONS_SUMMARY.md](SIMATIC_DRIVES_OPERATIONS_SUMMARY.de.md) |
 | PLC-Import-/Exportformate | [IMPORT_EXPORT_OPTIONS_SUMMARY.md](IMPORT_EXPORT_OPTIONS_SUMMARY.de.md) |
 | Multiuser-Inventar über `bind_project`, passiver Kontext und Abnahmegrenze | [MULTIUSER_OPERATIONS_SUMMARY.md](MULTIUSER_OPERATIONS_SUMMARY.de.md) |
+| Project-Server-Verwaltung (`project_server_write`): Verbindungen, Hochladen, lokale Sitzungen | [PROJECT_SERVER_WRITE_SUMMARY.md](PROJECT_SERVER_WRITE_SUMMARY.de.md) |
 | Teamcenter | [TEAMCENTER_OPERATIONS_SUMMARY.md](TEAMCENTER_OPERATIONS_SUMMARY.de.md) |
 | TestSuite | [TESTSUITE_OPERATIONS_SUMMARY.md](TESTSUITE_OPERATIONS_SUMMARY.de.md) |
 

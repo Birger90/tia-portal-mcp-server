@@ -35,7 +35,7 @@ Configure your MCP client to launch the tool command:
 Without explicit access arguments the server starts in `read-write` with thirty-two tools: edits (library edits included),
 compilation, S7-PLCSIM Advanced simulation control, all seven lifecycle tools, `plc_download` (to PLCSIM or to real hardware),
 `plc_online_write` for configured S7-1500 CPUs, `plc_tia_online` and `plc_station_upload`. Each actual lifecycle, download,
-online-write, online-connection or upload call, and each `library_write` call with a global-library lifecycle item, asks once through form
+online-write, online-connection or upload call, each `library_write` call with a global-library lifecycle item, and each `project_server_write` call with a delete or upload item asks once through form
 elicitation `accept` with boolean `confirm:true`, even with no guards or only info guards. A client
 without that capability receives `access_denied`; decline, cancel, timeout, or transport failure
 also denies. Set `"args": ["--access-mode", "full"]` for the same thirty-two tools with lifecycle, download, online-write,

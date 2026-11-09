@@ -1,5 +1,6 @@
 using TiaMcpServer.Contracts.Hmi;
 using TiaMcpServer.Contracts.Library;
+using TiaMcpServer.Contracts.Multiuser;
 using TiaMcpServer.Contracts.Plc;
 using TiaMcpServer.Contracts.PlcAlarms;
 using TiaMcpServer.Contracts.PlcOnline;
@@ -121,6 +122,8 @@ public static class ProjectCapabilityCatalog
     public static string? OperationFor(string method)
     {
         if (NonProjectMethods.Contains(method, StringComparer.Ordinal)) return null;
+        // Project Server administration acts on the TIA Portal instance and its server connections, never on a project.
+        if (method == ProjectServerMethods.WriteTool || ProjectServerMethods.IsWorkerMethod(method)) return null;
         // S7-PLCSIM Advanced methods act on a simulated CPU in a separate worker, never on a project.
         if (PlcSimMethods.IsPlcSimMethod(method)) return null;
         // S7-1500 Web API methods act on a configured controller from the host, never on a project.

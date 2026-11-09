@@ -56,7 +56,8 @@ public static class PlcCompareService
         // Online passwords (e.g. OnlineReadAccessPassword of a protected CPU) are answered from the caller's password sources
         // and the server password map; nothing else is answered, and a TLS check only from trustedCertificates.
         var refusing = new PlcCallbackRecorder(null, checkedRequest.Passwords,
-            new PlcCallbackReflectionAccess(PlcCallbackPolicy.OnlineConfigurationsNamespace, _ => null, Environment.GetEnvironmentVariable), PlcOnlineService.IsFatal,
+            new PlcCallbackReflectionAccess(PlcCallbackPolicy.OnlineConfigurationsNamespace, _ => null, Environment.GetEnvironmentVariable,
+                onlineUser: checkedRequest.OnlineUser), PlcOnlineService.IsFatal,
             checkedRequest.TrustedCertificates);
         var configuration = provider?.Configuration;
         OnlineConfigurationDelegate refuse = presented => refusing.Handle(presented);

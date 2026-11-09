@@ -26,7 +26,7 @@ Diese Referenz behandelt die Openness-V21-Funktionen, die dieser Fork rund um de
 > Übersetzung gegen die echten DLLs bestehen, bevor ein Live-Test stattfindet; die ersten Live-Prüfungen sind unter
 > [Live-Abnahmeprüfungen](#live-abnahmeprüfungen) aufgeführt.
 
-Tool-Anzahlen: 13 Tools in read-only, 32 in read-write und 32 in full seit `siemens_docs` (31 seit `tia_inbox`, 30 seit `retrieve_project`, 29 seit den Bibliotheks-Tools, 27, als diese Tools hinzukamen; `plc_tia_online` und
+Tool-Anzahlen: 13 Tools in read-only, 33 in read-write und 33 in full seit `project_server_write` (13/32/32 seit `siemens_docs`, 31 seit `tia_inbox`, 30 seit `retrieve_project`, 29 seit den Bibliotheks-Tools, 27, als diese Tools hinzukamen; `plc_tia_online` und
 `plc_station_upload` sind die beiden hier hinzugefügten schreibfähigen Tools; jede andere Operation liegt in
 `plc_read`/`plc_write`).
 
@@ -109,6 +109,7 @@ funktionieren auch in lokalen Multiuser-Sitzungen.
 | `compare_software` | `compareTarget` `plc` (mit `targetName` = andere PLC), `project_library` oder `master_copy` (mit `targetName` = Kopiervorlage im Wurzelordner der Kopiervorlagen der Projektbibliothek) oder `secondary_plc` (mit `targetName` = eine PLC des offenen Sekundärprojekts `targetProject`; Issue #20, nicht live getestet); optional `plcName` und die Obergrenzen oben; `trustedCertificates` wird abgelehnt | dieselbe Form; Online-Member sind null, `configurationsSeen` ist leer und `abort` null |
 | `compare_hardware` | `compareTarget` `plc` (mit `targetName` = andere PLC) oder `master_copy` (mit `targetName` = Kopiervorlage im Wurzelordner der Kopiervorlagen der Projektbibliothek); optional `plcName`, `hardwareScope` (`device`, Standard: die Station der PLC; `cpu`: ihr CPU-Geräteelement; bei `plc` das Objekt der anderen PLC im selben Umfang) und die Obergrenzen oben; `trustedCertificates` wird abgelehnt | dieselbe Form wie `compare_software`; siehe [Hardwarevergleich](#hardwarevergleich) |
 | `compare_hardware_to_online` | optional `plcName`, `hardwareScope`, die Obergrenzen, `trustedCertificates`, `passwords` (genau wie `compare_to_online`) | dieselbe Form wie `compare_to_online` |
+| `get_station_fingerprint_data` | `mode`, `pcInterface`, `targetAddress`; optional `maxElements` (1-2000, Standard 200), `trustedCertificates`, `passwords`, `onlineUser` | `PlcStationFingerprintDataInfo`; siehe [Fingerprint-Daten einer Station](PLC_ONLINE_OPENNESS_SUMMARY.md#station-fingerprint-data-get_station_fingerprint_data) (Audit N3, nicht live getestet) |
 | `get_online_state` | optional `plcName` (weggelassen: jede PLC wird aufgeführt) | `{ plcs[{ plcName, deviceName, onlineProviderAvailable, state, isConfigured, modes[{ name, pcInterfaces[{ name, number, targetInterfaces[{ name }] }] }] }] }` aus `OnlineProvider.State`, `Configuration.IsConfigured` und `Configuration.Modes` (offline; nie `GetAccessibleDevices()`) |
 | `list_station_upload_interfaces` | keine | `{ available, modes[{ name, pcInterfaces[{ name, number, targetInterfaces: [] }] }] }` aus `StationUploadProvider.Configuration` |
 | `list_watch_and_force_tables` | optional `plcName` | pro PLC: `groups` (Pfade der Anwendergruppen), `watchTables` und `forceTables` `{ groupPath, name, isConsistent }`, `complete` (höchstens 5.000 Einträge) |
@@ -122,6 +123,28 @@ Texte werden bei 1.000 Zeichen abgeschnitten. Mit `differencesOnly` wird ein Ele
 Stoppt die Tiefen- oder Elementobergrenze den Durchlauf, ist `complete` false, `omission` sagt, welche Obergrenze, und
 jedes abgeschnittene übergeordnete Element hat `elementsTruncated: true`. `identical` ist true, wenn der Wurzelzustand einer der
 beiden identischen Zustände ist. Ein Ergebnis über dem Wertbudget wird als Ganzes mit Hinweisen ausgelassen (die Obergrenzen senken).
+
+### Fingerprint-Daten einer Station (`get_station_fingerprint_data`)
+
+> **Nicht live getestet** (Audit N3). Beleg: V21 `Siemens.Engineering.Base.xml` (members.txt):
+> `T:Siemens.Engineering.FingerprintData.FingerprintDataProvider` („Service provides fingerprintdata functionality“) mit
+> `Configuration` („Connection Configuration.“) und `GetFingerprintData(ConfigurationAddress, OnlineConfigurationDelegate)`;
+> `FingerprintDataResult.FingerprintDataItems`; `FingerprintDataItem.FingerprintDataIdentifier` und `.FingerprintDataValue`.
+
+`plc_read get_station_fingerprint_data` (`OnlineObserve`, jeder Modus, nur Standalone-Projekte) liest die Fingerprint-Daten der Station
+unter einer Knotenadresse für einen schnellen Stationsvergleich. Felder: `mode` und `targetAddress` (Pflicht), `pcInterface { name,
+number }` (Pflicht, kein Standard), optional `maxElements` (1-2000, Standard 200), `trustedCertificates`, `passwords` und `onlineUser`.
+Das XML sagt nicht, welches Objekt den Provider anbietet: Der Worker sucht ihn über den exakten vollen Namen unter den `GetServiceInfos()`
+des TIA Portals, dann des gebundenen Projekts (`unsupported_capability`, wenn keines ihn listet; sonst wird nichts geraten). Modus und
+PC-Schnittstelle werden exakt an der eigenen `Configuration` des Providers (eine `ConnectionConfiguration`) aufgelöst, die Adresse dort
+mit `ConfigurationPcInterface.Addresses.Create(String)` erzeugt und `GetFingerprintData` zur Laufzeit gebunden (kein Stub).
+Online-Rückfragen beantwortet der gemeinsame Callback-Recorder nach den Regeln von `compare_to_online` (Passwortquellen und Zuordnung,
+`onlineUser`, `trustedCertificates`; alles andere bricht ab und liefert nichts); jeder TIA-Portal-Dialog wird mit Nein beantwortet und
+lässt den Eintrag scheitern. Das Ergebnis enthält `providerOwner` (`portal` oder `project`), Pfad und Adresse, `itemCount`, `truncated`,
+`items[]` mit `identifier` und `value` als Text `{ state, value, runtimeType, error }` (ihre Typen sind undokumentiert; Bytefolgen werden
+hexadezimal) und `configurationsSeen`. Der Lesezugriff erreicht das Gerät und ändert weder Gerät noch Projekt. **Live-Abnahme noch
+nötig:** welches Objekt den Provider anbietet, die Werttypen und ob die PLC dafür in TIA Portal offline sein muss (laut einer
+Anleitung Dritter ja).
 
 ### Hardwarevergleich
 
@@ -227,8 +250,14 @@ Die Online-Legitimation wird nur vom Aufrufer beantwortet: Passwortkonfiguration
 (`SetPassword(SecureString)` aus der benannten Umgebungsvariable, der Wert wird nie festgehalten), die TLS-
 Zertifikatsprüfung (`TlsVerificationConfiguration`) nur durch `trustedCertificates` (`Trusted`, wenn der SHA-256-Fingerabdruck jedes
 vorgelegten Zertifikats aufgeführt ist, sonst `NonTrusted` und Abbruch mit den
-Zertifikatsbelegen; siehe [TLS-Zertifikatsvertrauen](#tls-zertifikatsvertrauen-trustedcertificates)). Jede
-andere vorgelegte Konfiguration (zum Beispiel `OnlineAuthenticationConfiguration`) bricht die Verbindung ab;
+Zertifikatsbelegen; siehe [TLS-Zertifikatsvertrauen](#tls-zertifikatsvertrauen-trustedcertificates)), und eine benutzerbasierte
+Anmeldung (`OnlineAuthenticationConfiguration`, Audit N2, nicht live getestet) nur mit `onlineUser { userName, userType? }` plus der
+Passwortquelle `passwords["OnlineAuthenticationConfiguration"]` (`OnlineCredentials.Name`, `.Type`, falls angegeben, `.SetPassword`;
+dieselbe `IsSecureCommunication`-Regel; die vollständige Regel steht in der [PLC-Download-Referenz](PLC_DOWNLOAD_SUMMARY.de.md)).
+`onlineUser` ist ein Argument von go_online, `plc_station_upload`, `compare_to_online` und `compare_hardware_to_online`; go_offline
+weist es ab. Die Belegprüfung des Hosts für die beiden Online-Vergleiche akzeptiert einen `password_set`-Eintrag mit jeder gültigen
+Passwortquelle (die zusammengeführte Liste aus Quellen des Eintrags und Passwortzuordnung entsteht beim Aufruf); vor Audit N2 wies sie
+solche Vergleichsbelege als `protocol_error` ab. Jede andere vorgelegte Konfiguration bricht die Verbindung ab;
 `configurationsSeen` und `abort` des Ergebnisses nennen sie mit ihrer Art und, bei einer Auswahl, ihren
 `availableSelections`. Die Rückfrage in read-write führt die Passwortschlüssel und jeden vertrauten Fingerabdruck auf.
 
@@ -489,7 +518,8 @@ durch `PlcOnlineReferenceStubTests`.
 | `VerificationCertificate.Certificate` → `X509Certificate2` (`RawData`, `Thumbprint`, `Subject`, `Issuer`, `NotBefore`, `NotAfter` sind .NET-Member) | Base | b, h | Laufzeit-Lookup; Typ aus der Quelle ("exposing the target `X509Certificate2` through `Certificate`") |
 | `TlsVerificationConfiguration.CurrentSelection` vom Typ `TlsVerificationConfigurationSelection`; Member `Trusted`, `NonTrusted` nach Namen gesetzt (`NonVerified` nie) | Base | b, h | Laufzeit-Lookup; Eigenschaft, Typ und Member aus der Quelle (Callback-Beispiel und Katalog), Typname in h; der vollständige Name des Eigenschaftstyps wird verglichen, Member mit `Enum.IsDefined` geprüft |
 | `IsSecureCommunication` von `OnlinePasswordConfiguration`/`UploadPasswordConfiguration` | Base | members.txt | Laufzeit-Lookup (`PlcPasswordChannel`, Audit T1): vor jedem `SetPassword` gelesen; false oder nicht lesbar ohne `allowInsecurePasswordTransfer` bricht mit `insecure_communication` ab; nicht live getestet |
-| `OnlineAuthenticationConfiguration`, `OnlineCredentials`, `UserType`, `AuthenticationType`, `OnlineAuthenticationConfiguration.IsSecureCommunication`, `EnableLegacyCommunication` | Base | b, h | nicht verwendet (Authentifizierung bricht ab; `EnableLegacyCommunication` wird nie gelesen oder gesetzt) |
+| `OnlineAuthenticationConfiguration` (`OnlineCredentials`, `IsSecureCommunication`), `OnlineCredentials` (`Name`, `Type`, `SetPassword(SecureString)`), `UserType` | Base | b, h; V21 members.txt | Reflection (Audit N2, nicht live getestet): beantwortet aus `onlineUser` und seiner Passwortquelle |
+| `AuthenticationType`, `OnlineAuthenticationConfiguration.GetSupportedAuthenticationTypes()`, `EnableLegacyCommunication` | Base | b, h | nicht verwendet (`EnableLegacyCommunication` wird nie gelesen oder gesetzt) |
 | `OnlineConfigurationDelegate` = `void (OnlineConfiguration)`; `Online.Configurations.OnlineConfiguration` | Base | b, h | Signatur aus der Quelle |
 | `ConnectionConfiguration.Modes`, `ConfigurationMode.Name/.PcInterfaces`, `ConfigurationPcInterface.Name/.Number/.TargetInterfaces`, `ConfigurationTargetInterface.Name` | Base | b, e, f | vorhanden (plc_download) |
 | `ConfigurationPcInterface.Addresses` → `ConfigurationAddressComposition`; `.Create(string)` → `ConfigurationAddress` | Base | b, c, e | Signatur aus der Quelle |
@@ -533,16 +563,18 @@ Parameternamen in Stub-Signaturen sind Platzhalter.
 - **Hardwarevergleich mit einem anderen Objekt als Station/CPU einer PLC, einer Kopiervorlage im Wurzelordner oder dem
   `OnlineProvider` der CPU.** `HardwareObject.CompareTo(IHardwareCompareTarget)` ist als `compare_hardware`/`compare_hardware_to_online`
   umgesetzt (Issue #7); die V21-XML nennt keinen Umsetzer von `IHardwareCompareTarget`, daher wird kein anderes Ziel geraten.
-- **`GoOnline(ConfigurationAddress)`, `ApplyConfiguration(ConfigurationAddress)` (Gateway-/Subnetz-
-  Pfade), `RHOnlineProvider`** sind dokumentiert, werden aber nicht verwendet: Der Pfad ist immer der exakte Modus → PC-
-  Schnittstelle → Zielschnittstelle, den bereits der Download verwendet. Online gehen zur R/H-Primär- oder Reserve-CPU
+- **`ApplyConfiguration(ConfigurationAddress)` (Gateway-/Subnetz-Pfade), `RHOnlineProvider`** sind dokumentiert, werden aber
+  nicht verwendet: Der Pfad ist immer der exakte Modus → PC-Schnittstelle → Zielschnittstelle, den bereits der Download verwendet.
+  `GoOnline(ConfigurationAddress)` wird nur für go_online `targetAddress` verwendet (Audit N4, nicht live getestet: die Adresse aus
+  `Addresses.Create` der PC-Schnittstelle, nach `ApplyConfiguration(target)`, zur Laufzeit gebunden; Info-Guard
+  `online_custom_address`). Online gehen zur R/H-Primär- oder Reserve-CPU
   (`RHOnlineProvider.GoOnlineToPrimary/GoOnlineToBackup`, `PrimaryState`/`BackupState`, Audit N1) braucht ein neues Feld in
   `plc_tia_online` und ein Pfadinventar aus `RHOnlineProvider.Configuration` in `get_online_state`; das bleibt einem späteren
   Paket. Die Provider-Suche des Workers (`RhSystemProviders`: CPU-Geräteelement, dann Elternobjekte bis zum `Device`,
   Audit T3) deckt `RHOnlineProvider` dafür bereits per Name ab.
-- **Antworten auf Online-Authentifizierung** (`OnlineAuthenticationConfiguration`, `OnlineCredentials`,
-  `UserType`): Für dieses Tool existiert keine freigegebene Authentifizierungs-Policy, daher brechen diese Konfigurationen mit
-  Belegen ab. TLS-Vertrauen wird beantwortet, aber nur aus den vom Benutzer freigegebenen `trustedCertificates` (siehe
+- **Online-Authentifizierung ohne `onlineUser`** (`OnlineAuthenticationConfiguration`): Ohne `onlineUser` und Passwortquelle des
+  Aufrufers bricht die Anmeldung mit Belegen ab; der Server wählt nie selbst einen Benutzer (Audit N2 ergänzte die ausdrückliche
+  Antwort). TLS-Vertrauen wird beantwortet, aber nur aus den vom Benutzer freigegebenen `trustedCertificates` (siehe
   [TLS-Zertifikatsvertrauen](#tls-zertifikatsvertrauen-trustedcertificates)). `EnableLegacyCommunication` wird
   nie angefasst (ein TLS-Downgrade). `TlsVerificationConfigurationSelection.NonVerified` wird nie gesetzt.
 - **Bindung von `PlcName` an das Ziel**: Die Quelle verlangt, `PlcName`, `VerificationInfo` und jedes

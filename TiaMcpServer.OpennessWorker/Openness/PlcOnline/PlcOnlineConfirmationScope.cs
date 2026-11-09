@@ -23,11 +23,11 @@ internal static class PlcOnlineConfirmationScope
 
     public static bool AnswersPortalConfirmations(string? method)
         => method is PlcOnlineMethods.GoOnline or PlcOnlineMethods.GoOffline or PlcOnlineMethods.StationUpload or PlcOnlineMethods.CompareToOnline
-            or PlcOnlineMethods.CompareHardwareToOnline;
+            or PlcOnlineMethods.CompareHardwareToOnline or PlcOnlineMethods.GetStationFingerprintData;
 
     /// <summary>True when the scope of <paramref name="method"/> may answer Yes (the policy is accept; read-only still answers No).</summary>
     public static bool AcceptsPortalConfirmations(string? method, PlcOnlineRequestInfo? request)
-        => !PlcOnlineMethods.IsOnlineCompare(method)
+        => !PlcOnlineMethods.IsOnlineCompare(method) && method != PlcOnlineMethods.GetStationFingerprintData
             && string.Equals(request?.PortalConfirmations, PlcDownloadPolicy.PortalConfirmationPolicies.Accept, StringComparison.Ordinal);
 
     /// <summary>Opens the scope of one call and attaches it to a new log; dispose the scope as the safety net.</summary>
