@@ -116,7 +116,7 @@ does not bind.
 
 ### TIA Portal confirmation dialogs
 
-Every item takes `portalConfirmations` like `library_write`: until the item's evidence is collected, every TIA Portal
+Every item takes `portalConfirmations` like `tia_library_write`: until the item's evidence is collected, every TIA Portal
 `Confirmation` is answered No (`decline`, default; recorded, the item fails) or Yes (`accept`; recorded, a warning). The
 worker opens `TiaPortalSession.AnswerConfirmations` with a `PlcDownloadPortalConfirmationLog` (owner = worker method),
 closes it before copying the evidence into `ProjectServerWriteResultInfo` (failure evidence on

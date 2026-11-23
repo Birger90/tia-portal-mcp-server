@@ -8,7 +8,7 @@ using TiaMcpServer.Worker;
 namespace TiaMcpServer.Library;
 
 /// <summary>
-/// The global libraries this server changed through <c>library_write</c> and has not saved or closed since.
+/// The global libraries this server changed through <c>tia_library_write</c> and has not saved or closed since.
 /// The documented close is the parameterless <c>Close()</c>: it offers no save-or-discard choice, and no documented
 /// member reports a global library's unsaved changes. So close_global_library is refused by the block guard
 /// <see cref="LibraryGuardDefinitions.CloseUnsavedChanges"/> while this ledger (or an earlier item of the same call)

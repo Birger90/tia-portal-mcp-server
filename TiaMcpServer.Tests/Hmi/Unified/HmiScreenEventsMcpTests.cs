@@ -74,4 +74,44 @@ public class HmiScreenEventsMcpTests
         Assert.Contains("CustomCycle", Error(new() { OperationId = "a", Operation = "set_dynamization_script", ScreenName = "Main", PropertyName = "P", ScriptCode = "x", TriggerType = "T1s", CustomDuration = "5" }));
         Assert.Contains("enum member name", Error(new() { OperationId = "a", Operation = "delete_event_script", ScreenName = "Main", EventType = "Tap ped" }));
     }
+
+    [Fact]
+    public void ValueConverterShapesAreCheckedByTheCatalog()
+    {
+        static string? Error(HmiWriteOperationRequest item) => HmiWriteCatalog.ValidateWrite(new[] { item }).Error;
+        Assert.Contains("needs formula", Error(new() { OperationId = "a", Operation = "set_dynamization_value_converter", ScreenName = "Main", PropertyName = "P" }));
+        Assert.Contains("cannot mix bitmask", Error(new() { OperationId = "a", Operation = "set_dynamization_value_converter", ScreenName = "Main", PropertyName = "P",
+            MappingEntries = new() { new() { Kind = "bitmask", BitDynamizationType = "SingleBit" }, new() { Kind = "simple", Condition = "1" } } }));
+        Assert.Contains("needs from and to", Error(new() { OperationId = "a", Operation = "set_dynamization_value_converter", ScreenName = "Main", PropertyName = "P",
+            MappingEntries = new() { new() { Kind = "range", From = "0" } } }));
+        Assert.Contains("range, simple or bitmask", Error(new() { OperationId = "a", Operation = "set_dynamization_value_converter", ScreenName = "Main", PropertyName = "P",
+            MappingEntries = new() { new() { Kind = "table" } } }));
+        Assert.True(HmiWriteCatalog.ValidateWrite(new[] { new HmiWriteOperationRequest { OperationId = "a", Operation = "set_dynamization_value_converter", ScreenName = "Main", PropertyName = "P", ConditionType = "Range",
+            MappingEntries = new() { new() { Kind = "range", From = "0", To = "9", Value = "#FF00FF00" } } } }).IsValid);
+    }
+
+    [Fact]
+    public async Task ValueConverterFormulaCreatesAnExpressionDynamizationThroughMcp()
+    {
+        using var audit = new TempAuditDirectory();
+        await using var harness = await McpProtocolTestHarness.StartProductionSurfaceAsync(McpAccessMode.ReadWrite, audit.Path, Scenario);
+        object[] writes =
+        [
+            new { operationId = "expr", operation = "set_dynamization_value_converter", hmiName = "H", screenName = "Main", itemName = "Button_1", propertyName = "Width", formula = "'Speed' * 2" },
+            new { operationId = "none", operation = "set_dynamization_value_converter", hmiName = "H", screenName = "Main", itemName = "Button_1", propertyName = "Height", conditionType = "Range" },
+        ];
+
+        var preview = await CallAsync(harness, "hmi_write", writes, dryRun: true);
+        Assert.True(preview.GetProperty("success").GetBoolean(), preview.GetRawText());
+        Assert.Contains("ValueConverter.Formula", preview.GetProperty("effects")[0].GetRawText());
+
+        var applied = await CallAsync(harness, "hmi_write", writes);
+        Assert.Equal("succeeded", Item(applied, 0).GetProperty("status").GetString());
+        Assert.Equal("target_not_found", Item(applied, 1).GetProperty("failure").GetProperty("category").GetString());
+
+        var read = await CallAsync(harness, "hmi_read", [new { operationId = "d", operation = "list_screen_item_dynamizations", hmiName = "H", screenName = "Main", itemName = "Button_1" }]);
+        var row = Assert.Single(Item(read, 0).GetProperty("result").GetProperty("dynamizations").EnumerateArray());
+        Assert.Equal("ExpressionDynamization", row.GetProperty("typeName").GetString());
+        Assert.Equal("'Speed' * 2", row.GetProperty("values")[0].GetProperty("value").GetString());
+    }
 }

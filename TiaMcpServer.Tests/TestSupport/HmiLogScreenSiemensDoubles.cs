@@ -193,8 +193,18 @@ namespace Siemens.Engineering.HmiUnified.UI.Dynamization
         public void Delete() => Owner!.Remove(this);
         public string PropertyName { get => Get<string>(); set => Set(value); }
         public string Tag { get => Get<string>(); set => Set(value); }
+        public global::Siemens.Engineering.HmiUnified.UI.Dynamization.Tag.ValueConverter ValueConverter { get; } = new();
         public override object GetAttribute(string attributeName) => Base.ReflectedAttributes.Get(this, attributeName);
         public override void SetAttribute(string attributeName, object value) => Base.ReflectedAttributes.Set(this, attributeName, value);
+    }
+
+    public sealed class ExpressionDynamization : HmiTags.PropertyBagNamed, IOwnedDynamization
+    {
+        public System.Collections.IList? Owner { get; set; }
+        public void Delete() => Owner!.Remove(this);
+        public string PropertyName { get => Get<string>(); set => Set(value); }
+        public global::Siemens.Engineering.HmiUnified.UI.Dynamization.Tag.ValueConverter ValueConverter { get; } = new();
+        public override object GetAttribute(string attributeName) => Base.ReflectedAttributes.Get(this, attributeName);
     }
 
     public sealed class ScriptDynamization : HmiTags.PropertyBagNamed, IOwnedDynamization
@@ -379,4 +389,92 @@ namespace Siemens.Engineering.HmiUnified.UI.ScreenGroup
     }
 
     public sealed class HmiScreenGroupComposition : Composition<HmiScreenGroup> { }
+}
+
+namespace Siemens.Engineering.HmiUnified.UI.Dynamization.Tag
+{
+    // Value converter doubles after the V21 member list (totally-integrated-claude unified-dynamization.md).
+    public enum ConditionType { None, Range, Simple, Bitmask, Singlebit }
+    public enum RangeType { FromTo, LessThan, GreaterThan }
+    public enum BitDynamizationType { SingleBit, MultipleBits }
+
+    public sealed class ValueConverter
+    {
+        public string Formula { get; set; } = string.Empty;
+        public bool IsFormulaSelected { get; set; }
+        public MappingTable MappingTable { get; } = new();
+    }
+
+    public sealed class MappingTable
+    {
+        private ConditionType conditionType;
+        public MappingTableEntryBaseComposition Entries { get; } = new();
+
+        /// <summary>When set, the double creates the Singlebit pair itself, as jessenic reports TIA Portal may do.</summary>
+        public bool GeneratesSingleBitPair { get; set; }
+
+        public ConditionType ConditionType
+        {
+            get => conditionType;
+            set
+            {
+                conditionType = value;
+                if (value == ConditionType.Singlebit && GeneratesSingleBitPair && Entries.Count == 0) Entries.Create(BitDynamizationType.SingleBit);
+            }
+        }
+    }
+
+    public abstract class MappingTableEntryBase
+    {
+        internal MappingTableEntryBaseComposition? Owner { get; set; }
+        public object? Value { get; set; }
+        public object? AlternateValue { get; set; }
+        public bool Flashing { get; set; }
+        public global::Siemens.Engineering.HmiUnified.UI.Dynamization.Flashing.FlashingRate FlashingRate { get; set; } = global::Siemens.Engineering.HmiUnified.UI.Dynamization.Flashing.FlashingRate.Medium;
+        public void Delete() => Owner!.Items.Remove(this);
+    }
+
+    public sealed class MappingTableEntryRange : MappingTableEntryBase
+    {
+        public object From { get; set; } = 0;
+        public object To { get; set; } = 0;
+        public RangeType RangeType { get; set; }
+    }
+
+    public sealed class MappingTableEntrySimple : MappingTableEntryBase
+    {
+        public string? Condition { get; set; }
+    }
+
+    public sealed class MappingTableEntryBitmask : MappingTableEntryBase
+    {
+        public BitDynamizationType BitDynamizationType { get; set; }
+        public ulong Condition { get; set; }
+        public ulong Relevant { get; set; }
+    }
+
+    public sealed class MappingTableEntryBaseComposition : System.Collections.Generic.IEnumerable<MappingTableEntryBase>
+    {
+        internal List<MappingTableEntryBase> Items { get; } = new();
+        public int Count => Items.Count;
+
+        public T Create<T>() where T : MappingTableEntryBase, new()
+        {
+            var entry = new T { Owner = this };
+            Items.Add(entry);
+            return entry;
+        }
+
+        public IEnumerable<MappingTableEntryBitmask> Create(BitDynamizationType type)
+        {
+            var created = type == BitDynamizationType.SingleBit
+                ? new[] { new MappingTableEntryBitmask { BitDynamizationType = type, Condition = 0, Relevant = 1, Owner = this }, new MappingTableEntryBitmask { BitDynamizationType = type, Condition = 1, Relevant = 1, Owner = this } }
+                : new[] { new MappingTableEntryBitmask { BitDynamizationType = type, Owner = this } };
+            Items.AddRange(created);
+            return created;
+        }
+
+        public IEnumerator<MappingTableEntryBase> GetEnumerator() => Items.GetEnumerator();
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
 }

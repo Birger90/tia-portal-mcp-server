@@ -10,7 +10,7 @@ using Xunit;
 namespace TiaMcpServer.Tests.Library;
 
 /// <summary>
-/// library_read and library_write end to end against the scripted FakeWorker (library-roundtrip; object access
+/// tia_library_read and tia_library_write end to end against the scripted FakeWorker (library-roundtrip; object access
 /// only, no Siemens evidence). Like every FakeWorker protocol test these launch TiaMcpServer.FakeWorker.exe.
 /// </summary>
 [Collection("Mcp protocol serial")]
@@ -73,7 +73,7 @@ public sealed class LibraryMcpTests
 
         public async Task<JsonElement[]> ReadAsync(params object[] operations)
         {
-            var (document, raw) = await CallAsync("library_read", Args(("operations", operations)));
+            var (document, raw) = await CallAsync("tia_library_read", Args(("operations", operations)));
             Assert.False(raw.IsError == true, document.GetRawText());
             return document.GetProperty("batch").GetProperty("operations").EnumerateArray().ToArray();
         }
@@ -82,7 +82,7 @@ public sealed class LibraryMcpTests
         {
             var arguments = Args(("operations", operations));
             if (dryRun is not null) arguments["dryRun"] = dryRun;
-            return CallAsync("library_write", arguments);
+            return CallAsync("tia_library_write", arguments);
         }
 
         public async ValueTask DisposeAsync()
@@ -109,8 +109,8 @@ public sealed class LibraryMcpTests
     {
         await using var session = await Session.StartAsync(McpAccessMode.ReadOnly);
         var tools = (await session.Harness.Client.ListToolsAsync()).Select(tool => tool.Name).ToArray();
-        Assert.Contains("library_read", tools);
-        Assert.DoesNotContain("library_write", tools);
+        Assert.Contains("tia_library_read", tools);
+        Assert.DoesNotContain("tia_library_write", tools);
 
         var items = await session.ReadAsync(
             new { operationId = "libs", operation = "list_libraries" },
@@ -180,7 +180,7 @@ public sealed class LibraryMcpTests
 
         var tree = Result((await session.ReadAsync(new { operationId = "tree", operation = "get_library_tree", library = "project", content = "masterCopies" }))[0]);
         Assert.Equal(new[] { "/Valve_V2", "/Station", "/Main" }, tree.GetProperty("entries").EnumerateArray().Select(e => e.GetProperty("path").GetString()));
-        Assert.Contains("\"tool\":\"library_write\"", session.AuditText);
+        Assert.Contains("\"tool\":\"tia_library_write\"", session.AuditText);
     }
 
     [Fact]
@@ -553,9 +553,9 @@ public sealed class LibraryMcpTests
 
         var (wrongTool, wrongRaw) = await session.WriteAsync(null, new { operationId = "read", operation = "list_libraries" });
         Assert.True(wrongRaw.IsError);
-        Assert.Contains("use library_read", wrongTool.GetProperty("error").GetProperty("message").GetString());
+        Assert.Contains("use tia_library_read", wrongTool.GetProperty("error").GetProperty("message").GetString());
 
-        var (misplaced, _) = await session.CallAsync("library_read", Args(("operations", new object[]
+        var (misplaced, _) = await session.CallAsync("tia_library_read", Args(("operations", new object[]
             { new { operationId = "tree", operation = "get_library_tree", library = "project", masterCopyName = "Valve" } })));
         Assert.Contains("'masterCopyName' is not valid", misplaced.GetProperty("error").GetProperty("message").GetString());
         Assert.DoesNotContain(session.Methods, method => method.StartsWith("library_", StringComparison.Ordinal));

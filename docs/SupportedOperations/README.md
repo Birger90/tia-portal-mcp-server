@@ -32,7 +32,7 @@ Project binding, status, project-tree browsing, and compilation are separate too
 
 `plc_tia_online` (go online/offline on the exact download path) and `plc_station_upload` (upload a station into the offline project) are available in read-write and full, confirm every actual read-write call and answer TIA Portal confirmations by `portalConfirmations` like `plc_download`; `compare_to_online` uses the new `OnlineObserve` capability (every mode). These Openness tools are distinct from the Web API tools `plc_online_read`/`plc_online_write`. See the [PLC online Openness reference](PLC_ONLINE_OPENNESS_SUMMARY.md); it is not live-tested.
 
-`library_read` (every mode) reads the project library and the open global libraries (tree, types, versions, instances, update check, compare); `library_write` (read-write and full) opens, retrieves, creates, saves and closes global libraries (one prompt per read-write call that contains such an item), captures, copies, deletes, renames and instantiates master copies, instantiates type versions, updates the project and edits, releases, discards, sets as default or deletes type versions. See the [library reference](LIBRARY_OPERATIONS_SUMMARY.md).
+`tia_library_read` (every mode) reads the project library and the open global libraries (tree, types, versions, instances, update check, compare); `tia_library_write` (read-write and full) opens, retrieves, creates, saves and closes global libraries (one prompt per read-write call that contains such an item), captures, copies, deletes, renames and instantiates master copies, instantiates type versions, updates the project and edits, releases, discards, sets as default or deletes type versions. See the [library reference](LIBRARY_OPERATIONS_SUMMARY.md).
 
 #### Write operations
 
@@ -48,7 +48,7 @@ Siemens for Unified; [same reference](BETTERTIA_ADOPTED_OPERATIONS_SUMMARY.md#ta
 and the Classic WinCC writes `export_classic_objects`, `import_classic_objects`, `delete_classic_object`, `create_classic_folder`,
 `delete_classic_folder` with the read `list_classic_objects` ([classic and Unified extensions](HMI_CLASSIC_UNIFIED_EXTENSIONS_SUMMARY.md); not live-tested),
 and the Unified event and dynamization writes `set_event_script`, `delete_event_script`, `set_dynamization_script`,
-`set_dynamization_flashing`, `delete_dynamization` with the reads `list_screen_item_events`, `list_screen_item_dynamizations` ([same reference](HMI_CLASSIC_UNIFIED_EXTENSIONS_SUMMARY.md#wincc-unified-events-and-dynamizations-issue-29); not live-tested),
+`set_dynamization_flashing`, `delete_dynamization`, `set_dynamization_value_converter` with the reads `list_screen_item_events`, `list_screen_item_dynamizations` ([same reference](HMI_CLASSIC_UNIFIED_EXTENSIONS_SUMMARY.md#wincc-unified-events-and-dynamizations-issue-29); not live-tested),
 and the Unified audit class, runtime setting and plant view writes `create_audit_class`, `delete_audit_class`, `set_audit_class_property`,
 `set_runtime_setting`, `create_plant_view`, `delete_plant_view`, `create_plant_view_node`, `delete_plant_view_node`,
 `set_plant_object_interface_property` with the read `list_plant_views` ([same reference](HMI_CLASSIC_UNIFIED_EXTENSIONS_SUMMARY.md#wincc-unified-audit-classes-runtime-settings-plant-views-issue-29); not live-tested).
@@ -122,7 +122,7 @@ Read responses may include `warnings` for partial or degraded data. Hardware rea
 | Siemens documentation (`siemens_docs`) | [SIEMENS_DOCS_SUMMARY.md](SIEMENS_DOCS_SUMMARY.md) |
 | HMI | [HMI_OPERATIONS_SUMMARY.md](HMI_OPERATIONS_SUMMARY.md), [HMI_CLASSIC_UNIFIED_EXTENSIONS_SUMMARY.md](HMI_CLASSIC_UNIFIED_EXTENSIONS_SUMMARY.md) |
 | Standalone VCI workspaces (`vci_read`, `vci_write`) | [VCI_OPERATIONS_SUMMARY.md](VCI_OPERATIONS_SUMMARY.md) |
-| Project and global libraries, types, master copies (`library_read`, `library_write`) | [LIBRARY_OPERATIONS_SUMMARY.md](LIBRARY_OPERATIONS_SUMMARY.md) |
+| Project and global libraries, types, master copies (`tia_library_read`, `tia_library_write`) | [LIBRARY_OPERATIONS_SUMMARY.md](LIBRARY_OPERATIONS_SUMMARY.md) |
 | "Claude in TIA": TIA Portal Add-In, inbox/outbox hand-over to Claude (`tia_inbox`), Claude bridge | [CLAUDE_IN_TIA.md](CLAUDE_IN_TIA.md) |
 | MCP resources (embedded reference documents, operation reference) and prompts (workflows) | [MCP_RESOURCES_PROMPTS_SUMMARY.md](MCP_RESOURCES_PROMPTS_SUMMARY.md) |
 | External sources, project-tree folders (find, rename, type and tag-table group create/delete), software units (create, delete, rename), tag comments, CSV and batch file exports, accessible-device scan | [PLC_SOURCES_FOLDERS_SUMMARY.md](PLC_SOURCES_FOLDERS_SUMMARY.md) |

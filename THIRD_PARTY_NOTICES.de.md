@@ -154,6 +154,20 @@ SOFTWARE.
 | --- | --- | --- |
 | `TiaMcpServer.Contracts/Plc/PlcOpcUaExport.cs`, `TiaMcpServer.OpennessWorker/Openness/Plc/OpcUaExportService.cs` (`plc_write export_opcua_xml`) | Commit `f4eb4d7` "feat: add ExportOpcUaXml tool" (`src/TiaMcpServer/Siemens/Portal.OpcUa.cs`) | Das Feature: die OPC-UA-Daten einer PLC als XML exportieren. Neu implementiert aus `Project.HwUtilities.Find("OPCUAExportProvider")` und `OpcUaExportProvider.Export(DeviceItem, FileInfo)`, wie dokumentiert in `totally-integrated-claude` `skills/tia-import-export/references/plc-blocks.md` §13 und `skills/tia-devices-general/references/device-item-operations.md` (Typ aufgeführt in `api-baselines/v21/base.json`), zur Laufzeit gebunden; die abgesicherte `plc_write`-Pipeline, die Dateiablage und die Tests stammen von diesem Fork. |
 
+## Sparkz400/TIA_MCP (Apache-2.0)
+
+- Quelle: <https://github.com/Sparkz400/TIA_MCP> bei `5cb6722` (2026-11-20), schreibgeschützt geklont und nie gebaut oder
+  ausgeführt. Dessen `LICENSE` (Apache License 2.0) und `NOTICE` wurden zuerst gelesen: „TIA MCP, Copyright 2026 Nico Schürmann.
+  This product includes software developed by Nico Schürmann (https://github.com/Sparkz400/TIA_MCP).“ Apache-2.0 ist mit der
+  AGPL-3.0-only dieses Forks vereinbar (GPLv3 §7); der Hinweis bleibt hier erhalten.
+- Übernommen wurde nur der Entwurf; es wurde kein Code kopiert. Jedes Siemens-Member stammt aus der unten genannten Siemens-V21-Dokumentation.
+
+### Bisher übernommen
+
+| Datei im Fork | Idee aus | Was übernommen wurde |
+| --- | --- | --- |
+| `TiaMcpServer.Contracts/Project/UmacProjectLogin.cs`, `TiaMcpServer/ProjectLifecycle/UmacOpenItem.cs`, `TiaPortalSession.OpenProject` (`open_project` `umacUserName`) | Commit `315493b` "Name other Openness clients on attach and open UMAC-protected projects" (`src/TiaMcp.Openness.V21/OpennessSession.Projects.cs`) | Ein UMAC-geschütztes Projekt mit `ProjectComposition.Open(FileInfo, UmacDelegate)` öffnen: TIA Portals Anmeldeabfrage einmal beantworten, eine zweite ablehnen (ein abgelehntes Passwort wird nie erneut gesendet) und melden, wie oft TIA Portal gefragt hat. Neu implementiert mit Laufzeitbindung und den Passwortquellen des Forks (ohne Credential-Umschlag); Member aus Siemens „TIA Portal Openness V21 - Functions for Projects and Project Data“, zitiert in `totally-integrated-claude` `skills/tia-project-general/references/umac-and-auth.md`. |
+
 ## Czarnak/siemens-docs-mcp (MIT)
 
 - Quelle: <https://github.com/Czarnak/siemens-docs-mcp> bei `a0a0a24` (2026-11-02), Paket `siemens_docs_mcp` 0.1.2,

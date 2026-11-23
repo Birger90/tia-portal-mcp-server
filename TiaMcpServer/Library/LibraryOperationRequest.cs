@@ -5,7 +5,7 @@ using TiaMcpServer.OperationBatches;
 
 namespace TiaMcpServer.Library;
 
-/// <summary>One library_read or library_write item. Only the fields an operation documents are accepted.</summary>
+/// <summary>One tia_library_read or tia_library_write item. Only the fields an operation documents are accepted.</summary>
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed class LibraryOperationRequest : IOperationBatchItem
 {
@@ -90,7 +90,7 @@ public sealed class LibraryOperationRequest : IOperationBatchItem
     [Description("update_check: UpdateCheckMode member name; only ReportOutOfDateOnly (default) is documented.")]
     public string? UpdateCheckMode { get; set; }
 
-    [Description("library_write items: how TIA Portal confirmation dialogs raised while the item runs are answered: decline (default: No, "
+    [Description("tia_library_write items: how TIA Portal confirmation dialogs raised while the item runs are answered: decline (default: No, "
         + "recorded, the item fails) or accept (Yes, recorded, a warning). Recorded in result.value.portalConfirmations.")]
     public string? PortalConfirmations { get; set; }
 

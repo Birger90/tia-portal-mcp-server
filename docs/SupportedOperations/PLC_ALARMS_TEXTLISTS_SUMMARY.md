@@ -11,7 +11,7 @@ The operations cover what the documented V21 Openness surface offers for PLC ala
 
 - **Text lists** (`PlcSoftware.PlcAlarmTextlistGroup`): list user and system text lists with name, ID,
   list range and multilingual comment; rename a user list, change its range and its comment per
-  culture; delete a user list; create one from a master copy (`library_write`); read and change
+  culture; delete a user list; create one from a master copy (`tia_library_write`); read and change
   entries through TIA Portal's XLSX export and import; export and import whole text list workbooks.
 - **Program alarm texts** (`PlcAlarmTextProvider`): read and change alarm instance texts per culture
   through the XLSX export and import; export and import alarm text workbooks.
@@ -108,7 +108,7 @@ Every write takes optional `portalConfirmations` ([below](#tia-portal-confirmati
 | `set_prodiag_assignment` | `proDiagFb`; the target of `get_prodiag_assignment` | `SetAttribute("AssignedProDiagFB", <FB name>)`, read back by FB name ([ProDiag](#prodiag)). The FB must be an FB of the same PLC; one whose language is not ProDiag is passed on with a warning. |
 | `export_prodiag_info` | `blockPath` (ProDiag FB), `directoryPath` (must not exist) | `CodeBlock.ExportProDIAGInfo(DirectoryInfo)` into a temporary sibling directory that is then moved into place; every file is listed with size and SHA-256. An export that writes no file fails `postcondition_failed` and creates no directory. A non-ProDiag or inconsistent FB is passed on with a warning (the documented sample exports consistent ProDiag FBs). |
 
-`library_write` gains two documented kinds: `create_master_copy` source kind `textList` (`path` = the
+`tia_library_write` gains two documented kinds: `create_master_copy` source kind `textList` (`path` = the
 user text list name, optional `plcName`; `MasterCopies.Create(alarmTextList)` from the official
 skill) and `instantiate_master_copy` target kind `textLists` (`plcName`;
 `PlcAlarmUserTextlistComposition.CreateFrom(MasterCopy, MasterCopyMode)`). That is the documented way
@@ -368,7 +368,7 @@ does not invent a name list, and it passes the names as TIA Portal spells them. 
 ## TIA Portal confirmation dialogs
 
 Every write runs inside a confirmation scope like `plc_download`, `plc_station_upload` and
-`library_write`: until the item's evidence is collected, every TIA Portal `Confirmation` dialog is
+`tia_library_write`: until the item's evidence is collected, every TIA Portal `Confirmation` dialog is
 answered by the item's `portalConfirmations` instead of the session-wide handler, and recorded in
 `result.portalConfirmations[{ type, text, answer }]` (at most 100) with `portalConfirmationsObserved`,
 `portalConfirmationsComplete` and `portalConfirmationPolicy`. `decline` (default) answers No; a
@@ -511,7 +511,7 @@ declare no member. After any merge that touches `reference-stubs/`, regenerate `
 
 | Operation | Reason |
 | --- | --- |
-| Create a user text list by name | No documented create member: `PlcAlarmUserTextlistComposition` documents only `CreateFrom(MasterCopy[, MasterCopyMode])`, offered through `library_write`. An XLSX import may create lists; that is TIA Portal's import behaviour, not a documented contract. |
+| Create a user text list by name | No documented create member: `PlcAlarmUserTextlistComposition` documents only `CreateFrom(MasterCopy[, MasterCopyMode])`, offered through `tia_library_write`. An XLSX import may create lists; that is TIA Portal's import behaviour, not a documented contract. |
 | Typed text list entries (value ranges and texts as objects): read, add, update, delete | No entry type or entry composition is documented. Entries are read and changed as cells of TIA Portal's own XLSX export/import, without the server interpreting the layout. |
 | Delete text list entries | Removing rows and importing is not documented to delete entries (the import semantics are TIA Portal's) and row removal would rewrite every following reference; not offered. Texts can be cleared with a cell edit; a whole list can be deleted. |
 | Change system text lists | Read-only by owner rule; refused before anything runs (see [System text lists](#system-text-lists) for what a file import can still contain). |
@@ -580,5 +580,5 @@ a global DB with a UDT instance and a tag table with a UDT tag:
 14. A dialog during an import (for example an import that asks to overwrite): `decline` fails the item with the dialog recorded; `accept` answers Yes with a warning.
 15. `get_prodiag_fb` on the ProDiag FB and a plain FB; `get_prodiag_assignment`/`set_prodiag_assignment` on the instance DB, the UDT member, a UDT member inside an array of a global DB (`memberPath` like blocks.md's `Find("ArrayUdtMember.ArrayUdtMember[0]")`) and the UDT tag; record whether `GetAttribute("AssignedProDiagFB")` returns a string or a block, and what it returns when unset; `export_prodiag_info` into a new directory (record the file names) and on an FB that exports nothing (`postcondition_failed`, no directory).
 16. A later `delete_block` of the FB in the same call as `update_alarm_text_cells`: the cell item's verification is `superseded`.
-17. `library_write create_master_copy` with source `textList` and `instantiate_master_copy` into `textLists` with each `masterCopyMode`.
+17. `tia_library_write create_master_copy` with source `textList` and `instantiate_master_copy` into `textLists` with each `masterCopyMode`.
 18. A local session: text list operations work; alarm classes are refused at planning (`unsupported_capability`, also with `dryRun:true`).

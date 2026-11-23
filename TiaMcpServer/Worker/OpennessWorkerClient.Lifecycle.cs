@@ -99,9 +99,11 @@ public partial class OpennessWorkerClient
     }
 
     /// <param name="upgrade">Audit N5: open with <c>ProjectComposition.OpenWithUpgrade(FileInfo)</c> (.ap21 only).</param>
-    public Task<WorkerCallResult> OpenProjectAsync(string projectPath, bool forceRebind, bool upgrade = false)
+    /// <param name="umac">The UMAC user, its type and the password source token (open_project of a protected .ap21).</param>
+    public Task<WorkerCallResult> OpenProjectAsync(string projectPath, bool forceRebind, bool upgrade = false,
+        (string UserName, string UserType, string PasswordSource)? umac = null)
         => ExecuteSerializedBindingOperationAsync(
-            () => OpenProjectCoreAsync(projectPath, forceRebind, upgrade));
+            () => OpenProjectCoreAsync(projectPath, forceRebind, upgrade, umac));
 
     public WorkerCallResult CheckOpenProjectBinding(string projectPath, bool forceRebind)
     {
@@ -129,7 +131,8 @@ public partial class OpennessWorkerClient
         return WorkerCallResult.Ok("{}");
     }
 
-    private async Task<WorkerCallResult> OpenProjectCoreAsync(string projectPath, bool forceRebind, bool upgrade)
+    private async Task<WorkerCallResult> OpenProjectCoreAsync(string projectPath, bool forceRebind, bool upgrade,
+        (string UserName, string UserType, string PasswordSource)? umac)
     {
         var bindingCheck = CheckOpenProjectBinding(projectPath, forceRebind);
         if (!bindingCheck.Success) return bindingCheck;
@@ -153,6 +156,9 @@ public partial class OpennessWorkerClient
                 Method = "open_project",
                 ProjectPath = projectPath,
                 OpenWithUpgrade = upgrade,
+                UmacUserName = umac?.UserName,
+                UmacUserType = umac?.UserType,
+                UmacPasswordSource = umac?.PasswordSource,
                 ExpectedSessionIdentity = emptyIdentity ?? bindingBeforeCall.ToWorkerIdentity(),
             }).ConfigureAwait(false);
 

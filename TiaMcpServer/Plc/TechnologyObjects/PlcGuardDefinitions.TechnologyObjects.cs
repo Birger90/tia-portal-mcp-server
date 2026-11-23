@@ -15,6 +15,7 @@ public static partial class PlcGuardDefinitions
     public const string OverwritesFile = "plc_overwrites_file";
     public const string TechnologyParameterNotHardwareConnection = "plc_technology_parameter_not_hardware_connection";
     public const string ReplacesHardwareConnection = "plc_replaces_hardware_connection";
+    public const string TechnologyObjectCreateMayTerminate = "plc_technology_object_create_may_terminate";
 
     private static IEnumerable<WriteGuardDefinition> TechnologyObjectDefinitions() => new[]
     {
@@ -23,6 +24,7 @@ public static partial class PlcGuardDefinitions
         new WriteGuardDefinition(TechnologyObjectImportReplaces, WriteGuardSeverities.Info, "The SimaticML import uses ImportOptions.Override, which is expected to replace an object of the same name in the target group (not verified live; the read-back reports what the group contains afterwards)."),
         new WriteGuardDefinition(OverwritesFile, WriteGuardSeverities.Info, "The export replaces an existing file (overwrite:true)."),
         new WriteGuardDefinition(TechnologyParameterNotHardwareConnection, WriteGuardSeverities.Info, "The Siemens technology-objects skill states that writing Actor.* parameters succeeds without connecting the drive; a hardware connection is made with connect_technology_object_hardware."),
+        new WriteGuardDefinition(TechnologyObjectCreateMayTerminate, WriteGuardSeverities.Info, "Reported by asckye/TIA_Portal_Openness_MCP, not verified: on TIA Portal V21 a technology-object create with a type/version pair other than TO_PositioningAxis 5.0, TO_SpeedAxis 5.0 or PID_Compact 2.3 terminated TIA Portal; save the project first. The item runs; TIA Portal decides."),
         new WriteGuardDefinition(ReplacesHardwareConnection, WriteGuardSeverities.Info, "The interface reads as connected; Connect is expected to replace its current connection (not documented; the read-back checks that the requested target is connected)."),
     };
 }

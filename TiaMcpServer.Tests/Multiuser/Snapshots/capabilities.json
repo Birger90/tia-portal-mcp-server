@@ -217,6 +217,10 @@
       "applicability": "projectContent"
     },
     {
+      "operation": "hmi_set_dynamization_value_converter",
+      "applicability": "projectContent"
+    },
+    {
       "operation": "hmi_create_audit_class",
       "applicability": "projectContent"
     },
@@ -445,11 +449,11 @@
       "applicability": "standaloneOnly"
     },
     {
-      "operation": "library_read",
+      "operation": "tia_library_read",
       "applicability": "standaloneOnly"
     },
     {
-      "operation": "library_write",
+      "operation": "tia_library_write",
       "applicability": "standaloneOnly"
     },
     {
@@ -695,6 +699,10 @@
       "applicability": "projectContent"
     },
     {
+      "operation": "hmi_set_dynamization_value_converter",
+      "applicability": "projectContent"
+    },
+    {
       "operation": "hmi_create_audit_class",
       "applicability": "projectContent"
     },
@@ -923,11 +931,11 @@
       "applicability": "standaloneOnly"
     },
     {
-      "operation": "library_read",
+      "operation": "tia_library_read",
       "applicability": "standaloneOnly"
     },
     {
-      "operation": "library_write",
+      "operation": "tia_library_write",
       "applicability": "standaloneOnly"
     },
     {
@@ -1173,6 +1181,10 @@
       "applicability": "notYetDelivered"
     },
     {
+      "operation": "hmi_set_dynamization_value_converter",
+      "applicability": "notYetDelivered"
+    },
+    {
       "operation": "hmi_create_audit_class",
       "applicability": "notYetDelivered"
     },
@@ -1401,11 +1413,11 @@
       "applicability": "standaloneOnly"
     },
     {
-      "operation": "library_read",
+      "operation": "tia_library_read",
       "applicability": "standaloneOnly"
     },
     {
-      "operation": "library_write",
+      "operation": "tia_library_write",
       "applicability": "standaloneOnly"
     },
     {

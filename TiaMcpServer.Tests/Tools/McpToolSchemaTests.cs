@@ -138,7 +138,7 @@ public class McpToolSchemaTests
 
     // Exact sets: any extra public input, including a retired confirmation argument, fails here.
     [Theory]
-    [InlineData(nameof(ProjectWriteTools.OpenProject), "dryRun,forceRebind,projectPath,upgrade")]
+    [InlineData(nameof(ProjectWriteTools.OpenProject), "dryRun,forceRebind,projectPath,umacPassword,umacUserName,umacUserType,upgrade")]
     [InlineData(nameof(ProjectWriteTools.CreateProject), "author,comment,dryRun,projectDirectory,projectName")]
     [InlineData(nameof(ProjectWriteTools.SaveProject), "dryRun")]
     [InlineData(nameof(ProjectWriteTools.SaveProjectAs), "dryRun,rebind,targetDirectory,targetName")]
@@ -158,7 +158,7 @@ public class McpToolSchemaTests
     /// itself, since the host's tool source files are compiled directly into it (see
     /// TiaMcpServer.Tests.csproj's Compile Include entries). Counts every method on those types
     /// carrying [McpServerTool] and asserts the exact approved surface: 33 tools total (23 TIA Portal
-    /// tools, project_server_write, library_read and library_write included, plus plc_download, plc_tia_online, plc_station_upload, plcsim_read, plcsim_write, plcsim_test, plc_online_read and plc_online_write, siemens_docs and tia_inbox), and the internal lifecycle probe
+    /// tools, project_server_write, tia_library_read and tia_library_write included, plus plc_download, plc_tia_online, plc_station_upload, plcsim_read, plcsim_write, plcsim_test, plc_online_read and plc_online_write, siemens_docs and tia_inbox), and the internal lifecycle probe
     /// (probe_project_status_for_lifecycle, never [McpServerTool]-decorated) absent.
     /// </summary>
     [Fact]
@@ -201,7 +201,7 @@ public class McpToolSchemaTests
             "read_cross_references", "vci_read", "vci_write",
             "plcsim_read", "plcsim_write", "plcsim_test",
             "plc_online_read", "plc_online_write",
-            "library_read", "library_write",
+            "tia_library_read", "tia_library_write",
             "siemens_docs",
             "tia_inbox",
             "project_server_write"
@@ -237,7 +237,7 @@ public class McpToolSchemaTests
             .ToArray();
 
         Assert.Equal(
-            new[] { "bind_project", "browse_project_tree", "get_project_status", "hmi_read", "library_read", "network_read", "plc_online_read", "plc_read", "plcsim_read", "read_cross_references", "siemens_docs", "tia_inbox", "vci_read" },
+            new[] { "bind_project", "browse_project_tree", "get_project_status", "hmi_read", "network_read", "plc_online_read", "plc_read", "plcsim_read", "read_cross_references", "siemens_docs", "tia_inbox", "tia_library_read", "vci_read" },
             toolNames);
         Assert.DoesNotContain("probe_network_object_attributes", toolNames);
     }

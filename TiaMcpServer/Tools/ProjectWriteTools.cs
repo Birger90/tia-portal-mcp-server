@@ -18,16 +18,23 @@ public class ProjectWriteTools
     [McpServerTool(Name = "open_project", ReadOnly = false, Destructive = true, OpenWorld = true,
         UseStructuredContent = true, OutputSchemaType = typeof(LifecycleWriteResponse))]
     [Description("Open a TIA Portal project and bind this MCP session to it (upgrade:true opens an older .ap21 with "
-        + "ProjectComposition.OpenWithUpgrade, which upgrades the project; acknowledge guard open_project_upgrades_project; not live-tested)." + Flow)]
+        + "ProjectComposition.OpenWithUpgrade, which upgrades the project; acknowledge guard open_project_upgrades_project; not live-tested). "
+        + "A UMAC-protected .ap21 opens with umacUserName (+ umacUserType, umacPassword or the password map purpose UmacProjectLogin) through "
+        + "ProjectComposition.Open(FileInfo, UmacDelegate); the login is answered once and never resent (not live-tested)." + Flow)]
     public static Task<CallToolResult> OpenProject(
         OpennessWorkerClient workerClient, WriteExecution execution,
         [Description("Absolute path to an existing .ap21 project file or .als21 local-session file.")] string projectPath,
         [Description("Allow rebinding from the currently bound project.")] bool forceRebind = false,
         [Description("Open an .ap21 with ProjectComposition.OpenWithUpgrade instead of Open: TIA Portal upgrades the project to the current version "
             + "(needed for a project of an older TIA Portal version). Not for .als21. An already open project is adopted without an open call.")] bool upgrade = false,
+        [Description("UMAC user name for a UMAC-protected .ap21 (Open(FileInfo, UmacDelegate)). Omit for an unprotected project. Not with upgrade or .als21.")] string? umacUserName = null,
+        [Description("UMAC user type: \"project\" (a project user, default) or \"global\" (a UMC user).")] string? umacUserType = null,
+        [Description("Password source of the UMAC user, never the password: an environment variable NAME or credential:<target> "
+            + "(Windows Credential Manager, owner prefix). Omitted: the password map entry of purpose UmacProjectLogin for this project.")] string? umacPassword = null,
         [Description("Inspect effects and guards without mutation or confirmation.")] bool dryRun = false,
         McpServer? server = null, CancellationToken cancellationToken = default)
-        => ExecuteAsync(workerClient, execution, new("open_project") { ProjectPath = projectPath, ForceRebind = forceRebind, Upgrade = upgrade },
+        => ExecuteAsync(workerClient, execution, UmacOpenItem.Build(new("open_project") { ProjectPath = projectPath, ForceRebind = forceRebind, Upgrade = upgrade },
+                umacUserName, umacUserType, umacPassword, Environment.GetEnvironmentVariable),
             Confirmation(server), dryRun, cancellationToken);
 
     [McpServerTool(Name = "create_project", ReadOnly = false, Destructive = true, OpenWorld = false,

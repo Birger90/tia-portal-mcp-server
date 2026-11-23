@@ -38,6 +38,14 @@ internal sealed partial class HmiWorkingState
                 foreach (var (field, value) in new[] { ("Color", r.Color), ("AlternateColor", r.AlternateColor), ("FlashingCondition", r.FlashingCondition), ("FlashingRate", r.FlashingRate) })
                     if (value is not null) Change($"dynamization {r.PropertyName} {field}", null, value);
                 break;
+            case "set_dynamization_value_converter":
+                if (r.Formula is not null) Change($"dynamization {r.PropertyName} ValueConverter.Formula", null, r.Formula);
+                if (r.FormulaSelected is { } selected) Change($"dynamization {r.PropertyName} ValueConverter.IsFormulaSelected", null, selected ? "true" : "false");
+                if (r.ConditionType is not null) Change($"dynamization {r.PropertyName} MappingTable.ConditionType", null, r.ConditionType);
+                if (r.MappingEntries is { } entries)
+                    Change($"dynamization {r.PropertyName} MappingTable.Entries", "(existing entries)",
+                        string.Join("; ", entries.Select(e => e.Kind + (e.Kind == "range" ? $" {e.From}..{e.To}" : e.Condition is null ? string.Empty : " " + e.Condition) + (e.Value is null ? string.Empty : " => " + e.Value))));
+                break;
             default:
                 Change($"dynamization {r.PropertyName}", "(dynamization)", null);
                 guards.Add(Fire(DeletesScripting, r, $"Deleting the dynamization of '{r.PropertyName}' leaves the property at its static value."));

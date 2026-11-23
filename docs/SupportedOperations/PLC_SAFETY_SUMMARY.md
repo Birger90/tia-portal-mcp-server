@@ -160,7 +160,7 @@ pass the fail-safe gates (`plc_safety_login_required`, acceptance guards); `gene
 | `plc_import_may_unlink_main_safety_block` | info | an SD-route import of a block that the planning read shows as the main safety block (or IDB) of an F-runtime group (L1/E7; the SimaticML route kept the reference live, L3/E7b); for a main safety block the text describes the temporary-F-block route the worker takes instead of the SD import |
 
 `plc_write` confirms a call (`ConfirmsEveryCall`) exactly when it contains a fail-safe write or planning found an F-block
-change, like `library_write` with its lifecycle items: read-write asks the human once (form elicitation; a client
+change, like `tia_library_write` with its lifecycle items: read-write asks the human once (form elicitation; a client
 without it is refused with `access_denied`), full satisfies the guard by policy, a dry run never asks. The prompt lists
 each fail-safe item with its PLC and changes, every caller value quoted. Unsafe operationIds are refused for such calls.
 Ordinary `plc_write` calls still ask nothing. A dependent item that is re-planned keeps the acceptance its planning pass

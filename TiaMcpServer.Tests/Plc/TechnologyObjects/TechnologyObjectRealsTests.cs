@@ -344,8 +344,8 @@ public sealed class TechnologyObjectRealsTests
     }
 
     /// <summary>
-    /// .NET 10's R text of these doubles (2^-25, 2^-958 and their negatives) does not round-trip; the shortest text here
-    /// does, and it is the text Python's repr gives (David Gay's shortest round-trip algorithm, an independent oracle).
+    /// Early .NET 10 runtimes gave an R text of these doubles (2^-25, 2^-958 and their negatives) that does not round-trip
+    /// (runtime 10.0.15 fixed it); the shortest text here does, and it is the text Python's repr gives (David Gay's shortest round-trip algorithm, an independent oracle).
     /// R's text is instead the shortest text of the double below, so a value shown with R would be written back as that
     /// neighbour; the description used here converts back to exactly the described bits.
     /// </summary>
@@ -361,17 +361,23 @@ public sealed class TechnologyObjectRealsTests
         Assert.Equal(bits, Bits(double.Parse(shortest, CultureInfo.InvariantCulture)));
         Assert.Equal(bits, Bits(ParseDouble(shortest)));
 
+        // The neighbour below has its own shortest text, which converts back to the neighbour, never to these bits.
+        var neighbourText = Reals.Shortest(BitConverter.Int64BitsToDouble(bits - 1));
+        Assert.NotEqual(shortest, neighbourText);
+
+        // .NET 10 runtimes up to at least 10.0.0 gave the neighbour's text for R; 10.0.15 (SDK 10.0.404) gives the
+        // shortest text. Either way R must be one of the two, and the fork's own text never depends on it.
         var r = value.ToString("R", CultureInfo.InvariantCulture);
-        var neighbour = double.Parse(r, CultureInfo.InvariantCulture);
-        Assert.Equal(bits - 1, Bits(neighbour));
-        Assert.Equal(r, Reals.Shortest(neighbour));
+        if (Bits(double.Parse(r, CultureInfo.InvariantCulture)) == bits)
+            Assert.Equal(shortest, r);
+        else
+            Assert.Equal(neighbourText, r);
 
         var described = TechnologyObjectValues.Describe(value).Text;
         Assert.Equal(shortest, described);
         Assert.True(TechnologyObjectValues.TryConvert(described, typeof(double), out var back, out var error), error);
         Assert.Equal(bits, Bits((double)back!));
-        // One digit fewer than the shortest text does not round-trip (it is the neighbour's text).
-        Assert.True(TechnologyObjectValues.TryConvert(r, typeof(double), out var other, out error), error);
+        Assert.True(TechnologyObjectValues.TryConvert(neighbourText, typeof(double), out var other, out error), error);
         Assert.Equal(bits - 1, Bits((double)other!));
     }
 

@@ -13,7 +13,7 @@ using Xunit;
 
 namespace TiaMcpServer.Tests.Library;
 
-/// <summary>library_write planning, dependency ordering, confirmation scope and guards through the worker seam.</summary>
+/// <summary>tia_library_write planning, dependency ordering, confirmation scope and guards through the worker seam.</summary>
 public sealed class LibraryWriteDomainTests
 {
     private const string Plant = @"C:\Libraries\Plant\Plant.al21";
@@ -519,7 +519,7 @@ public sealed class LibraryWriteDomainTests
 
     /// <summary>
     /// K61 (live V21 2026-11-02): create_global_library, the master copy items, open and close said "trusted, nothing was
-    /// read back" although library_read reads their result. They are read back with list_libraries and get_library_tree.
+    /// read back" although tia_library_read reads their result. They are read back with list_libraries and get_library_tree.
     /// </summary>
     [Fact]
     public async Task Verification_ReadsLifecycleAndMasterCopyItemsBack()

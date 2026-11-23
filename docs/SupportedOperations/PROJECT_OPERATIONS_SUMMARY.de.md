@@ -411,8 +411,8 @@ sind typisierte Fehlschläge versuchter Operationen, daher ist vor einem neuen A
 - `open_project` (und das Öffnen in `bind_project`/beim Neubinden): `ProjectComposition.Open(FileInfo)` dokumentiert
   `MissingProductsException`; das scheitert jetzt mit `worker_operation_failed` und einem Text, der die fehlenden Produkte,
   Optionspakete oder Support Packages nennt und sagt, dass nichts geöffnet wurde, dazu die Siemens-Meldung in
-  `engineeringError` (Abgleich über den exakten vollen Namen, `EngineeringFailureHints`). Das UMAC-Öffnen (`UmacDelegate`) und
-  das Ereignis `Authentication` bleiben außerhalb dieses Pakets.
+  `engineeringError` (Abgleich über den exakten vollen Namen, `EngineeringFailureHints`). Das UMAC-Öffnen (`UmacDelegate`) steht
+  unten; das Ereignis `Authentication` bleibt außen vor.
 - Jede `EngineeringSecurityException` behält ihre Kategorie und bekommt einen Text, der eine Sicherheitsablehnung nennt und,
   für UMAC-geschützte Projekte, das Openness-Funktionsrecht (Name aus einer Fremdanleitung, nicht geprüft).
 - `portal_lost` (eine `NonRecoverableException` oder ein verlorenes Portal) und ein Worker, der während eines Lesevorgangs
@@ -420,6 +420,30 @@ sind typisierte Fehlschläge versuchter Operationen, daher ist vor einem neuen A
   wiederholen und zuerst TIA Portal und seinen Absturzbericht zu prüfen (der Diagnoseordner stammt aus einer Fremdanleitung,
   nicht geprüft). Eine Zeitüberschreitung beim Lesen sagt, dass eine Wiederholung das Projekt nicht ändert, TIA Portal aber
   erneut hängen lassen kann.
+
+### Ein UMAC-geschütztes Projekt öffnen (`open_project` `umacUserName`)
+
+> **Nicht live getestet.** Beleg: Siemens „TIA Portal Openness V21 - Functions for Projects and Project Data“ (03/2026), zitiert in
+> Czarnak/totally-integrated-claude `skills/tia-project-general/references/umac-and-auth.md` (MIT):
+> `tiaPortal.Projects.Open(new FileInfo(path), umacDelegate)`, der Delegat setzt `UmacCredentials.Type` (`UmacUserType.Project` oder
+> `.Global`), `.Name` und ruft `.SetPassword(SecureString)` auf. Sparkz400/TIA_MCP (Apache-2.0, Commit `315493b`) kompiliert denselben
+> Aufruf gegen die V21-Assemblies; der Fork hat die Idee übernommen (einmal antworten, nie wiederholen) und mit seinen Passwortquellen
+> nachimplementiert.
+
+`open_project` nimmt `umacUserName`, `umacUserType` (`project`, Standard, oder `global` für einen UMC-Benutzer) und `umacPassword`
+(eine Passwortquelle: Name einer Umgebungsvariablen oder `credential:<target>`, nie das Passwort; fehlt sie, gilt der Eintrag der
+Passwortzuordnung mit Zweck `UmacProjectLogin` für den Dateinamen des Projekts). Die Quelle wird beim Binden geschwärzt wie die
+Passwörter von `plc_download`. Der Worker bindet `ProjectComposition.Open(FileInfo, UmacDelegate)`, den einzigen `UmacCredentials`-
+Parameter des Delegaten, dessen beschreibbare Eigenschaften `Name` und `Type`, `SetPassword(SecureString)` und das Element von
+`UmacUserType` zur Laufzeit (nichts davon steht in den Compile-Stubs; `api_member_missing`, nichts geöffnet oder geschlossen) und löst
+das Passwort auf, bevor irgendetwas geschlossen oder geöffnet wird. Die erste Anmeldeabfrage wird beantwortet (Type, Name,
+SetPassword); eine zweite wird abgelehnt, ein falsches Passwort wird also nie erneut gesendet: Der Aufruf scheitert mit
+`access_denied` und der Siemens-Meldung in `engineeringError`. Ein abgelehntes Öffnen nach einer Abfrage scheitert mit
+`worker_operation_failed` und nennt den Benutzer (Sparkz400 berichtet, dass TIA Portal V21 ein falsches Passwort als deaktiviertes
+Konto meldet; nicht verifiziert). Eine Warnung meldet, wie oft TIA Portal gefragt hat; ein ungeschütztes Projekt öffnet ohne Abfrage.
+Nicht für lokale Sessions (`.als21`) und nicht zusammen mit `upgrade` (`validation_error`). Die Bestätigung im Modus read-write nennt
+Benutzer, Typ und Art der Quelle. **Risiko, nicht verifiziert:** Das Ablehnen der zweiten Abfrage wirft in TIA Portals Rückruf; ein
+werfender Rückruf hat TIA Portal in einem anderen Fall beendet (K27).
 
 ### Öffnen mit Hochrüsten (`open_project` `upgrade`)
 
@@ -468,8 +492,8 @@ Archivendungen es annimmt, der Upgrade-Weg von einer älteren Version und die Ve
 
 ### Sekundärprojekte (Issue #20)
 
-Ein zweites Projekt kann schreibgeschützt neben dem gebundenen geöffnet werden (`ProjectOpenMode.Secondary`), über `library_write`
-`open_secondary_project` / `retrieve_secondary_project` / `close_secondary_project`, aufgeführt von `library_read` `list_secondary_projects`,
+Ein zweites Projekt kann schreibgeschützt neben dem gebundenen geöffnet werden (`ProjectOpenMode.Secondary`), über `tia_library_write`
+`open_secondary_project` / `retrieve_secondary_project` / `close_secondary_project`, aufgeführt von `tia_library_read` `list_secondary_projects`,
 mit `create_master_copy` `source.project` daraus kopiert und mit `plc_read` `compare_software` `compareTarget: secondary_plc` verglichen
 ([Bibliotheksreferenz](LIBRARY_OPERATIONS_SUMMARY.de.md#sekundäre-schreibgeschützte-referenz-projekte-issue-20)). Die Bindungsregeln
 ändern sich nicht: ein Projekt, dessen `ProjectBase.IsPrimary` false liest, ist nie ein Bindungskandidat, und Inhalts-Tools wirken nur
@@ -599,7 +623,7 @@ Die aktuelle Projektoberfläche bietet nicht:
 - `OpenWithUpgrade`, `Retrieve`, `RetrieveWithUpgrade` oder das Löschen von Projekten.
 - Spracheinstellungen des Projekts und Import/Export mehrsprachiger Texte (das Lesen ist über die Metadaten von `get_project_status` verfügbar; das Bearbeiten nicht).
 - Vollständige Bearbeitung von Projektattributen (Copyright, Familie, Kommentar und Spracheinstellungen sind heute rein lesbar).
-- UMAC-Delegates, Authentifizierungsereignisse oder die ausdrückliche Auswahl von primärem/sekundärem `ProjectOpenMode`.
+- Authentifizierungsereignisse oder die ausdrückliche Auswahl von primärem/sekundärem `ProjectOpenMode` (der UMAC-Delegat von `open_project` steht oben).
 - Portal-Einstellungen, Diagnoseeinstellungen oder die Verwaltung des Suchindex.
 - VCI-Bibliotheksbereiche, das Verbinden nicht verknüpfter Dateien, Workspace-Gruppen und VCI-Einstellungen.
   Standalone-Operationen für Workspace, Mapping, Export und Synchronisation stehen in der

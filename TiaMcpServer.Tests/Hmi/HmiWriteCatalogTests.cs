@@ -36,8 +36,9 @@ public class HmiWriteCatalogTests
         Assert.True(methods.ToHashSet(StringComparer.Ordinal).SetEquals(HmiWriteMethods.All));
         // The nine tag, table and alarm writes, the nine screen, script and batch rename writes adopted from BetterTIA
         // the two text list file writes, the five Classic WinCC writes (issue #28) and the five Unified event and
-        // dynamization writes and the nine audit class, runtime setting and plant view writes (issue #29).
-        Assert.Equal(42, methods.Count);
+        // dynamization writes and the nine audit class, runtime setting and plant view writes (issue #29), and the value
+        // converter write (mapping tables and formulas, idea from jessenic/TIA-MCP-Server).
+        Assert.Equal(43, methods.Count);
     }
 
     private static HmiWriteOperationRequest Read(string fields) =>
@@ -222,6 +223,7 @@ public class HmiWriteCatalogTests
                 : property.PropertyType == typeof(JsonElement?) ? JsonSerializer.SerializeToElement(50)
                 : property.PropertyType == typeof(List<TiaMcpServer.Contracts.Plc.PlcNameRenameInfo>) ? new List<TiaMcpServer.Contracts.Plc.PlcNameRenameInfo> { new() { Name = "A", NewName = "B" } }
                 : property.PropertyType == typeof(List<TiaMcpServer.Contracts.Plc.Interface.PlcTextReplacementInfo>) ? new List<TiaMcpServer.Contracts.Plc.Interface.PlcTextReplacementInfo> { new() { Find = "a", Replace = "b" } }
+                : property.PropertyType == typeof(List<HmiMappingEntryInfo>) ? new List<HmiMappingEntryInfo> { new() { Kind = "simple", Condition = "1" } }
                 : property.PropertyType == typeof(List<string>) ? new List<string> { "A" }
                 : property.PropertyType == typeof(bool?) ? true
                 : 1;
@@ -268,7 +270,7 @@ public class HmiWriteCatalogTests
         Assert.Same(decoded.HmiWriteOutcome, (result with { Error = "identity changed" }).HmiWriteOutcome);
         Assert.Null(result.HmiWriteOutcome.CleanupMessage);
     }    [Theory]
-    [InlineData(TiaMcpServer.Contracts.Safety.McpAccessMode.ReadOnly, 42)]
+    [InlineData(TiaMcpServer.Contracts.Safety.McpAccessMode.ReadOnly, 43)]
     [InlineData(TiaMcpServer.Contracts.Safety.McpAccessMode.ReadWrite, 0)]
     [InlineData(TiaMcpServer.Contracts.Safety.McpAccessMode.Full, 0)]
     public void AccessMode_UsesSharedPolicy(TiaMcpServer.Contracts.Safety.McpAccessMode mode, int denied)

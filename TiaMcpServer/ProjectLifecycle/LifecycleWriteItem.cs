@@ -24,4 +24,12 @@ public sealed record LifecycleWriteItem(string Operation) : IOperationBatchItem
     public string? ArchivePath { get; init; }
     /// <summary>retrieve_project: RetrieveWithUpgrade instead of Retrieve; open_project (audit N5): OpenWithUpgrade instead of Open.</summary>
     public bool Upgrade { get; init; }
+    /// <summary>open_project: the UMAC user of a protected .ap21 (ProjectComposition.Open(FileInfo, UmacDelegate)); null opens without login.</summary>
+    public string? UmacUserName { get; init; }
+    /// <summary>open_project: <c>project</c> (default) or <c>global</c>.</summary>
+    public string? UmacUserType { get; init; }
+    /// <summary>open_project: the password source token of the UMAC user after the binding-time redaction (never a password).</summary>
+    public string? UmacPassword { get; init; }
+    /// <summary>open_project: the umacPassword came from the password map (purpose UmacProjectLogin), not the call.</summary>
+    public bool UmacPasswordFromMap { get; init; }
 }

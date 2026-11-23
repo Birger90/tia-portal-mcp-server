@@ -34,6 +34,7 @@ public static class HmiWriteMethods
         HmiScreenEventMethods.SetDynamizationScript,
         HmiScreenEventMethods.SetDynamizationFlashing,
         HmiScreenEventMethods.DeleteDynamization,
+        HmiScreenEventMethods.SetDynamizationValueConverter,
         HmiUnifiedConfigurationMethods.CreateAuditClass,
         HmiUnifiedConfigurationMethods.DeleteAuditClass,
         HmiUnifiedConfigurationMethods.SetAuditClassProperty,

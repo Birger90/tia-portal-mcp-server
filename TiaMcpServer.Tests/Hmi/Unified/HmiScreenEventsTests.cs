@@ -1,6 +1,7 @@
 using Siemens.Engineering.HmiUnified;
 using Siemens.Engineering.HmiUnified.UI.Dynamization;
 using Siemens.Engineering.HmiUnified.UI.Dynamization.Flashing;
+using Siemens.Engineering.HmiUnified.UI.Dynamization.Tag;
 using Siemens.Engineering.HmiUnified.UI.Widgets;
 using TiaMcpServer.Contracts.Hmi;
 using TiaMcpServer.Contracts.Worker;
@@ -114,6 +115,86 @@ public class HmiScreenEventsTests
         Assert.Equal(new[] { "Delete", "readBack gone" }, deleted.AppliedProperties);
         Assert.Empty(button.Dynamizations);
         Assert.Equal(WorkerFailureCategories.TargetNotFound, missing.FailureCategory);
+    }
+
+    [Fact]
+    public void ValueConverter_ReplacesRangeEntriesOfATagDynamizationAndIsListed()
+    {
+        var (software, button) = Fixture();
+        HmiScreenWriter.SetDynamizationTag(software, Request(r => { r.PropertyName = "BackColorName"; r.TagName = "Level"; }));
+        var table = button.Dynamizations.OfType<TagDynamization>().Single().ValueConverter.MappingTable;
+        table.Entries.Create<MappingTableEntrySimple>().Condition = "old";
+
+        var outcome = HmiScreenEvents.SetDynamizationValueConverter(software, Request(r =>
+        {
+            r.PropertyName = "BackColorName"; r.ConditionType = "Range";
+            r.MappingEntries = new()
+            {
+                new() { Kind = "range", From = "0", To = "10", Value = "Green" },
+                new() { Kind = "range", From = "11", To = "100", RangeType = "FromTo", Value = "Red", Flashing = true, FlashingRate = "Fast" },
+            };
+        }));
+        var listed = HmiScreenEvents.ListDynamizations(software, new HmiQueryInfo { ScreenName = "Main", ItemName = "Start" });
+
+        Assert.Equal(ConditionType.Range, table.ConditionType);
+        var entries = table.Entries.Cast<MappingTableEntryRange>().ToList();
+        Assert.Equal(2, entries.Count);
+        // From/To keep the runtime type of their current value (Int32 here); Value takes the item property's type (String).
+        Assert.Equal((0, 10, "Green"), ((int)entries[0].From, (int)entries[0].To, (string)entries[0].Value!));
+        Assert.Equal((11, true, FlashingRate.Fast), ((int)entries[1].From, entries[1].Flashing, entries[1].FlashingRate));
+        Assert.Contains("MappingTable.Entries.Delete", outcome.AppliedProperties);
+        Assert.Equal("readBack 2 entries", outcome.AppliedProperties[^1]);
+        var row = listed.Dynamizations.Single(d => d.PropertyName == "BackColorName");
+        Assert.Contains(row.Values, v => v.Name == "MappingTable.ConditionType" && v.Value == "Range");
+        Assert.Contains(row.Values, v => v.Name == "MappingTable.Entries[1].Kind" && v.Value == "MappingTableEntryRange");
+        Assert.Contains(row.Values, v => v.Name == "MappingTable.Entries[1].Value" && v.Value == "Red");
+    }
+
+    [Fact]
+    public void ValueConverter_SingleBitCreatesThePairOnceAndSetsBothStates()
+    {
+        foreach (var generated in new[] { false, true })
+        {
+            var (software, button) = Fixture();
+            HmiScreenWriter.SetDynamizationTag(software, Request(r => { r.PropertyName = "BackColorName"; r.TagName = "Run"; }));
+            var table = button.Dynamizations.OfType<TagDynamization>().Single().ValueConverter.MappingTable;
+            table.GeneratesSingleBitPair = generated;
+
+            HmiScreenEvents.SetDynamizationValueConverter(software, Request(r =>
+            {
+                r.PropertyName = "BackColorName"; r.ConditionType = "Singlebit";
+                r.MappingEntries = new()
+                {
+                    new() { Kind = "bitmask", BitDynamizationType = "SingleBit", Value = "Gray" },
+                    new() { Kind = "bitmask", BitDynamizationType = "SingleBit", Value = "Green" },
+                };
+            }));
+
+            var entries = table.Entries.Cast<MappingTableEntryBitmask>().ToList();
+            Assert.Equal(new object?[] { "Gray", "Green" }, entries.Select(e => e.Value));
+            Assert.Equal(new ulong[] { 0, 1 }, entries.Select(e => e.Condition));
+        }
+    }
+
+    [Fact]
+    public void ValueConverter_FormulaCreatesAnExpressionDynamizationAndOtherKindsAreRefused()
+    {
+        var (software, button) = Fixture();
+        HmiScreenEvents.SetDynamizationScript(software, Request(r => { r.PropertyName = "Visible"; r.ScriptCode = "return true;"; }));
+
+        var created = HmiScreenEvents.SetDynamizationValueConverter(software, Request(r => { r.PropertyName = "BackColorName"; r.Formula = "'Tag_1' + 1"; }));
+        var refused = Assert.Throws<WorkerOperationException>(() => HmiScreenEvents.SetDynamizationValueConverter(software, Request(r => { r.PropertyName = "Visible"; r.Formula = "1"; })));
+        var missing = Assert.Throws<WorkerOperationException>(() => HmiScreenEvents.SetDynamizationValueConverter(software, Request(r => { r.PropertyName = "Text"; r.ConditionType = "Range"; })));
+        var badEnum = Assert.Throws<WorkerOperationException>(() => HmiScreenEvents.SetDynamizationValueConverter(software, Request(r => { r.PropertyName = "BackColorName"; r.ConditionType = "Sometimes"; })));
+
+        var expression = button.Dynamizations.OfType<ExpressionDynamization>().Single();
+        Assert.Equal(("'Tag_1' + 1", true), (expression.ValueConverter.Formula, expression.ValueConverter.IsFormulaSelected));
+        Assert.Equal(new[] { "Create", "ValueConverter.IsFormulaSelected", "ValueConverter.Formula" }, created.AppliedProperties);
+        Assert.Equal(WorkerFailureCategories.TargetKindUnsupported, refused.FailureCategory);
+        Assert.Equal(WorkerFailureCategories.TargetNotFound, missing.FailureCategory);
+        Assert.Contains("set_dynamization_tag", missing.Message);
+        Assert.Equal(WorkerFailureCategories.ValidationError, badEnum.FailureCategory);
+        Assert.Contains("Range, Simple, Bitmask, Singlebit", badEnum.Message);
     }
 
     [Fact]

@@ -63,7 +63,8 @@ Mit demselben Befehl wird sie aktualisiert; entfernt wird sie mit `cmdkey /delet
 
 - `purpose`: `safety` (die drei fehlersicheren Passwortoperationen), ein Name einer Zugriffsstufe (`FullAccessIncludingFailsafe`,
   `FullAccess`, `ReadAccess`, `HMIAccess`: nur `set_plc_access_level`, für Stufen, die offener sind als die angeforderte),
-  `PlcMasterSecretPassword` (die Operationen für vertrauliche Daten und die gleichnamige Download-Konfiguration) oder ein
+  `PlcMasterSecretPassword` (die Operationen für vertrauliche Daten und die gleichnamige Download-Konfiguration), `UmacProjectLogin`
+  (`open_project` eines UMAC-geschützten Projekts mit `umacUserName` ohne `umacPassword`; `project` ist der Dateiname) oder ein
   Kurzname eines Passwort-Konfigurationstyps (`ModuleWriteAccessPassword`, `ModuleReadAccessPassword`,
   `OnlineReadAccessPassword`, `PasswordReadAccess`, ...; niemals `TlsVerificationConfiguration`).
 - `project` (der Dateiname des gebundenen Projekts ohne Endung) und `plc` (so, wie der Aufruf sie benennt) sind optional und

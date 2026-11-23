@@ -12,7 +12,7 @@ using TiaMcpServer.OpennessWorker.Worker;
 namespace TiaMcpServer.OpennessWorker.Openness.Libraries;
 
 /// <summary>
-/// The library_read operations added from the V21 API description (issue #17): <c>LibraryType.GetSupportedExportFormats()</c> and
+/// The tia_library_read operations added from the V21 API description (issue #17): <c>LibraryType.GetSupportedExportFormats()</c> and
 /// the detailed compares <c>LibraryType.CompareTo(LibraryType)</c>, <c>LibraryTypeVersion.CompareTo(LibraryTypeVersion)</c>,
 /// <c>MasterCopy.CompareTo(MasterCopy)</c> (<c>DetailedCompareResult.Properties</c> of <c>DetailedCompareResultElement</c>), and
 /// the type properties of get_type. All bound at runtime by documented name; nothing changes a library. Not live-tested.

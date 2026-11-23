@@ -13,7 +13,7 @@ namespace TiaMcpServer.OpennessWorker.Openness.Plc.Loadable;
 /// plc_write generate_loadable (issue #26, not live-tested). The V21 reference (Siemens.Engineering.Step7.xml) documents
 /// <c>LoadableProvider.GenerateLoadable(FileInfo, IEnumerable&lt;PlcBlock&gt;, TargetOption)</c> and the <c>IEnumerable&lt;PlcUnit&gt;</c>
 /// overload but not which object offers the provider: it is taken from the PlcSoftware's <c>GetServiceInfos()</c> by exact full
-/// name (not listed or not returned: unsupported_capability). The blocks or units are resolved first (target_not_found), then the
+/// name, then on the CPU device item, its parents and the device (<see cref="ServiceOwnerChain"/>; none returns it: unsupported_capability). The blocks or units are resolved first (target_not_found), then the
 /// overload and the <c>TargetOption</c> member are bound on the live provider by the Siemens-free <see cref="PlcLoadableRun"/>
 /// (api_member_missing), all before the call; the file follows the alarm exports' caller-file rules and is re-hashed at its place.
 /// No stub member was added.
@@ -62,17 +62,46 @@ internal static class PlcLoadableService
             throw new WorkerOperationException(WorkerFailureCategories.ValidationError, "generate_loadable needs blockPaths or unitNames.");
         }
 
-        var offered = TechnologyObjectRuntime.ServiceTypes(software);
         return Translate(() =>
         {
-            var (provider, unavailable) = RuntimeServiceValues.Find(offered,
-                type => TechnologyObjectRuntime.TryService(software, offered, type.FullName!, out _), PlcLoadableNames.Provider);
-            if (provider is null)
+            // The PLC software first (the former behaviour), then the CPU device item, its parents and the device (idea from
+            // asckye/TIA_Portal_Openness_MCP, MIT): V21 does not document which object hosts LoadableProvider.
+            var found = ServiceOwnerChain.Find(Owners(software, plc.HostDeviceItem), owner =>
+            {
+                if (owner is not IEngineeringServiceProvider) return (null, null);
+                var offered = TechnologyObjectRuntime.ServiceTypes(owner);
+                return RuntimeServiceValues.Find(offered, type => TechnologyObjectRuntime.TryService(owner, offered, type.FullName!, out _), PlcLoadableNames.Provider);
+            });
+            if (found.Service is not { } provider)
                 throw new RuntimeBindingException(WorkerFailureCategories.UnsupportedCapability,
-                    (unavailable ?? RuntimeServiceValues.NotListed($"The PLC software '{software.Name}'", PlcLoadableNames.Provider)) + " Nothing was written.");
+                    $"PLC '{software.Name}': {found.Reason(PlcLoadableNames.Provider)} Nothing was written.");
+            if (found.Searched.Count > 1) result.Messages.Add($"LoadableProvider was found on the {found.FoundOn}, not on the PLC software.");
             var bound = PlcLoadableRun.Bind(provider, elementType, request.Target);
             return PlcLoadableRun.Generate(provider, bound, objects, request.FilePath, request.Overwrite, DateTime.UtcNow, result);
         });
+    }
+
+    /// <summary>The PLC software, its CPU device item, each parent device item and the owning device, in this order.</summary>
+    private static IEnumerable<ServiceOwnerChain.Owner> Owners(Siemens.Engineering.SW.PlcSoftware software, Siemens.Engineering.HW.DeviceItem? host)
+    {
+        yield return new ServiceOwnerChain.Owner($"PLC software '{software.Name}'", software);
+        object? current = host;
+        for (var depth = 0; current is not null && depth < ServiceOwnerChain.MaxObjects - 1; depth++)
+        {
+            switch (current)
+            {
+                case Siemens.Engineering.HW.Device device:
+                    yield return new ServiceOwnerChain.Owner($"device '{device.Name}'", device);
+                    yield break;
+                case Siemens.Engineering.HW.DeviceItem item:
+                    yield return new ServiceOwnerChain.Owner(depth == 0 ? $"CPU device item '{item.Name}'" : $"parent device item '{item.Name}'", item);
+                    break;
+                default:
+                    yield break;
+            }
+
+            current = (current as IEngineeringInstance)?.Parent;
+        }
     }
 
     private static BlockAddress Parse(string path)

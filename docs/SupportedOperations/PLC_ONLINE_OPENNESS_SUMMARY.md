@@ -166,7 +166,7 @@ PLC's station (`hardwareScope:"device"`, the `Device` above its CPU device item)
   root master copy of that name (`MasterCopyFolder.MasterCopies.Find`), compared when TIA Portal's master copy implements the
   interface. The project library itself is not offered (a library is no hardware object). In a project with only one PLC
   (K81, live 2026-11-03) `plc` has no target, so the only offline comparison is against a master copy: put the station or CPU
-  into the project library first (`library_write create_master_copy`), or use `compare_hardware_to_online` against the device.
+  into the project library first (`tia_library_write create_master_copy`), or use `compare_hardware_to_online` against the device.
 - **Online target.** The CPU's `OnlineProvider` (`GetService<OnlineProvider>()` on the CPU device item) is passed as the target
   only when it implements `IHardwareCompareTarget` at runtime; the check runs before the legitimation handler is attached. A PLC
   without an online provider is `unsupported_capability`. The run is the one of `compare_to_online`

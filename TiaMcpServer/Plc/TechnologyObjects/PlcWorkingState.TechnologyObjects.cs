@@ -60,6 +60,8 @@ internal sealed partial class PlcWorkingState
                     throw new ResolutionException(WorkerFailureCategories.ValidationError,
                         $"Operation '{item.OperationId}': a technology object named '{existing.Name}' already exists in group '{existing.Group}' of PLC '{_plc}' "
                         + "(names are unique per PLC); choose another name or delete it first.");
+                if (PlcTechnologyObjectPlanning.CreateMayTerminateNotice(item.TechnologyType, item.Version, _plc) is { } notice)
+                    guards.Add(Fire(TechnologyObjectCreateMayTerminate, item, notice));
                 return Effect(item, TechnologyTarget(TechnologyObjectKind, group, item.Name),
                     Change("technologyType", null, item.TechnologyType).Concat(Change("version", null, item.Version)).ToArray(), group);
             case TechnologyObjectMethods.Import:

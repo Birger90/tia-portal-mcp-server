@@ -32,7 +32,7 @@ Projektbindung, Status, Durchsuchen des Projektbaums und Übersetzen sind getren
 
 `plc_tia_online` (online/offline gehen auf genau dem Downloadpfad) und `plc_station_upload` (eine Station in das Offline-Projekt hochladen) sind in read-write und full verfügbar, bestätigen jeden tatsächlichen read-write-Aufruf und beantworten TIA-Portal-Bestätigungen per `portalConfirmations` wie `plc_download`; `compare_to_online` nutzt die neue Fähigkeit `OnlineObserve` (jeder Modus). Diese Openness-Tools sind von den Web-API-Tools `plc_online_read`/`plc_online_write` verschieden. Siehe die [Referenz PLC online über Openness](PLC_ONLINE_OPENNESS_SUMMARY.de.md); sie ist nicht live getestet.
 
-`library_read` (jeder Modus) liest die Projektbibliothek und die geöffneten globalen Bibliotheken (Baum, Typen, Versionen, Instanzen, Aktualisierungsprüfung, Vergleich); `library_write` (read-write und full) öffnet, holt ab, erstellt, speichert und schließt globale Bibliotheken (eine Abfrage pro read-write-Aufruf, der einen solchen Eintrag enthält), erfasst, kopiert, löscht, benennt um und instanziiert Kopiervorlagen, instanziiert Typversionen, aktualisiert das Projekt und bearbeitet, gibt frei, verwirft, setzt als Standard oder löscht Typversionen. Siehe die [Bibliotheksreferenz](LIBRARY_OPERATIONS_SUMMARY.de.md).
+`tia_library_read` (jeder Modus) liest die Projektbibliothek und die geöffneten globalen Bibliotheken (Baum, Typen, Versionen, Instanzen, Aktualisierungsprüfung, Vergleich); `tia_library_write` (read-write und full) öffnet, holt ab, erstellt, speichert und schließt globale Bibliotheken (eine Abfrage pro read-write-Aufruf, der einen solchen Eintrag enthält), erfasst, kopiert, löscht, benennt um und instanziiert Kopiervorlagen, instanziiert Typversionen, aktualisiert das Projekt und bearbeitet, gibt frei, verwirft, setzt als Standard oder löscht Typversionen. Siehe die [Bibliotheksreferenz](LIBRARY_OPERATIONS_SUMMARY.de.md).
 
 #### Schreiboperationen
 
@@ -48,7 +48,7 @@ Siemens für Unified nicht dokumentiert; [dieselbe Referenz](BETTERTIA_ADOPTED_O
 und die Schreibzugriffe für klassisches WinCC `export_classic_objects`, `import_classic_objects`, `delete_classic_object`,
 `create_classic_folder`, `delete_classic_folder` mit dem Lesezugriff `list_classic_objects` ([klassisches WinCC und Unified-Erweiterungen](HMI_CLASSIC_UNIFIED_EXTENSIONS_SUMMARY.de.md); nicht live getestet),
 und die Unified-Schreibzugriffe für Ereignisse und Dynamisierungen `set_event_script`, `delete_event_script`, `set_dynamization_script`,
-`set_dynamization_flashing`, `delete_dynamization` mit den Lesezugriffen `list_screen_item_events`, `list_screen_item_dynamizations` ([dieselbe Referenz](HMI_CLASSIC_UNIFIED_EXTENSIONS_SUMMARY.de.md#wincc-unified-ereignisse-und-dynamisierungen-issue-29); nicht live getestet),
+`set_dynamization_flashing`, `delete_dynamization`, `set_dynamization_value_converter` mit den Lesezugriffen `list_screen_item_events`, `list_screen_item_dynamizations` ([dieselbe Referenz](HMI_CLASSIC_UNIFIED_EXTENSIONS_SUMMARY.de.md#wincc-unified-ereignisse-und-dynamisierungen-issue-29); nicht live getestet),
 und die Unified-Schreibzugriffe für Audit-Klassen, Runtime-Einstellungen und Anlagensichten `create_audit_class`, `delete_audit_class`,
 `set_audit_class_property`, `set_runtime_setting`, `create_plant_view`, `delete_plant_view`, `create_plant_view_node`,
 `delete_plant_view_node`, `set_plant_object_interface_property` mit dem Lesezugriff `list_plant_views` ([dieselbe Referenz](HMI_CLASSIC_UNIFIED_EXTENSIONS_SUMMARY.de.md#wincc-unified-audit-klassen-runtime-einstellungen-anlagensichten-issue-29); nicht live getestet).
@@ -122,7 +122,7 @@ Leseantworten können `warnings` für unvollständige oder eingeschränkte Daten
 | Siemens-Dokumentation (`siemens_docs`) | [SIEMENS_DOCS_SUMMARY.md](SIEMENS_DOCS_SUMMARY.de.md) |
 | HMI | [HMI_OPERATIONS_SUMMARY.md](HMI_OPERATIONS_SUMMARY.de.md), [HMI_CLASSIC_UNIFIED_EXTENSIONS_SUMMARY.md](HMI_CLASSIC_UNIFIED_EXTENSIONS_SUMMARY.de.md) |
 | Eigenständige VCI-Arbeitsbereiche (`vci_read`, `vci_write`) | [VCI_OPERATIONS_SUMMARY.md](VCI_OPERATIONS_SUMMARY.de.md) |
-| Projekt- und globale Bibliotheken, Typen, Kopiervorlagen (`library_read`, `library_write`) | [LIBRARY_OPERATIONS_SUMMARY.md](LIBRARY_OPERATIONS_SUMMARY.de.md) |
+| Projekt- und globale Bibliotheken, Typen, Kopiervorlagen (`tia_library_read`, `tia_library_write`) | [LIBRARY_OPERATIONS_SUMMARY.md](LIBRARY_OPERATIONS_SUMMARY.de.md) |
 | „Claude in TIA“: TIA-Portal-Add-In, Übergabe an Claude über Ein- und Ausgang (`tia_inbox`), Claude-Brücke | [CLAUDE_IN_TIA.md](CLAUDE_IN_TIA.de.md) |
 | MCP-Ressourcen (eingebettete Referenzdokumente, Operationsreferenz) und Prompts (Arbeitsabläufe) | [MCP_RESOURCES_PROMPTS_SUMMARY.md](MCP_RESOURCES_PROMPTS_SUMMARY.de.md) |
 | Externe Quellen, Projektbaumordner (Suchen, Umbenennen, Erstellen/Löschen von Typ- und Variablentabellengruppen), Software Units (Erstellen, Löschen, Umbenennen), Variablenkommentare, CSV- und Batch-Dateiexporte, Scan erreichbarer Geräte | [PLC_SOURCES_FOLDERS_SUMMARY.md](PLC_SOURCES_FOLDERS_SUMMARY.de.md) |

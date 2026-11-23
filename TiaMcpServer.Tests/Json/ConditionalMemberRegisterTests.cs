@@ -58,15 +58,15 @@ public sealed class ConditionalMemberRegisterTests
         "StructuredOperationFailure.BlockImportOutcome",
         // Worker mutation failures: present only when a Siemens exception caused the failure.
         "WorkerResponse.EngineeringError",
-        // library_write: present only when the worker could not read back an item's postcondition; the item is then notVerified.
+        // tia_library_write: present only when the worker could not read back an item's postcondition; the item is then notVerified.
         "LibraryWriteResultInfo.Unverified",
-        // library_write: present only on the document and file items (create/export from or to documents, archive, save-as).
+        // tia_library_write: present only on the document and file items (create/export from or to documents, archive, save-as).
         "LibraryWriteResultInfo.Transfer",
-        // library_write: present only on the secondary-project items (open, retrieve, close; issue #20).
+        // tia_library_write: present only on the secondary-project items (open, retrieve, close; issue #20).
         "LibraryWriteResultInfo.SecondaryProject",
-        // library_write: present only on set_portal_setting (issue #27).
+        // tia_library_write: present only on set_portal_setting (issue #27).
         "LibraryWriteResultInfo.Setting",
-        // library_write planning: present only on set_portal_setting, with the names the worker resolved (security review F2).
+        // tia_library_write planning: present only on set_portal_setting, with the names the worker resolved (security review F2).
         "LibraryPlanInfo.Setting",
         // Write item failures: present only when a Siemens exception caused the item failure.
         "StructuredOperationFailure.EngineeringError",

@@ -488,7 +488,9 @@ internal static partial class Program
 
         return ProjectLifecycle(
             request,
-            session => ProjectLifecycleService.OpenProject(session, request.ProjectPath!, request.OpenWithUpgrade));
+            session => ProjectLifecycleService.OpenProject(session, request.ProjectPath!, request.OpenWithUpgrade,
+                request.UmacUserName is null ? null
+                    : new UmacOpenRequest(request.UmacUserName, request.UmacUserType ?? UmacProjectLoginNames.ProjectUser, request.UmacPasswordSource ?? string.Empty)));
     }
 
     private static WorkerResponse CreateProject(WorkerRequest request)

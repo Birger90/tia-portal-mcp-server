@@ -1,12 +1,12 @@
-# Operationen für Projekt- und globale Bibliotheken (`library_read`, `library_write`)
+# Operationen für Projekt- und globale Bibliotheken (`tia_library_read`, `tia_library_write`)
 
 **Sprache:** [English](LIBRARY_OPERATIONS_SUMMARY.md) · Deutsch
 
 Diese Referenz behandelt die beiden Bibliotheks-Tools, die dieser Fork hinzufügt:
 
-- `library_read` (jeder Zugriffsmodus): die Projektbibliothek und die geöffneten globalen Bibliotheken, Deskriptoren globaler
+- `tia_library_read` (jeder Zugriffsmodus): die Projektbibliothek und die geöffneten globalen Bibliotheken, Deskriptoren globaler
   Bibliotheken, den Typ-/Kopiervorlagen-Baum mit Paging, Typdetails, Typinstanzen, den Bibliothekstyp, von dem ein PLC-Baustein oder Datentyp eine Instanz ist, die Aktualisierungsprüfung und den Bibliotheksvergleich;
-- `library_write` (read-write und full): Lebenszyklus globaler Bibliotheken (öffnen, dearchivieren, anlegen, speichern, speichern unter, archivieren, schließen),
+- `tia_library_write` (read-write und full): Lebenszyklus globaler Bibliotheken (öffnen, dearchivieren, anlegen, speichern, speichern unter, archivieren, schließen),
   Kopiervorlagen (erfassen, kopieren, löschen, umbenennen, in eine PLC oder die Hardwarekonfiguration instanziieren), Typversionen (instanziieren, das Projekt aktualisieren, bearbeiten, freigeben, verwerfen, als Default setzen, löschen) und Umbenennungen von
   Typen und Typordnern; seit Issue #17 auch Aufräumen, Harmonisieren, Bibliotheksaktualisierung, Typ-Löschen und DoNotUse,
   Typ- und Kopiervorlagenordner, Typen und Versionen aus Dokumenten, Exporte von Typversionen und Detailvergleiche von Typen,
@@ -23,14 +23,14 @@ Diese Referenz behandelt die beiden Bibliotheks-Tools, die dieser Fork hinzufüg
 > bricht mit `unsupported_capability` ab (fail closed), wenn das installierte V21 ihn nicht bereitstellt, und jeder muss
 > durch die [Live-Abnahmeprüfungen](#live-abnahmeprüfungen) durchlaufen werden, bevor man sich auf die Tools verlässt.
 
-Tool-Anzahlen: 13 Tools in read-only, 33 in read-write und 33 in full seit `project_server_write` (13/32/32 seit `siemens_docs`, 12/31/31 seit `tia_inbox`, vorher 11/30/30; `library_read` ist das elfte
-Read-only-Tool, `library_write` das neunundzwanzigste schreibfähige).
+Tool-Anzahlen: 13 Tools in read-only, 33 in read-write und 33 in full seit `project_server_write` (13/32/32 seit `siemens_docs`, 12/31/31 seit `tia_inbox`, vorher 11/30/30; `tia_library_read` ist das elfte
+Read-only-Tool, `tia_library_write` das neunundzwanzigste schreibfähige).
 
 ## Warum zwei Tools
 
-`library_read`/`library_write` folgen der Aufteilung `vci_read`/`vci_write`: ein Lese-Tool mit unabhängigen Items
+`tia_library_read`/`tia_library_write` folgen der Aufteilung `vci_read`/`vci_write`: ein Lese-Tool mit unabhängigen Items
 (ein fehlgeschlagenes Item stoppt die anderen nicht) und ein abgesichertes Schreib-Tool mit geordneten Items, das beim ersten
-Fehler ohne Rollback stoppt. Lebenszyklus-Items globaler Bibliotheken bleiben in `library_write` statt in einem separaten
+Fehler ohne Rollback stoppt. Lebenszyklus-Items globaler Bibliotheken bleiben in `tia_library_write` statt in einem separaten
 Lebenszyklus-Tool, sodass ein Aufruf eine Bibliothek öffnen und darin arbeiten kann; die Domäne bestätigt einen solchen Aufruf einmal (unten).
 
 ## Zugriff und Bestätigung
@@ -38,16 +38,16 @@ Lebenszyklus-Tool, sodass ein Aufruf eine Bibliothek öffnen und darin arbeiten 
 Die Owner-Entscheidung für diesen Fork: die KI darf alles tun, was der SPS-Ingenieur in TIA Portal tun kann, gesteuert
 über den Zugriffsmodus. Read-only ist Beobachtung; read-write bearbeitet wie die anderen Domänen-Schreibzugriffe (ohne Rückfrage) und
 bestätigt Lebenszyklusaktionen über Elicitation; full führt alles ohne Rückfragen aus. Nichts ist
-hart blockiert außer ungültiger oder mehrdeutiger Eingabe: jeder `library_write`-Guard ist informativ, einschließlich
+hart blockiert außer ungültiger oder mehrdeutiger Eingabe: jeder `tia_library_write`-Guard ist informativ, einschließlich
 `library_close_unsaved_changes`, das die von diesem Server vorgenommenen ungespeicherten Änderungen benennt, die ein Schließen verwirft
 ([unten](#schließen-einer-globalen-bibliothek); ein Block bis 2026-11-01, gelockert, weil TIA Portal einen Benutzer ohne Speichern schließen lässt).
 
 | Operation / Tool | Worker-Methode | Capability | read-only | read-write | full |
 | --- | --- | --- | --- | --- | --- |
-| `library_read` (alle vierzehn Operationen) | `library_<operation>` | `Observe` | ja | ja | ja |
-| `library_write`-Planung | `library_plan` | `Observe` | n/a | ja | ja |
-| `library_write`-Inhalts-Items (29 Operationen; jeder Aufruf mit `set_portal_setting` fragt nach, unten) | `library_<operation>` | `ProjectMutation` | nein (nicht aufgeführt) | ja, ohne Rückfrage | ja |
-| `library_write`-Lebenszyklus-Items: `open_global_library`, `retrieve_global_library`, `create_global_library`, `save_global_library`, `close_global_library`, `archive_global_library`, `save_global_library_as`, `open_secondary_project`, `retrieve_secondary_project`, `close_secondary_project` | `library_<operation>` | `ProjectMutation` | nein (nicht aufgeführt) | ja, **eine Rückfrage pro tatsächlichem Aufruf, der eines enthält** | ja, Policy |
+| `tia_library_read` (alle vierzehn Operationen) | `library_<operation>` | `Observe` | ja | ja | ja |
+| `tia_library_write`-Planung | `library_plan` | `Observe` | n/a | ja | ja |
+| `tia_library_write`-Inhalts-Items (29 Operationen; jeder Aufruf mit `set_portal_setting` fragt nach, unten) | `library_<operation>` | `ProjectMutation` | nein (nicht aufgeführt) | ja, ohne Rückfrage | ja |
+| `tia_library_write`-Lebenszyklus-Items: `open_global_library`, `retrieve_global_library`, `create_global_library`, `save_global_library`, `close_global_library`, `archive_global_library`, `save_global_library_as`, `open_secondary_project`, `retrieve_secondary_project`, `close_secondary_project` | `library_<operation>` | `ProjectMutation` | nein (nicht aufgeführt) | ja, **eine Rückfrage pro tatsächlichem Aufruf, der eines enthält** | ja, Policy |
 
 Lebenszyklus-Items legen Bibliotheksdateien außerhalb des Projekts an, entpacken, öffnen (read-write oder mit Upgrade) oder
 überschreiben sie; die Siemens-Quelle verlangt für sie eine ausdrückliche Autorisierung, daher wird ein Aufruf, der eines enthält,
@@ -62,7 +62,7 @@ Ein Lebenszyklus-Item, das von einem früheren Item des Aufrufs abhängt (zum Be
 `open_global_library` X mit `upgrade:true`), hat bis nach der Bestätigung keine Planung, daher wird seine Zeile aus dem
 Item selbst gebildet (Pfad, Archiv und Zielverzeichnis, neuer Name und Verzeichnis oder Bibliothek) und sagt, dass es unmittelbar
 vor seiner Mutation aufgelöst wird; der angeforderte Modus, ein Upgrade eingeschlossen, wird in jedem Fall angezeigt. Die Pipeline zeigt in einer Rückfrage nur
-Acknowledge-Guards (maskierte Zeilen vor der Beschreibung); `library_write` definiert keine (seine Guards sind
+Acknowledge-Guards (maskierte Zeilen vor der Beschreibung); `tia_library_write` definiert keine (seine Guards sind
 informativ und einer blockierend), daher ist seine Rückfrage allein die Beschreibung, und die informativen Guards (wie
 `library_upgrades_in_place`) erscheinen in der Antwort. Ein Aufruf, der ein Lebenszyklus-Item enthält, weist `operationId`s
 mit Steuer-, Trenn- oder Formatzeichen ab (`validation_error`, nichts läuft, wie bei jedem bestätigenden Tool): die
@@ -73,7 +73,7 @@ oder wechseln das gebundene Projekt nicht, und eine Ablehnung durch Portal ist `
 
 ### TIA-Portal-Bestätigungsdialoge (`portalConfirmations`)
 
-Jedes `library_write`-Item nimmt `portalConfirmations`: `decline` (Default) oder `accept`, mit denselben Regeln wie
+Jedes `tia_library_write`-Item nimmt `portalConfirmations`: `decline` (Default) oder `accept`, mit denselben Regeln wie
 `plc_download`. Während die Mutation des Items läuft, wird jeder `Confirmation`-Dialog von TIA Portal nach dieser Policy beantwortet
 statt mit der sitzungsweiten Antwort (Ja in read-write und full) und protokolliert: der Worker-Dispatch
 (`Program.Library`) öffnet `TiaPortalSession.AnswerConfirmations` über `LibraryConfirmationScope.Open` (Owner: die
@@ -82,17 +82,17 @@ Protokoll in das Ergebnis kopiert (`portalConfirmationPolicy`,
 `portalConfirmations[{ type, text, answer }]` höchstens 100 aufgeführt, `portalConfirmationsObserved`,
 `portalConfirmationsComplete`). Bei `decline` wird ein Dialog mit Nein beantwortet, und das Item **schlägt fehl**
 (`worker_operation_failed`, das Ergebnis bleibt erhalten, der Aufruf stoppt): das Ablehnen kann verändert haben, was der Siemens-Aufruf getan hat
-(eine abgelehnte Speichern-Rückfrage während eines Schließens kann Änderungen verwerfen), daher mit `library_read` prüfen und mit
+(eine abgelehnte Speichern-Rückfrage während eines Schließens kann Änderungen verwerfen), daher mit `tia_library_read` prüfen und mit
 `accept` wiederholen, wenn Ja gewünscht ist. Bei `accept` wird er mit Ja beantwortet (in read-only läuft nichts), und das Item ist erfolgreich mit
 einer Warnung. Ein fehlgeschlagenes Item trägt die bis zum Fehler gesammelte Evidenz. Der Host prüft die Evidenz (Policy wie
 angefordert, Liste und Anzahl konsistent, jede Antwort die der Policy) und weist alles andere als `protocol_error` ab.
 Die Planung führt die Policy als letzte Konsequenz des Items auf, und die Read-write-Rückfrage nennt sie pro Lebenszyklus-Item.
-Welche Items überhaupt Dialoge auslösen, ist nicht dokumentiert; die Planung (`library_plan`) und `library_read` laufen ohne eigenen
+Welche Items überhaupt Dialoge auslösen, ist nicht dokumentiert; die Planung (`library_plan`) und `tia_library_read` laufen ohne eigenen
 Scope. Nachdem das Item zurückgekehrt ist, bleibt sein Scope mit derselben Antwort bestehen, bis die nächste Worker-Anfrage
 beginnt (`PlcOnlineConfirmationScope.BeginRequest`, wie bei plc_download): ein Dialog, den TIA Portal spät auslöst, wird unter `decline` nie
 mit dem sitzungsweiten Ja beantwortet, ist nicht in der Evidenz des Items und wird als Warnung auf
-der nächsten Antwort gemeldet (in den `warnings` eines Items oder in den Wurzel-`warnings`, wenn es eine Planungsantwort von `library_write` ist).
-`library_write` nimmt keine Passwörter, daher gilt die Passwort-Redaktion von plc_download nicht.
+der nächsten Antwort gemeldet (in den `warnings` eines Items oder in den Wurzel-`warnings`, wenn es eine Planungsantwort von `tia_library_write` ist).
+`tia_library_write` nimmt keine Passwörter, daher gilt die Passwort-Redaktion von plc_download nicht.
 
 Beide Tools erfordern ein verifiziertes Binding an ein **Standalone**-Projekt (`Project.ProjectLibrary` ist der dokumentierte
 Einstiegspunkt; lokale Multiuser-Sitzungen werden nicht bedient, `unsupported_capability`). Globale Bibliotheken gehören zur
@@ -121,7 +121,7 @@ Enum-Optionen tragen die exakten Siemens-Membernamen: `openMode` `ReadOnly` (Def
 `updateCheckMode` `ReportOutOfDateOnly` (der einzige Member, den die Quellen nennen). Die Stub-Enums deklarieren keine Werte:
 der Worker parst den Namen gegen das Live-Enum und bricht ab (fail closed: `unsupported_capability`, mit Auflistung der Live-Member), wenn er fehlt.
 
-## `library_read`-Operationen
+## `tia_library_read`-Operationen
 
 1-50 unabhängige Items, jedes `{ operationId, operation, ... }`; nur die aufgeführten Felder werden akzeptiert.
 
@@ -156,7 +156,7 @@ durchläuft trotzdem die Kopiervorlagen; ein `folderPath` unterhalb der Wurzel s
 Jedes erforderliche Bibliotheks-Member, das an einem null-Besitzer gelesen würde, scheitert jetzt mit `worker_operation_failed`
 und dem Member-Namen statt einer `TargetException`.
 
-## `library_write`-Operationen
+## `tia_library_write`-Operationen
 
 1-50 geordnete Items; `dryRun:true` plant und wertet Guards aus, ohne Mutation oder Rückfrage; ausgelassen oder false
 führt aus. Der Aufruf stoppt beim ersten fehlgeschlagenen Item; frühere Items bleiben angewendet (kein Rollback, keine Wiederholung). Jedes Item
@@ -224,7 +224,7 @@ Kopiervorlagen-Items (`create_master_copy`, `copy_master_copy`, `delete_master_c
 `MasterCopyFolder.Folders`; ohne Angabe: der Wurzel-Kopiervorlagenordner); `copy_master_copy` nimmt zusätzlich
 `targetMasterCopyFolderPath` (Zielordner in `targetLibrary`).
 
-Neue `library_read`-Operationen:
+Neue `tia_library_read`-Operationen:
 
 | Operation | Felder | Ergebnis |
 | --- | --- | --- |
@@ -260,7 +260,7 @@ wenn ein Sekundärprojekt öffnet oder schließt.
 | `open_secondary_project` (Lebenszyklus) | `path` (Projektdatei), `upgrade` | `Open` / `OpenWithUpgrade` mit `ProjectOpenMode.Secondary` und einem UMAC-Delegate null | der Pfad des gebundenen Projekts wird abgewiesen; Evidenz: das zurückgegebene Projekt liest `IsPrimary == false` (true: `postcondition_failed`; unlesbar: `notVerified`); `result.secondaryProject { path, name, isPrimary }` |
 | `retrieve_secondary_project` (Lebenszyklus) | `path` (Projektarchiv), `targetDirectory`, `upgrade` | `Retrieve` / `RetrieveWithUpgrade` mit `ProjectOpenMode.Secondary` | entpackt nach `targetDirectory` (Guard `library_writes_files`) |
 | `close_secondary_project` (Lebenszyklus) | `secondaryProject` (Pfad wie aufgeführt) | `Project.Close()` auf diesem Sekundärprojekt | Zurücklesen: nicht mehr aufgeführt |
-| `library_read` `list_secondary_projects` | keine | `TiaPortal.Projects` gefiltert nach `IsPrimary == false` | `{ projects[{ path, name, isPrimary }], unreadable }` |
+| `tia_library_read` `list_secondary_projects` | keine | `TiaPortal.Projects` gefiltert nach `IsPrimary == false` | `{ projects[{ path, name, isPrimary }], unreadable }` |
 | `create_master_copy` mit `source.project` | wie `create_master_copy`, plus der Pfad des Sekundärprojekts | die Quelle wird im Sekundärprojekt aufgelöst, dann `MasterCopies.Create(IMasterCopySource)` in der Bibliothek des gebundenen Projekts (oder einer offenen globalen) | Objekte kopieren: aus dem Sekundärprojekt erfassen, dann mit `instantiate_master_copy` ins gebundene Projekt; ein Erfassen hängt von einem früheren `open_secondary_project` desselben Pfads im Aufruf ab |
 | `plc_read` `compare_software` `compareTarget: secondary_plc` | `targetName` (PLC des Sekundärprojekts), `targetProject` (sein Pfad) | `PlcSoftware.CompareTo(<PlcSoftware des Sekundärprojekts>)` | das TIA Portal ist der Parent des gebundenen Projekts (`IEngineeringInstance.Parent`) |
 
@@ -283,11 +283,11 @@ Die Einstellungen gehören zur TIA-Portal-Instanz, nicht zum Projekt; sie liegen
 TIA-Portal-weite Objekte wirken (globale Bibliotheken), so dass kein Tool hinzukommt. Wie jede Bibliotheksoperation brauchen sie ein
 gebundenes Einzelplatzprojekt (Capability-Zeile der Bibliotheks-Tools).
 
-- `library_read` `list_portal_settings` (optional `settingsFolderPath` `A/B`, `maxDepth`): die Ordner und Einstellungen in
+- `tia_library_read` `list_portal_settings` (optional `settingsFolderPath` `A/B`, `maxDepth`): die Ordner und Einstellungen in
   Tiefensuche: `{ folderPath, folders[], settings[{ folderPath, name, value, valueType, enumMembers, writable, securityRelevant,
   unreadable }], complete, omission }`; `value` ist invarianter Text, `valueType` der Laufzeittyp, `writable`, ob die Live-Eigenschaft
   `Value` einen öffentlichen Setter hat, höchstens 5.000 Einträge.
-- `library_write` `set_portal_setting` (`settingsFolderPath`, `settingName`, `settingValue` als Text): der Ordner wird mit dem
+- `tia_library_write` `set_portal_setting` (`settingsFolderPath`, `settingName`, `settingValue` als Text): der Ordner wird mit dem
   dokumentierten `Find(String)` je Segment gefunden, die Einstellung mit `TiaPortalSettingComposition.Find(String)`; der Text wird in
   den Laufzeittyp des aktuellen Werts umgewandelt (`true`/`false`, eine Zahl, ein Enum-Member über den exakten Namen oder Text; ein
   anderer Typ ist `unsupported_capability`); der Wert wird nur über den öffentlichen Setter der Live-Eigenschaft `Value` gesetzt (keiner:
@@ -346,7 +346,7 @@ noch über `ILibrary.FindVersion`), das Live-`LibraryTypeVersionState` keinen Me
 Namen mit `LibraryRuntimeBinding.EnumValue` gesucht; das Stub-Enum deklariert keinen) oder ein `CreateFrom` ohne Rückgabewert gebunden ist, setzt der Worker das bedingte `unverified` des Ergebnisses (warum), das Item ist dennoch erfolgreich (der Aufruf kehrte ohne
 Ablehnung zurück), und sein Verifikationseintrag ist `{ check: "notVerified", success: false }`, sodass der Aufruf
 `success:false` mit der Warnung "could not be verified" meldet. K61: Die Lebenszyklus- und Kopiervorlagen-Items werden nach dem
-Aufruf zusätzlich mit den Lesezugriffen von `library_read` zurückgelesen: `open_global_library`, `retrieve_global_library` und
+Aufruf zusätzlich mit den Lesezugriffen von `tia_library_read` zurückgelesen: `open_global_library`, `retrieve_global_library` und
 `create_global_library` müssen in `list_libraries` stehen (der Pfad aus dem Ergebnis), `close_global_library` darf dort nicht mehr
 stehen (Prüfung `openLibraries`); `create_master_copy` und `copy_master_copy` müssen im Wurzelordner der Kopiervorlagen ihrer
 Bibliothek liegen (`copy_master_copy`: die Zielbibliothek), `delete_master_copy` muss dort fehlen (`get_library_tree` mit content
@@ -357,7 +357,7 @@ ungespeicherte Änderungen hat. Warnungen dieser Leseantworten (z. B. ein TIA-Po
 erscheinen in den `warnings` des Aufrufs. Fehlgeschlagene Items ohne Rücklesung haben keinen Verifikationseintrag; ein
 fehlgeschlagenes Item mit Rücklesung ist nie `success: true` (K58). Eine Siemens-`EngineeringTargetInvocationException` in einer Mutation
 ist `engineering_rejected` mit `engineeringError`; andere Siemens-Fehler sind `worker_operation_failed`;
-`portal_lost` hat Vorrang vor beiden. Jeder `library_write`-Aufruf hängt einen Audit-v2-Datensatz an (`tool: library_write`).
+`portal_lost` hat Vorrang vor beiden. Jeder `tia_library_write`-Aufruf hängt einen Audit-v2-Datensatz an (`tool: tia_library_write`).
 
 Ergebniswert jedes Schreib-Items `LibraryWriteResultInfo`: `operation`, `library`, `target`, `created[{ name,
 runtimeType }]`, `nameAfter`, `versionAfter { versionNumber, guid, state, isDefault }`, `alreadyOpen`,
@@ -542,7 +542,7 @@ Stub-Konventionen, die keine Siemens-Fakten sind: die neuen Enums deklarieren ke
 
 Zuerst auf einem Wegwerf-Standalone-Projekt und auf Kopien von Bibliotheken ausführen:
 
-1. `library_read list_libraries`, `list_global_library_infos`: Pfade und Arten stimmen mit dem TIA-Portal-Bereich "Global
+1. `tia_library_read list_libraries`, `list_global_library_infos`: Pfade und Arten stimmen mit dem TIA-Portal-Bereich "Global
    libraries" überein; die Projektbibliothek ist aufgeführt; keine `unreadable`-Einträge.
 2. `get_library_tree` auf der Projektbibliothek und auf einer geöffneten globalen Bibliothek: Ordner, Typen, Versionen (`state`,
    `isDefault`, `versionNumber`-Texte) und Wurzel-Kopiervorlagen (`contentTypes`) stimmen mit der Task Card Bibliotheken überein;
@@ -554,7 +554,7 @@ Zuerst auf einem Wegwerf-Standalone-Projekt und auf Kopien von Bibliotheken ausf
 5. `open_global_library` read-only, read-write und mit `upgrade` (auf einer Kopie einer älteren Bibliothek); die
    Rückfrage in read-write und keine in full bestätigen; `retrieve_global_library` einer `.zal21`; `create_global_library`;
    `save_global_library`; `close_global_library` mit und ohne ungespeicherte Änderungen: die Abweisung nach einer Änderung über
-   `library_write`, dann (nach einer Änderung in der Oberfläche) der protokollierte Dialog mit `decline` und mit `accept`, und
+   `tia_library_write`, dann (nach einer Änderung in der Oberfläche) der protokollierte Dialog mit `decline` und mit `accept`, und
    ob die Änderungen gespeichert oder verworfen wurden; jeden Dialog-`type`/`text` protokollieren, den die Items auslösen. Dieselbe
    Datei erneut unter einer anderen Schreibweise öffnen (`.`-Segment, Vorwärts-Schrägstriche): `alreadyOpen:true`, nichts aufgerufen;
    `close_global_library` einer geöffneten Systembibliothek: `target_kind_unsupported`.

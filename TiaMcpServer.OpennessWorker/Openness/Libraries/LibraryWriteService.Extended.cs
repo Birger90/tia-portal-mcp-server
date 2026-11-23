@@ -12,7 +12,7 @@ using TiaMcpServer.OpennessWorker.Worker;
 namespace TiaMcpServer.OpennessWorker.Openness.Libraries;
 
 /// <summary>
-/// The library_write operations added from the V21 API description (issue #17): archive and save-as of a user global library,
+/// The tia_library_write operations added from the V21 API description (issue #17): archive and save-as of a user global library,
 /// clean-up, harmonize, update of a library, update_project with modes, type deletion and DoNotUse, type and master copy
 /// folders, types and versions from documents, and type version exports. Every member is bound at runtime by its documented
 /// name and parameter list (<see cref="LibrarySignatureBinding"/>: the enum parameter types are matched by their documented full
@@ -394,7 +394,7 @@ internal static partial class LibraryWriteService
                 result.ReturnedType = LibraryReflection.RuntimeType(LibraryReflection.InvokeSignature(library.Raw, "UpdateLibrary", arguments,
                     arguments.Count == 2 ? "UpdateLibrary(IEnumerable<ILibraryTypeOrFolderSelection>, ILibrary)"
                         : "UpdateLibrary(IEnumerable<ILibraryTypeOrFolderSelection>, ILibrary, ForceUpdateMode, DeleteUnusedVersionsMode, StructureConflictResolutionMode)"));
-                result.Note = $"Inspect {target.Ref.Library} with library_read get_library_tree.";
+                result.Note = $"Inspect {target.Ref.Library} with tia_library_read get_library_tree.";
                 return result;
             }
             case LibraryMethods.DeleteType:
@@ -501,7 +501,7 @@ internal static partial class LibraryWriteService
                 result.Transfer = Transfer(returned, "TypeCreateTransferResults");
                 var createdType = LibraryReflection.Optional(returned, "CreatedType", result.Transfer.Unreadable, "TypeCreateTransferResults.CreatedType");
                 if (returned is null)
-                    throw new WorkerOperationException(WorkerFailureCategories.PostconditionFailed, "CreateFromDocuments returned nothing; inspect the type folder with library_read get_library_tree.");
+                    throw new WorkerOperationException(WorkerFailureCategories.PostconditionFailed, "CreateFromDocuments returned nothing; inspect the type folder with tia_library_read get_library_tree.");
                 if (createdType is LibraryType type)
                 {
                     var name = LibraryResolver.SafeName(type);
@@ -528,7 +528,7 @@ internal static partial class LibraryWriteService
                         : "LibraryTypeVersionComposition.CreateFromDocuments(DirectoryInfo, String, CreateOptions, LibraryImportOptions)");
                 result.ReturnedType = LibraryReflection.RuntimeType(returned);
                 if (returned is null)
-                    throw new WorkerOperationException(WorkerFailureCategories.PostconditionFailed, "CreateFromDocuments returned nothing; inspect the type with library_read get_type.");
+                    throw new WorkerOperationException(WorkerFailureCategories.PostconditionFailed, "CreateFromDocuments returned nothing; inspect the type with tia_library_read get_type.");
                 result.Transfer = Transfer(returned, "VersionCreateTransferResults");
                 if (LibraryReflection.Optional(returned, "CreatedVersion", result.Transfer.Unreadable, "VersionCreateTransferResults.CreatedVersion") is LibraryTypeVersion version)
                 {

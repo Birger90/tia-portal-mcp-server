@@ -27,6 +27,7 @@ public sealed class LifecycleWriteDomain(OpennessWorkerClient workerClient, Life
         {
             "open_project" => $"Confirm open_project: open {Q(effect.DestinationProjectPath)}"
                 + (item.Upgrade ? " with OpenWithUpgrade (TIA Portal upgrades the project to the current version)" : string.Empty)
+                + (item.UmacUserName is null ? string.Empty : UmacOpenItem.PromptSentence(item))
                 + " and bind this session to it."
                 + (effect.WillCloseSource ? $" Close source project {Q(effect.SourceProjectPath)}." : string.Empty),
             "create_project" => $"Confirm create_project: create {Q(effect.DestinationDirectory)} and bind this session to it.",
@@ -125,6 +126,7 @@ public sealed class LifecycleWriteDomain(OpennessWorkerClient workerClient, Life
                         return Invalid("The destination project file must exist.");
                     if (item.Upgrade && !string.Equals(Path.GetExtension(item.ProjectPath), ".ap21", StringComparison.OrdinalIgnoreCase))
                         return Invalid("upgrade applies to .ap21 project files (ProjectComposition.OpenWithUpgrade); a .als21 local session has no upgrade open.");
+                    if (UmacOpenItem.Error(item) is { } umacError) return Invalid(umacError);
                     break;
                 case "create_project":
                     if (!ValidDirectory(item.ProjectDirectory) || !ValidName(item.ProjectName))
@@ -331,7 +333,8 @@ public sealed class LifecycleWriteDomain(OpennessWorkerClient workerClient, Life
 
     public Task<WorkerCallResult> MutateAsync(LifecycleWriteItem requestedItem) => item.Operation switch
     {
-        "open_project" => workerClient.OpenProjectAsync(item.ProjectPath!, item.ForceRebind, item.Upgrade),
+        "open_project" => workerClient.OpenProjectAsync(item.ProjectPath!, item.ForceRebind, item.Upgrade,
+            item.UmacUserName is null ? null : (item.UmacUserName, item.UmacUserType ?? Contracts.Project.UmacProjectLoginNames.ProjectUser, item.UmacPassword!)),
         "create_project" => workerClient.CreateProjectAsync(item.ProjectDirectory!, item.ProjectName!, item.Author, item.Comment),
         "retrieve_project" => workerClient.RetrieveProjectAsync(item.ArchivePath!, item.TargetDirectory!, item.Upgrade),
         "save_project" => workerClient.SaveProjectAsync(),

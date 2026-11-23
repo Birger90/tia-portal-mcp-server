@@ -7,6 +7,7 @@ using Xunit;
 namespace TiaMcpServer.Tests.Diagnostics;
 
 [Trait("Category", "Packaging")]
+[Collection(PackagingScriptProcessCollection.Name)]
 public class ReferenceStubVerificationScriptTests
 {
     [Fact]
@@ -165,7 +166,7 @@ public class ReferenceStubVerificationScriptTests
             using var process = Process.Start(info) ?? throw new InvalidOperationException("Cannot start verifier");
             var stdout = process.StandardOutput.ReadToEndAsync();
             var stderr = process.StandardError.ReadToEndAsync();
-            if (!process.WaitForExit(30_000)) { process.Kill(entireProcessTree: true); process.WaitForExit(5_000); throw new TimeoutException("Verifier timed out"); }
+            if (!process.WaitForExit(120_000)) { process.Kill(entireProcessTree: true); process.WaitForExit(5_000); throw new TimeoutException("Verifier timed out"); }
             Assert.True(Task.WaitAll([stdout, stderr], 5_000), "Verifier output streams did not close");
             return new(process.ExitCode, stdout.Result + stderr.Result);
         }

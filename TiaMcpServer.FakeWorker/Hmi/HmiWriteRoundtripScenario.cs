@@ -437,7 +437,7 @@ internal sealed class HmiWriteRoundtripScenario
             Dynamizations = (_dynamizations.GetValueOrDefault(key) ?? new()).Select(d => new HmiDynamizationInfo
             {
                 PropertyName = d.Key, TypeName = d.Value.Type, DynamizationType = d.Value.Type.Replace("Dynamization", string.Empty),
-                Values = d.Value.Code is null ? [] : [new HmiNamedValueInfo { Name = "ScriptCode", Value = d.Value.Code }],
+                Values = d.Value.Code is null ? [] : [new HmiNamedValueInfo { Name = d.Value.Type == "ExpressionDynamization" ? "ValueConverter.Formula" : "ScriptCode", Value = d.Value.Code }],
             }).ToList(),
         });
     }
@@ -482,6 +482,21 @@ internal sealed class HmiWriteRoundtripScenario
                 if (w.TriggerTags is not null) outcome.AppliedProperties.Add("Trigger.Tags");
                 foreach (var (name, value) in new[] { ("Color", w.Color), ("AlternateColor", w.AlternateColor), ("FlashingCondition", w.FlashingCondition), ("FlashingRate", w.FlashingRate) })
                     if (value is not null) outcome.AppliedProperties.Add(name);
+                return Ok(outcome);
+            case HmiScreenEventMethods.SetDynamizationValueConverter:
+                if (!dynamizations.TryGetValue(w.PropertyName!, out var converted))
+                {
+                    if (w.Formula is null)
+                        return Fail("target_not_found", $"'{w.PropertyName}' of '{key}' has no tag or expression dynamization; create one with set_dynamization_tag, or give a formula to create an expression dynamization. Nothing was changed.");
+                    outcome.AppliedProperties.Add("Create");
+                    converted = ("ExpressionDynamization", null);
+                }
+                else if (converted.Type is not ("TagDynamization" or "ExpressionDynamization"))
+                    return Fail("target_kind_unsupported", $"'{w.PropertyName}' is dynamized by a {converted.Type}, which has no value converter; delete it with delete_dynamization first. Nothing was changed.");
+                dynamizations[w.PropertyName!] = (converted.Type, w.Formula ?? converted.Code);
+                if (w.Formula is not null) outcome.AppliedProperties.AddRange(["ValueConverter.IsFormulaSelected", "ValueConverter.Formula"]);
+                if (w.ConditionType is not null) outcome.AppliedProperties.Add("MappingTable.ConditionType");
+                if (w.MappingEntries is { } entries) outcome.AppliedProperties.AddRange(["MappingTable.Entries.Delete", $"readBack {entries.Count} entries"]);
                 return Ok(outcome);
             case HmiScreenEventMethods.DeleteDynamization:
                 if (!dynamizations.Remove(w.PropertyName!)) return Fail("target_not_found", $"'{w.PropertyName}' of '{key}' has no dynamization to delete.");

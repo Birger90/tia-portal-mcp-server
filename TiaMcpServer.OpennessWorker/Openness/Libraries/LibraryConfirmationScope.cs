@@ -6,7 +6,7 @@ using Session = TiaMcpServer.OpennessWorker.Openness.Project.TiaPortalSession;
 namespace TiaMcpServer.OpennessWorker.Openness.Libraries;
 
 /// <summary>
-/// The TIA Portal confirmation scope of one <c>library_write</c> item, separate from the Siemens library types so
+/// The TIA Portal confirmation scope of one <c>tia_library_write</c> item, separate from the Siemens library types so
 /// tests can run it against the session doubles. Like plc_download: the item's <c>portalConfirmations</c> policy
 /// answers every dialog (No by default, Yes for accept in writable modes) and the log records it; the service closes
 /// the scope before it copies the evidence, and the scope then lingers with the same answer until the next worker

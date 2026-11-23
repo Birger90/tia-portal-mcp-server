@@ -63,7 +63,8 @@ Update it with the same command; remove it with `cmdkey /delete:"TiaMcp/MCP_Safe
 
 - `purpose`: `safety` (the three fail-safe password operations), an access level name (`FullAccessIncludingFailsafe`,
   `FullAccess`, `ReadAccess`, `HMIAccess`: `set_plc_access_level` only, for levels more open than the requested one),
-  `PlcMasterSecretPassword` (the confidential-data operations and the download configuration of that name) or a
+  `PlcMasterSecretPassword` (the confidential-data operations and the download configuration of that name), `UmacProjectLogin`
+  (`open_project` of a UMAC-protected project with `umacUserName` and no `umacPassword`; `project` is the file name) or a
   password configuration type short name (`ModuleWriteAccessPassword`, `ModuleReadAccessPassword`,
   `OnlineReadAccessPassword`, `PasswordReadAccess`, ...; never `TlsVerificationConfiguration`).
 - `project` (the bound project's file name without extension) and `plc` (as the call names it) are optional and

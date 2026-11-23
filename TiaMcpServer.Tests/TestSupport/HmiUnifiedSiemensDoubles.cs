@@ -141,7 +141,36 @@ namespace Siemens.Engineering.HmiUnified.Scripts
 namespace Siemens.Engineering.HmiUnified.TextGraphicList
 {
     public sealed class HmiTextList : NamedObject { }
-    public sealed class HmiTextListComposition : Composition<HmiTextList> { }
+    /// <summary>
+    /// Carries the composition-level YAML Export/Import that rickgaiser/TiaMcp calls on V21 (Export(DirectoryInfo, String)
+    /// writes name + ".hmi.yml" and name + ".TextLibrary.hmi.yml"; Import(DirectoryInfo, String) returns a Boolean).
+    /// The per-list SimaticML members are absent here.
+    /// </summary>
+    public sealed class HmiTextListComposition : Composition<HmiTextList>
+    {
+        public string ListsYaml { get; set; } = "TextLists:\n- Name: States\n";
+        public string LibraryYaml { get; set; } = "TextLibrary:\n";
+        public bool ImportResult { get; set; } = true;
+        public List<(string Name, string[] Files, string Lists)> Imports { get; } = new();
+        public string? ImportCreates { get; set; }
+
+        public IEnumerable<System.IO.FileInfo> Export(System.IO.DirectoryInfo directory, string name)
+        {
+            var lists = System.IO.Path.Combine(directory.FullName, name + ".hmi.yml");
+            var library = System.IO.Path.Combine(directory.FullName, name + ".TextLibrary.hmi.yml");
+            System.IO.File.WriteAllText(lists, ListsYaml);
+            System.IO.File.WriteAllText(library, LibraryYaml);
+            return new[] { new System.IO.FileInfo(lists), new System.IO.FileInfo(library) };
+        }
+
+        public bool Import(System.IO.DirectoryInfo directory, string name)
+        {
+            Imports.Add((name, System.IO.Directory.GetFiles(directory.FullName).Select(System.IO.Path.GetFileName).OrderBy(f => f, StringComparer.Ordinal).ToArray()!,
+                System.IO.File.ReadAllText(System.IO.Path.Combine(directory.FullName, name + ".hmi.yml"))));
+            if (ImportResult && ImportCreates is not null) Items.Add(new HmiTextList { Name = ImportCreates });
+            return ImportResult;
+        }
+    }
     public sealed class HmiGraphicList : NamedObject { }
     public sealed class HmiGraphicListComposition : Composition<HmiGraphicList> { }
     public sealed class HmiSystemTextList : NamedObject { }

@@ -194,7 +194,7 @@ internal sealed class WriteRun<TItem, TEffect, TVerification, TResponse>
             return validation.Error ?? Validation("The write request is invalid.");
         }
 
-        // A domain may know whether a call confirms only from its validated items (library_write: calls that contain a
+        // A domain may know whether a call confirms only from its validated items (tia_library_write: calls that contain a
         // global-library lifecycle item), so the same rule is applied again once Validate has run.
         if (_domain.ConfirmsEveryCall && HasUnsafeOperationId())
         {

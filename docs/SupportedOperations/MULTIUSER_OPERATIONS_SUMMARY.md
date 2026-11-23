@@ -94,6 +94,15 @@ timeout invalidates binding evidence and cursors. This also applies to identity 
 Failed inventory is never automatically replayed.
 Use explicit `bind` with its existing guards to select another instance.
 
+**Re-binding after a reopened project (owner decision 2026-11-09; idea from rickgaiser/TiaMcp `38e63db`, reimplemented; not
+live-tested).** When TIA Portal closes and reopens the bound project (a Multiuser check-in or refresh, another Openness
+client, a restarted Portal) and a plain content read of the bound project (capability `Observe` or `TemporaryExport`; not a
+status probe) loses the verified binding during the call with `portal_lost`, the host re-binds once to the **same** already-open project path (`select_portal_project`, which never
+opens a project) and runs that read once more; the result carries a warning saying so. When the re-bind fails or ends on
+another path, the original failure is returned with a warning naming the reason, and `bind_project` is needed as before.
+Writes, lifecycle, online, simulation, session selection and inventory are never repeated, and nothing is repeated inside
+a pinned write lease (`ReadReattachPolicy`, `OpennessWorkerClient.SendBoundProjectRequestAsync`).
+
 Fatal `NonRecoverableException` from inventory escapes to the shared worker
 `portal_lost` mapping; final attachment checks cannot replace the original fatal
 body exception. Ordinary server failures still preserve a healthy binding, and

@@ -421,7 +421,13 @@ public class TiaPortalSession : IDisposable
     /// necessary", V21 Siemens.Engineering.Base.xml) instead of <c>Open(FileInfo)</c>; bound at runtime (not in the compile stubs)
     /// before any project is closed or opened. A project that is already open is adopted without an open call. Not live-tested.
     /// </param>
-    public void OpenProject(string projectPath, bool upgrade = false)
+    /// <param name="umac">
+    /// A UMAC login for a protected .ap21 (Sparkz400/TIA_MCP 315493b, Apache-2.0; evidence: Siemens Openness V21 "Functions for
+    /// Projects and Project Data"): <c>ProjectComposition.Open(FileInfo, UmacDelegate)</c>, bound at runtime with every
+    /// <c>UmacCredentials</c> member and the password resolved before anything is closed or opened. The first login callback is
+    /// answered, a second one is refused (the password is never resent). Not live-tested.
+    /// </param>
+    public void OpenProject(string projectPath, bool upgrade = false, UmacOpenRequest? umac = null)
     {
         ThrowIfDisposed();
         if (_activeContext?.ContainerKind == ProjectContainerKinds.ServerProject)
@@ -442,10 +448,16 @@ public class TiaPortalSession : IDisposable
             throw new WorkerOperationException(WorkerFailureCategories.ValidationError,
                 "upgrade applies to .ap21 project files (ProjectComposition.OpenWithUpgrade); a .als21 local session is opened with LocalSessions.Open, which has no upgrade.");
 
+        if (umac is not null && (isLocal || upgrade))
+            throw new WorkerOperationException(WorkerFailureCategories.ValidationError,
+                "A UMAC login applies to opening an .ap21 project file with ProjectComposition.Open(FileInfo, UmacDelegate); "
+                + "it is not offered for a .als21 local session or together with upgrade.");
+
         if (!IsConnected)
             Connect(requestedPath);
         // Bound before anything is closed or opened: a missing member changes nothing.
-        var opener = BindProjectOpener(upgrade);
+        using var umacOpen = umac is null ? null : UmacOpen.Prepare(_tiaPortal!.Projects, umac);
+        var opener = umacOpen is null ? BindProjectOpener(upgrade) : umacOpen.Opener(_tiaPortal!.Projects);
 
         var sourceContext = _activeContext;
         var currentPath = TryReadCurrentProjectPath();
@@ -1392,5 +1404,81 @@ public class TiaPortalSession : IDisposable
         {
             throw new ObjectDisposedException(nameof(TiaPortalSession));
         }
+    }
+}
+
+/// <summary>The public part of a UMAC login request; the password travels only as its source token.</summary>
+public sealed record UmacOpenRequest(string UserName, string UserType, string PasswordSource);
+
+/// <summary>A bound UMAC open with its resolved password; disposing it clears the password and reports the login.</summary>
+internal sealed class UmacOpen : IDisposable
+{
+    private readonly UmacOpenRequest _request;
+    private readonly System.Security.SecureString _password;
+    private readonly UmacProjectLoginBinding _binding;
+    private readonly UmacProjectLoginRun _run;
+    private bool _called;
+
+    private UmacOpen(UmacOpenRequest request, System.Security.SecureString password, UmacProjectLoginBinding binding)
+    {
+        _request = request;
+        _password = password;
+        _binding = binding;
+        _run = new UmacProjectLoginRun(binding, request.UserName, password);
+    }
+
+    public static UmacOpen Prepare(ProjectComposition projects, UmacOpenRequest request)
+    {
+        if (UmacProjectLoginNames.UserNameError(request.UserName) is { } nameError)
+            throw new WorkerOperationException(WorkerFailureCategories.ValidationError, nameError + " Nothing was opened or closed.");
+        UmacProjectLoginBinding binding;
+        try { binding = UmacProjectLoginBinding.Bind(projects.GetType(), request.UserType); }
+        catch (TiaMcpServer.Contracts.Shared.RuntimeBindingException exception)
+        {
+            throw new WorkerOperationException(exception.Category, exception.Message);
+        }
+
+        if (!TiaMcpServer.Contracts.Shared.PasswordSources.IsSource(request.PasswordSource))
+            throw new WorkerOperationException(WorkerFailureCategories.ValidationError,
+                "umacPassword must name an environment variable or a credential target. Nothing was opened or closed.");
+        var password = TiaMcpServer.Contracts.Shared.PasswordSources.Resolve(request.PasswordSource, Environment.GetEnvironmentVariable, null, out var reason)
+            ?? throw new WorkerOperationException(
+                TiaMcpServer.Contracts.Shared.PasswordSources.KindOf(request.PasswordSource) == TiaMcpServer.Contracts.Shared.PasswordSourceKind.Credential
+                && reason == TiaMcpServer.Contracts.Shared.WindowsCredentialReader.UnsupportedReason
+                    ? WorkerFailureCategories.UnsupportedCapability : WorkerFailureCategories.ValidationError,
+                $"umacPassword: {reason} Nothing was opened or closed.");
+        return new UmacOpen(request, password, binding);
+    }
+
+    public Func<FileInfo, Project> Opener(ProjectComposition projects) => file =>
+    {
+        _called = true;
+        object? returned;
+        try
+        {
+            returned = TiaMcpServer.Contracts.Shared.RuntimeServiceValues.Call(_binding.Open, projects, new object?[] { file, _run.Handler });
+        }
+        catch (Exception ex) when (ex is not WorkerOperationException && !EngineeringFailureHints.Is(ex, EngineeringFailureHints.MissingProductsException)
+            && _run.Requests > 0 && ex is not NonRecoverableException)
+        {
+            // TIA Portal asked for the login and then refused the open: name the user, never the password or its source value.
+            throw new WorkerOperationException(_run.Requests > 1 ? WorkerFailureCategories.AccessDenied : WorkerFailureCategories.WorkerOperationFailed,
+                $"TIA Portal did not open '{file.FullName}' with the UMAC login of user '{_request.UserName}' ({_request.UserType}; "
+                + $"login requested {_run.Requests} time(s), the password was sent once and not retried): {ex.Message} "
+                + "Check the user name, the user type and the stored password against the project's UMAC users.",
+                engineeringError: WorkerExecution.Describe(ex));
+        }
+
+        return returned as Project ?? throw new WorkerOperationException(WorkerFailureCategories.PostconditionFailed,
+            $"ProjectComposition.Open(FileInfo, UmacDelegate) returned {(returned is null ? "no project" : $"a {returned.GetType().FullName}")}, not the documented "
+            + "Siemens.Engineering.Project. Inspect get_project_status before retrying.");
+    };
+
+    public void Dispose()
+    {
+        _password.Dispose();
+        Console.Error.WriteLine(_called
+            ? _run.Describe(_request.UserType, TiaMcpServer.Contracts.Shared.PasswordSources.KindName(_request.PasswordSource) ?? "password")
+            : $"UMAC login for user '{_request.UserName}' was not sent: the project was already open or adopted without an open call.");
     }
 }

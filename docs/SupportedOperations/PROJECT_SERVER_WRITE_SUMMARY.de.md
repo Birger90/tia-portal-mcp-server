@@ -121,7 +121,7 @@ umgangen, deshalb bindet das Tool nicht.
 
 ### Bestätigungsdialoge von TIA Portal
 
-Jedes Element nimmt `portalConfirmations` wie `library_write`: Bis die Belege des Elements gesammelt sind, wird jede
+Jedes Element nimmt `portalConfirmations` wie `tia_library_write`: Bis die Belege des Elements gesammelt sind, wird jede
 `Confirmation` von TIA Portal mit Nein (`decline`, Standard; aufgezeichnet, das Element schlägt fehl) oder Ja (`accept`;
 aufgezeichnet, eine Warnung) beantwortet. Der Worker öffnet `TiaPortalSession.AnswerConfirmations` mit einem
 `PlcDownloadPortalConfirmationLog` (Eigentümer = Worker-Methode) und schließt es, bevor er die Belege in

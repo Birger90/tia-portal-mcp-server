@@ -37,7 +37,8 @@ Siehe [../roadmap/network-operations.md](../roadmap/network-operations.md) für 
 Ein fataler Portal-Verlust, der aus Discovery, Auswahl, Verbindungs-/Attributlesen oder Mutation im
 Netzwerkbereich entweicht, wird an die gemeinsame `portal_lost`-Zuordnung des Workers weitergereicht.
 Gewöhnliche unlesbare Nachweise und Fehler optionaler Eigenschaften behalten ihr bisheriges
-Verhalten. Der Host macht verifizierte Bindung/Cursor ungültig, ohne zu wiederholen; jede versuchte
+Verhalten. Der Host macht verifizierte Bindung/Cursor ungültig, ohne zu wiederholen (nur ein reiner Lesezugriff bindet einmal an
+dasselbe geöffnete Projekt und läuft noch einmal; siehe die Multiuser-Referenz); jede versuchte
 Mutation prüfen und vor einem erneuten Versuch explizit neu binden. Bestehende typisierte Ergebnisse
 nach der Mutation und Aufräumwarnungen behalten ihre etablierten Verträge. Der
 [B-16/Q3-Bericht](../superpowers/acceptance/reports/2026-10-20-b16-q3-worker-portal-loss-live-verification.md) unterscheidet

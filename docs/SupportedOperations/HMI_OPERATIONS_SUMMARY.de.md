@@ -163,8 +163,8 @@ bleibt voll unterstützt; ein Aufruf ohne `cursor` verhält sich wie bisher und 
 Neun weitere Operationen für Bilder, Bildobjekte, Eigenschaften, Variablen-Dynamisierungen, Skripte und Batch-Umbenennungen von Bildern
 und HMI-Variablen wurden von BetterTIA/writer übernommen; sie sind, mit der Herkunft und Bindung
 jedes Siemens-Members, in der [Referenz der BetterTIA-Operationen](BETTERTIA_ADOPTED_OPERATIONS_SUMMARY.md#wincc-unified-screens-scripts-and-batch-renames-hmi_write) beschrieben.
-Zwei weitere, `export_text_lists` und `import_text_lists` (Benutzer-Textlisten als SimaticML-Dateien; die Member sind von
-Siemens für Unified nicht dokumentiert und werden zur Laufzeit gebunden), sind in der
+Zwei weitere, `export_text_lists` und `import_text_lists` (Benutzer-Textlisten als SimaticML-Dateien oder als YAML über den
+Weg der Komposition, den rickgaiser/TiaMcp auf V21 nutzt; die Member sind von Siemens für Unified nicht dokumentiert und werden zur Laufzeit gebunden), sind in der
 [selben Referenz](BETTERTIA_ADOPTED_OPERATIONS_SUMMARY.md#tag-tables-and-wincc-unified-text-lists-as-files-owner-additions) beschrieben; insgesamt 20.
 Der Rest dieses Abschnitts beschreibt die neun Schreibvorgänge für Variablentabellen, Variablen und Meldungen.
 

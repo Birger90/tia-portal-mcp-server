@@ -41,6 +41,7 @@ public static class PasswordPurposes
         new PasswordPurpose("ModuleReadAccessPassword", "Modul-/Online-Passwort: Lesezugriff", "plc_download, plc_station_upload"),
         new PasswordPurpose("OnlineReadAccessPassword", "Online-Passwort: Lesezugriff", "plc_tia_online, plc_read compare_to_online"),
         new PasswordPurpose("PasswordReadAccess", "Hochladen: Lesezugriff", "plc_station_upload"),
+        new PasswordPurpose(Project.UmacProjectLoginNames.PasswordPurpose, "UMAC-Projektanmeldung (geschütztes Projekt öffnen)", "open_project (umacUserName)"),
     });
 
     /// <summary>The known purpose, or null for another password configuration type short name.</summary>

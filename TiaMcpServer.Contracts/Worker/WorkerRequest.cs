@@ -565,5 +565,17 @@ public class WorkerRequest
     /// </summary>
     public bool OpenWithUpgrade { get; set; }
 
+    /// <summary>
+    /// Forwarded by: open_project ONLY: the UMAC user of a protected .ap21 (<c>ProjectComposition.Open(FileInfo, UmacDelegate)</c>);
+    /// null opens with <c>Open(FileInfo)</c>.
+    /// </summary>
+    public string? UmacUserName { get; set; }
+
+    /// <summary>Forwarded by: open_project ONLY: <c>project</c> or <c>global</c> (<see cref="Project.UmacProjectLoginNames"/>).</summary>
+    public string? UmacUserType { get; set; }
+
+    /// <summary>Forwarded by: open_project ONLY: the password source token of the UMAC user (never a password).</summary>
+    public string? UmacPasswordSource { get; set; }
+
     #endregion
 }

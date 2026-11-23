@@ -71,8 +71,8 @@ public static class TiaMcpOperationReference
         new("hmi_write", true, WritableModes, Doc("HMI_OPERATIONS_SUMMARY.md"), () => Hmi.HmiWriteCatalog.OperationNames, Unknown),
         new("vci_read", false, EveryMode, Doc("VCI_OPERATIONS_SUMMARY.md"), () => VciReadOperations, Unknown),
         new("vci_write", true, WritableModes, Doc("VCI_OPERATIONS_SUMMARY.md"), () => Vci.VciWriteCatalog.OperationNames, Unknown),
-        new("library_read", false, EveryMode, Doc("LIBRARY_OPERATIONS_SUMMARY.md"), () => Library.LibraryCatalog.ReadOperationNames, Unknown),
-        new("library_write", true, WritableModes, Doc("LIBRARY_OPERATIONS_SUMMARY.md"), () => Library.LibraryCatalog.WriteOperationNames, Unknown),
+        new("tia_library_read", false, EveryMode, Doc("LIBRARY_OPERATIONS_SUMMARY.md"), () => Library.LibraryCatalog.ReadOperationNames, Unknown),
+        new("tia_library_write", true, WritableModes, Doc("LIBRARY_OPERATIONS_SUMMARY.md"), () => Library.LibraryCatalog.WriteOperationNames, Unknown),
         new("plcsim_read", false, EveryMode, Doc("PLCSIM_OPERATIONS_SUMMARY.md"), () => PlcSim.PlcSimCatalog.ReadOperationNames.ToArray(), Unknown),
         new("plcsim_write", true, WritableModes, Doc("PLCSIM_OPERATIONS_SUMMARY.md"), () => PlcSim.PlcSimCatalog.WriteOperationNames.ToArray(), Unknown),
         new("plc_online_read", false, EveryMode, Doc("PLC_ONLINE_WEBAPI_SUMMARY.md"), () => PlcWebApi.PlcWebApiCatalog.ReadOperationNames.ToArray(), Unknown),
@@ -160,7 +160,7 @@ internal sealed class TiaMcpOperationTemplateResource : McpServerResource
             {
                 Name = "operation", Title = "Operation reference: one operation", UriTemplate = TiaMcpOperationReference.Root + "/{tool}/{operation}",
                 MimeType = TiaMcpOperationReference.MimeType,
-                Description = "One operation of an operation tool (tool e.g. plc_read, plc_write, network_read, hmi_write, library_read, plcsim_read, plc_online_read, siemens_docs, tia_inbox). "
+                Description = "One operation of an operation tool (tool e.g. plc_read, plc_write, network_read, hmi_write, tia_library_read, plcsim_read, plc_online_read, siemens_docs, tia_inbox). "
                     + "For plc_read/plc_write: the same required and optional fields, field rules and reference text as plc_read describe_operations. Needs no TIA Portal.",
             }
             : new ResourceTemplate

@@ -12,12 +12,11 @@ public class WriteToolMcpAnnotationProtocolTests
         "browse_project_tree",
         "get_project_status",
         "hmi_read",
-        "library_read",
         "network_read",
         "plc_online_read",
         "plc_read",
         "plcsim_read",
-        "read_cross_references", "siemens_docs", "tia_inbox", "vci_read",
+        "read_cross_references", "siemens_docs", "tia_inbox", "tia_library_read", "vci_read",
     };
 
     private static readonly string[] FullToolNames =
@@ -31,8 +30,6 @@ public class WriteToolMcpAnnotationProtocolTests
         "get_project_status",
         "hmi_read",
         "hmi_write",
-        "library_read",
-        "library_write",
         "network_read",
         "network_write",
         "open_project",
@@ -53,6 +50,8 @@ public class WriteToolMcpAnnotationProtocolTests
         "save_project_as",
         "siemens_docs",
         "tia_inbox",
+        "tia_library_read",
+        "tia_library_write",
         "vci_read", "vci_write",
     };
 
@@ -69,7 +68,7 @@ public class WriteToolMcpAnnotationProtocolTests
         ("plc_write", false, true, null, false),
         ("hmi_write", false, true, null, false),
         ("vci_write", false, true, null, false),
-        ("library_write", false, true, null, false),
+        ("tia_library_write", false, true, null, false),
         ("project_server_write", false, true, null, true),
         ("plc_download", false, true, null, true),
         ("plc_tia_online", false, false, null, true),

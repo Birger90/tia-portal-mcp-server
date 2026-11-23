@@ -7,7 +7,7 @@ using TiaMcpServer.OperationBatches;
 namespace TiaMcpServer.Library;
 
 /// <summary>
-/// Field specifications and validation of every library_read/library_write operation. Validation runs before
+/// Field specifications and validation of every tia_library_read/tia_library_write operation. Validation runs before
 /// any worker call: unknown or misplaced fields, missing selectors, invalid names, paths, enum member names and
 /// caps are argument errors (<c>validation_error</c>), never guards.
 /// </summary>
@@ -476,7 +476,7 @@ public static class LibraryCatalog
 }
 
 /// <summary>
-/// library_read/library_write item schema (K95): the optional <c>typeIdentifier</c> of a <c>target.parent.itemPath</c>
+/// tia_library_read/tia_library_write item schema (K95): the optional <c>typeIdentifier</c> of a <c>target.parent.itemPath</c>
 /// segment is advertised as <c>"type": "string"</c> instead of <c>["string", "null"]</c>, which would make the schema one
 /// level deeper than the K91 client limit allows. The arguments are still deserialized into the nullable contract, so an
 /// explicit null is accepted as well as an omitted member; the description says so. Nothing accepted or refused changes.

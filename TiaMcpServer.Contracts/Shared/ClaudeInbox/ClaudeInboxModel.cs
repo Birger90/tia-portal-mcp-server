@@ -102,7 +102,7 @@ public sealed class ClaudeChainEntry
 }
 
 /// <summary>How the MCP tools address the selected object (every member null when not applicable). A hint built from names:
-/// Claude confirms it with <c>browse_project_tree</c>, <c>plc_read</c>, <c>network_read</c> or <c>library_read</c>.</summary>
+/// Claude confirms it with <c>browse_project_tree</c>, <c>plc_read</c>, <c>network_read</c> or <c>tia_library_read</c>.</summary>
 public sealed class ClaudeAddress
 {
     public static readonly ClaudeAddress None = new(null, null, null, null, null, null, null, null, null, null, null, null);
@@ -145,10 +145,10 @@ public sealed class ClaudeAddress
 
     public string? DeviceItemName { get; }
 
-    /// <summary><c>library_read</c> <c>library</c>: <c>project</c>, or the global library's path when it could be read.</summary>
+    /// <summary><c>tia_library_read</c> <c>library</c>: <c>project</c>, or the global library's path when it could be read.</summary>
     public string? Library { get; }
 
-    /// <summary><c>library_read</c> <c>typePath</c>: <c>/Folder/Type</c>.</summary>
+    /// <summary><c>tia_library_read</c> <c>typePath</c>: <c>/Folder/Type</c>.</summary>
     public string? LibraryTypePath { get; }
 
     public string? MasterCopyName { get; }

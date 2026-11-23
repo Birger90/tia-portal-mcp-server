@@ -2,21 +2,21 @@ namespace TiaMcpServer.Contracts.Library;
 
 /// <summary>
 /// Public operation and worker method names of the project and global library tools. Every public
-/// <c>library_read</c>/<c>library_write</c> operation has the worker method <c>library_&lt;operation&gt;</c>
+/// <c>tia_library_read</c>/<c>tia_library_write</c> operation has the worker method <c>library_&lt;operation&gt;</c>
 /// (<see cref="ForOperation"/>), because <c>OperationPolicyCatalog</c> is one flat namespace. The names feed
 /// <c>OperationPolicyCatalog</c>, <c>ProjectCapabilityCatalog</c> and the worker dispatch switch.
 /// </summary>
 public static class LibraryMethods
 {
-    public const string ReadTool = "library_read";
-    public const string WriteTool = "library_write";
+    public const string ReadTool = "tia_library_read";
+    public const string WriteTool = "tia_library_write";
 
-    /// <summary>Non-mutating planning read of one <c>library_write</c> item (Observe).</summary>
+    /// <summary>Non-mutating planning read of one <c>tia_library_write</c> item (Observe).</summary>
     public const string Plan = "library_plan";
 
     public const string Prefix = "library_";
 
-    // library_read (Observe)
+    // tia_library_read (Observe)
     public const string ListLibraries = "list_libraries";
     public const string ListGlobalLibraryInfos = "list_global_library_infos";
     public const string GetLibraryTree = "get_library_tree";
@@ -34,7 +34,7 @@ public static class LibraryMethods
     /// <summary>TIA Portal settings (issue #27): <c>TiaPortal.SettingsFolders</c>, Portal-wide, not project content.</summary>
     public const string ListPortalSettings = "list_portal_settings";
 
-    // library_write: global library lifecycle (ProjectMutation; read-write confirms the call)
+    // tia_library_write: global library lifecycle (ProjectMutation; read-write confirms the call)
     public const string OpenGlobalLibrary = "open_global_library";
     public const string RetrieveGlobalLibrary = "retrieve_global_library";
     public const string CreateGlobalLibrary = "create_global_library";
@@ -43,12 +43,12 @@ public static class LibraryMethods
     public const string ArchiveGlobalLibrary = "archive_global_library";
     public const string SaveGlobalLibraryAs = "save_global_library_as";
 
-    // library_write: read-only secondary (reference) projects next to the bound project (issue #20; lifecycle, confirmed)
+    // tia_library_write: read-only secondary (reference) projects next to the bound project (issue #20; lifecycle, confirmed)
     public const string OpenSecondaryProject = "open_secondary_project";
     public const string RetrieveSecondaryProject = "retrieve_secondary_project";
     public const string CloseSecondaryProject = "close_secondary_project";
 
-    // library_write: library content and project instantiation (ProjectMutation; no prompt)
+    // tia_library_write: library content and project instantiation (ProjectMutation; no prompt)
     public const string CreateMasterCopy = "create_master_copy";
     public const string CopyMasterCopy = "copy_master_copy";
     public const string DeleteMasterCopy = "delete_master_copy";
@@ -64,7 +64,7 @@ public static class LibraryMethods
     public const string SetDefaultTypeVersion = "set_default_type_version";
     public const string DeleteTypeVersion = "delete_type_version";
 
-    // library_write: added from the V21 API description (issue #17; ProjectMutation; no prompt)
+    // tia_library_write: added from the V21 API description (issue #17; ProjectMutation; no prompt)
     public const string CleanUpLibrary = "clean_up_library";
     public const string HarmonizeProject = "harmonize_project";
     public const string UpdateLibrary = "update_library";

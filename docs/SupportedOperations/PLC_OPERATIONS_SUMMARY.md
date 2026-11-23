@@ -18,7 +18,7 @@
 | `plc_read` | `get_call_tree`, `find_call_paths`, `find_unused_blocks`, `find_orphaned_instance_dbs`, `analyze_change_impact` | See [Program analysis](#program-analysis-plc_read) | Host-computed, read-only analysis over the block inventory and the cross-reference reader; not live-tested. |
 | `plc_read` | `list_external_sources`, `read_tag_comments`, `find_objects`, `scan_accessible_devices` | See [PLC_SOURCES_FOLDERS_SUMMARY.md](PLC_SOURCES_FOLDERS_SUMMARY.md) | External sources of the PLC and its software units; multilingual tag and user-constant comments; objects by glob with paging; accessible devices on an explicitly named PC interface (`OnlineObserve`, every mode); not live-tested. |
 | `plc_read` | `list_text_lists`, `read_text_list_workbook`, `read_alarm_text_workbook`, `read_supervision_workbook`, `get_prodiag_fb`, `get_prodiag_assignment` | See the [PLC alarms and text lists reference](PLC_ALARMS_TEXTLISTS_SUMMARY.md) | User and system text lists with ID, range and comment per culture; text list entries, alarm instance texts and ProDiag supervisions as uninterpreted cells of TIA Portal's XLSX export with a `workbookHash`, paged within the value budget; ProDiag FB evidence and `AssignedProDiagFB`; the matching writes (`update_text_list`, `delete_text_list`, `update_*_cells`, `export_*`, `import_*`, `set_prodiag_assignment`, `export_prodiag_info`) are in the same reference; not live-tested. |
-| `plc_read` | `get_plc_checksums`, `get_fingerprints` | Optional `plcName`; exactly one of `blockPath` or `typePath` | Offline change detection: the PLC's software and text list checksums, the fingerprints of one block or PLC data type, as text; see [Offline change detection](#offline-change-detection-plc_read); not live-tested. |
+| `plc_read` | `get_plc_checksums`, `get_fingerprints`, `check_download_readiness` | Optional `plcName`; exactly one of `blockPath` or `typePath` (fingerprints) | Offline change detection: the PLC's software and text list checksums, the fingerprints of one block or PLC data type, as text, and a download readiness verdict per PLC; see [Offline change detection](#offline-change-detection-plc_read); not live-tested. |
 | `plc_read` | `get_block_protection` | Required `blockPath` | Know-how and write protection state of one block and which protection members bind; see [Block know-how and write protection](#block-know-how-and-write-protection-plc_readplc_write). Not live-tested. |
 | `plc_read` | `get_project_languages` | None | Active, editing, reference and supported project languages and the text categories; see [Project languages and project texts](#project-languages-and-project-texts-plc_readplc_write). Not live-tested. |
 | `plc_read` | `describe_operations` | Optional `operationNames` (1–3 PLC read or write operation names) | The operation reference: required and optional fields, the full field rules and the reference text of each named operation, or without names the index of every operation with its fields; no bound project needed. See [Operation reference](#operation-reference-describe_operations). |
@@ -344,6 +344,11 @@ before execution. The steps run in one ExclusiveAccess transaction that a failur
 
 `create_block` accepts `FB`, `FC`, `OB`, or `GlobalDB`. Applicable block types support `LAD`, `FBD`, `STL`, `SCL`, and `GRAPH`. `GRAPH` is not supported for `OB`. `STL` FB, FC and OB creation works.
 
+GlobalDB creation leaves the memory layout to Portal's destination default. The generated XML
+omits the writable MemoryLayout assignment, allowing the same document in PLC-root and
+software-unit block folders; software units require optimized access.
+Upstream qualified this on V21 (Czarnak/tia-portal-mcp PR #228, issue #221); not live-tested in this fork.
+
 OB creation takes `obEventClass`, a closed set of 15 names, omitted meaning `ProgramCycle`:
 `ProgramCycle`, `Startup`, `TimeOfDay`, `TimeDelayInterrupt`, `CyclicInterrupt`,
 `HardwareInterrupt`, `Status`, `Update`, `Profile`, `TimeErrorInterrupt`, `DiagnosticErrorInterrupt`,
@@ -374,8 +379,12 @@ If the object changed since that read, the call fails with `state_changed` befor
 change between planning and import fails that item with `state_changed`. A document over the value
 budget (60,000 characters by default) is omitted from `plc_read`, has no hash, and cannot be updated through
 `plc_write`. A source declaring more than one object (a `withDependencies` read) is refused.
-Block updates import into the existing block, compile the affected PLC scope, and verify the result
-by re-export (the verification `contentHash`, below); type updates require a declaration whose name matches the target. Import/update never
+Block updates import into the existing block, then compile the affected scope and verify the result
+by re-export (the verification `contentHash`, below). Compilation is reported separately in
+`result.importOutcome.compileStage` and `compileReport`: compiler errors or unavailable compile
+evidence alone do not fail a completed, verified import or skip later batch items. Import success
+does not certify that the PLC compiles. Import, final verification, and Portal-loss failures still
+fail the item. Type updates require a declaration whose name matches the target. Import/update never
 creates, renames, deletes, or upserts the addressed object. A preview can carry a bounded
 `contentDiff` of current versus requested text (see the
 [import/export options](IMPORT_EXPORT_OPTIONS_SUMMARY.md)). A failed `update_block_logic` import
@@ -613,6 +622,19 @@ Two `plc_read` operations (every mode; `Observe`; standalone projects and local 
   `Fingerprint`'s `id` and `value` in the same text shape (the XML lists the `FingerprintId` fields `Code`, `Comments`,
   `Interface`, `LibraryType`, `Texts`, `Alarms`, `Supervisions`, `TechnologyObject`, `Events`, `TextualInterface`,
   `Properties`, `ProgramCode`, but the type of `Fingerprint.Id` is not stated, so nothing is assumed).
+- **`check_download_readiness`** (optional `plcName`; idea from 1748477582/tia-portal-openness-mcp `CheckDownloadReadiness`,
+  MIT, reimplemented; not live-tested): reads offline and **never compiles**. Per PLC it reads `PlcBlock.IsConsistent`
+  (property or attribute) of every block the walker finds (program blocks with user and system groups, software and safety
+  units) and the `get_plc_checksums` values, and the Siemens-free `PlcDownloadReadiness` gives the verdict:
+  - `ready`: every block reads consistent and the software checksum has a value;
+  - `notReady`: a block reads inconsistent, or the software checksum is empty or null (not compiled or changed since the last
+    compile, per the Siemens V21 skill change-detection);
+  - `unknown`: nothing contradicts a download, but a block or the checksum could not be read, or the PLC offers no
+    `PlcChecksumProvider`.
+
+  The result per PLC is `{ plcName, deviceName, verdict, reasons[], blockCount, inconsistentCount, unreadableCount,
+  inconsistentBlocks[] (at most 200), inconsistentBlocksOmitted, checksums, messages[] }`. TIA Portal's own checks during
+  `plc_download` still decide; run `compile_check` to make inconsistent blocks consistent.
 - **No stub member** was added: every member is bound at runtime by the Siemens-free `PlcChangeDetectionRun` and
   `RuntimeServiceValues` (Contracts `Shared`), shared with the FakeWorker.
 - **Online counterpart:** the online `Siemens.Engineering.FingerprintData.FingerprintDataProvider`
@@ -638,7 +660,10 @@ block paths name, else the only PLC) and `overwrite`. Names in `PlcLoadableMetho
 `TiaMcpServer/Plc/Loadable/` (test glob), FakeWorker `plc-write-roundtrip` (PLC_2 offers no provider).
 
 - **Provider and binding.** The XML does not say which object offers `LoadableProvider`; the worker takes it from the
-  `PlcSoftware`'s `GetServiceInfos()` by exact full name (not listed or not returned: `unsupported_capability`). The blocks
+  `PlcSoftware`'s `GetServiceInfos()` by exact full name, else from the CPU device item, each parent device item and the
+  device, in this order (the Siemens-free `ServiceOwnerChain`; idea from asckye/TIA_Portal_Openness_MCP, MIT; a provider
+  found elsewhere than on the PLC software is named in `result.messages`). None returns it: `unsupported_capability`, naming
+  every object searched. The blocks
   (`BlockTargetResolver`) or software units are resolved first (`target_not_found`); then the Siemens-free `PlcLoadableRun`
   (Contracts) binds the one `GenerateLoadable` overload with parameters `FileInfo`, `IEnumerable<T>` of exactly the element's
   full name and the enum of exactly the `TargetOption` full name, and parses `target` by member name; anything missing is

@@ -87,7 +87,7 @@ names); for `tags` it narrows the tag tables to that folder.
 
 | Item | Why |
 | --- | --- |
-| `CreateFrom(MasterCopy)` / `CreateFrom(…LibraryTypeVersion)` of tag tables, tags, screens, templates, pop-ups, VB scripts | Library instantiation belongs to `library_write`; its targets do not include classic HMI compositions yet. Not built here. |
+| `CreateFrom(MasterCopy)` / `CreateFrom(…LibraryTypeVersion)` of tag tables, tags, screens, templates, pop-ups, VB scripts | Library instantiation belongs to `tia_library_write`; its targets do not include classic HMI compositions yet. Not built here. |
 | Multilingual graphics (`GraphicsProvider.Graphics`, `MultiLingualGraphicComposition`) | V21 documents the provider but not which object offers it as a service; nothing is guessed. Audit N9 (2026-11-09) re-checked members.txt: `MultiLingualGraphicComposition` has `Import(FileInfo, ImportOptions)`, `Find(String)` and enumeration, `MultiLingualGraphic` has `Name`, `Export(FileInfo, ExportOptions)` and `Delete()`, so list/export/import would be bindable at runtime once the owner is known (a `GetServiceInfos()` lookup on the project and the TIA Portal, like `FingerprintDataProvider`). Not built in this package: project graphics are project-wide (a new `plc_read`/`plc_write` family with the caller-file rules and a read-back) and the owner should be live-checked first; follow-up in the [improvement log](../IMPROVEMENT_LOG.md). |
 | `Hmi.Alarm`, `Hmi.Recipe`, `Hmi.Logging`, `Hmi.Report`, `Hmi.Scheduler`, `Hmi.Faceplate` | V21 documents only enums (and library type names) in these namespaces, no composition, export or import member. |
 | Classic object content (properties of a tag, screen items, connection parameters) | V21 documents no typed members; content goes through the SimaticML export/import above. |
@@ -114,6 +114,7 @@ target is a screen (`screenName`, optional `groupPath` for writes) or one of its
 | `hmi_write` | `set_dynamization_script` | `screenName`, `propertyName`, `scriptCode` | `groupPath`, `itemName`, `globalDefinitionAreaScriptCode`, `async`, `triggerType`, `triggerTags` (1–50), `customDuration` | `DynamizationBaseComposition.Create<ScriptDynamization>(String)`, `ScriptCode`, `Trigger.Type/Tags/CustomDuration` |
 | `hmi_write` | `set_dynamization_flashing` | `screenName`, `propertyName` | `groupPath`, `itemName`, `color`, `alternateColor`, `flashingCondition`, `flashingRate` | `Create<FlashingDynamization>(String)`, `Color`, `AlternateColor`, `FlashingCondition`, `FlashingRate` |
 | `hmi_write` | `delete_dynamization` | `screenName`, `propertyName` | `groupPath`, `itemName` | `DynamizationBase.Delete()` |
+| `hmi_write` | `set_dynamization_value_converter` | `screenName`, `propertyName`, one of `formula`, `formulaSelected`, `conditionType`, `mappingEntries` | `groupPath`, `itemName` | `TagDynamization`/`ExpressionDynamization.ValueConverter` (`Formula`, `IsFormulaSelected`, `MappingTable`), `MappingTable.ConditionType`/`Entries`, `MappingTableEntryBaseComposition.Create<T>()` and `Create(BitDynamizationType)`, `MappingTableEntryBase.Value`/`AlternateValue`/`Flashing`/`FlashingRate`/`Delete()`, `MappingTableEntryRange.From`/`To`/`RangeType`, `MappingTableEntrySimple.Condition`, `MappingTableEntryBitmask.Condition`; `Create<ExpressionDynamization>(String)` |
 
 - **Event types.** Each screen item type has its own event enum (`HmiButtonEventType`, `HmiIOFieldEventType`, … and
   `HmiScreenEventType` for the screen); the worker binds the single `Find`/`Create` of the target's `EventHandlers` that
@@ -129,9 +130,27 @@ target is a screen (`screenName`, optional `groupPath` for writes) or one of its
   converted to exactly the runtime type of the current value (enum member names such as `T1s`, `CustomCycle`, `Tags`,
   `Always`, `Fast`; colours `#RRGGBB`/`#AARRGGBB`); `triggerTags` replaces the trigger's tag list; every value is read back.
   `customDuration` belongs to `triggerType:"CustomCycle"`.
+- **Value converters** (`set_dynamization_value_converter`; idea from jessenic/TIA-MCP-Server, MIT; not live-tested).
+  The property needs a tag dynamization (`set_dynamization_tag`) or an expression dynamization; a `formula` without a
+  dynamization creates an `ExpressionDynamization`, any other kind is refused with `target_kind_unsupported`. A
+  `formula` sets `IsFormulaSelected` true first, then `Formula`; `formulaSelected` sets the switch alone.
+  `mappingEntries` (1–100) replace every existing entry: each entry is `Delete()`d, then `conditionType` is set (an
+  enum member name such as `Range`, `Simple`, `Bitmask`, `Singlebit`), then the entries are created in order. An entry
+  is `{ kind, from, to, rangeType, condition, bitDynamizationType, value, alternateValue, flashing, flashingRate }`:
+  `range` needs `from` and `to`, `simple` needs `condition`, `bitmask` needs `bitDynamizationType` (the same for every
+  entry; bitmask entries cannot be mixed with others). Bitmask entries come from the one
+  `Entries.Create(BitDynamizationType)`, which creates the whole set (two entries for `SingleBit`); jessenic reports that
+  TIA Portal may already create the Singlebit pair when the condition type is assigned (not verified), and then nothing
+  more is created. The number of entries TIA Portal created must equal the request, otherwise the item fails
+  `postcondition_failed` and keeps them. Values are text: `value`/`alternateValue` take the runtime type of the entry's
+  current value or else of the dynamized property (e.g. a colour `#AARRGGBB` for `BackColor`); `from`/`to`/`condition`
+  take their current value's type, and a member declared `Object` without a value takes an integer, else a number, else
+  the text. Every value and the entry count are read back. **Which conversions TIA Portal V21 accepts is not verified.**
 - **Reads** report only the documented properties a dynamization has (`Tag`, `PlcTag`, `Address`, `DataType`, `ReadOnly`,
   `UseIndirectAddressing`, `ScriptCode`, `GlobalDefinitionAreaScriptCode`, `Async`, `Color`, `AlternateColor`,
-  `FlashingCondition`, `FlashingRate`, `ResourceList`, `DynamicTagName`, `Trigger.*`) as text: enums by name, colours as
+  `FlashingCondition`, `FlashingRate`, `ResourceList`, `DynamicTagName`, `Trigger.*`, and for a value converter
+  `ValueConverter.IsFormulaSelected`, `ValueConverter.Formula`, `MappingTable.ConditionType` and per entry
+  `MappingTable.Entries[i].Kind` plus its documented members) as text: enums by name, colours as
   `#AARRGGBB`, lists joined by ", ". There is no generic attribute enumeration (V21 pitfall 3).
 - **Deletes** are read back (`Find` finds nothing afterwards) and fire the info guard `hmi_deletes_event_or_dynamization`.
 - **Shapes and widgets** (`UI.Shapes.*`, `UI.Widgets.*`) are created with the existing `create_screen_item` by their exact
@@ -183,7 +202,7 @@ Worker `Openness/HmiExtensions/HmiUnifiedConfiguration.cs` (outside `Openness/Hm
 
 | Item | Why |
 | --- | --- |
-| Unified library (`HmiUnified.Library.ScriptModuleType`) | V21 documents the type without own members; library types are handled by `library_read`/`library_write`. |
+| Unified library (`HmiUnified.Library.ScriptModuleType`) | V21 documents the type without own members; library types are handled by `tia_library_read`/`tia_library_write`. |
 | Audit trails (`HmiLogging.HmiAuditTrail`) writes | Only `Name` is documented and the composition has no `Create`; `list_logs` already reads them. |
 | Reading audit class properties | The spike's audit/GMP crash finding (see above); `list_alarm_classes` keeps listing names only. |
 | Creating expression, resource list and tag parameter dynamizations; value converters and mapping tables of tag dynamizations (`UI.Dynamization.Tag.*`) | Not built in this package; `list_screen_item_dynamizations` reports these dynamizations with their documented values. |

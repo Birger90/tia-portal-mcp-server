@@ -18,11 +18,19 @@ public static class HmiScreenEventMethods
     public const string SetDynamizationFlashing = "hmi_set_dynamization_flashing";
     public const string DeleteDynamization = "hmi_delete_dynamization";
 
+    /// <summary>
+    /// The value converter of a tag or expression dynamization: <c>ValueConverter.Formula</c>/<c>IsFormulaSelected</c> and the
+    /// <c>MappingTable</c> (<c>ConditionType</c>, <c>Entries</c> of <c>MappingTableEntryRange</c>/<c>Simple</c>/<c>Bitmask</c>).
+    /// Evidence: the V21 type list in <c>totally-integrated-claude</c> <c>skills/tia-hmi-operations/references/unified-dynamization.md</c>
+    /// (generated from <c>Siemens.Engineering.WinCCUnified.xml</c>); idea from jessenic/TIA-MCP-Server (MIT). Bound at runtime.
+    /// </summary>
+    public const string SetDynamizationValueConverter = "hmi_set_dynamization_value_converter";
+
     public static IReadOnlyList<string> Reads { get; } = Array.AsReadOnly(new[] { ListEvents, ListDynamizations });
 
     public static IReadOnlyList<string> Writes { get; } = Array.AsReadOnly(new[]
     {
-        SetEventScript, DeleteEventScript, SetDynamizationScript, SetDynamizationFlashing, DeleteDynamization,
+        SetEventScript, DeleteEventScript, SetDynamizationScript, SetDynamizationFlashing, DeleteDynamization, SetDynamizationValueConverter,
     });
 }
 
@@ -94,4 +102,36 @@ public class HmiNamedValueInfo
     public string Name { get; set; } = string.Empty;
 
     public string? Value { get; set; }
+}
+
+/// <summary>
+/// One mapping table entry of <c>set_dynamization_value_converter</c>. <c>Kind</c> picks the entry type:
+/// <c>range</c> (<c>MappingTableEntryRange.From/To/RangeType</c>), <c>simple</c> (<c>MappingTableEntrySimple.Condition</c>) or
+/// <c>bitmask</c> (<c>MappingTableEntryBitmask</c>, created with <c>Entries.Create(BitDynamizationType)</c>; <c>Condition</c>
+/// as an unsigned number). Every entry takes <c>Value</c>, <c>AlternateValue</c>, <c>Flashing</c> and <c>FlashingRate</c>
+/// (<c>MappingTableEntryBase</c>). Values are text, converted on the worker to the runtime type of the live member.
+/// The text members are declared non-nullable so the tool schema stays within the client depth limit; an omitted one
+/// is null and is not written. <c>Flashing</c> is written only when true (every entry is new).
+/// </summary>
+public class HmiMappingEntryInfo
+{
+    public string Kind { get; set; } = string.Empty;
+
+    public string From { get; set; } = null!;
+
+    public string To { get; set; } = null!;
+
+    public string RangeType { get; set; } = null!;
+
+    public string Condition { get; set; } = null!;
+
+    public string BitDynamizationType { get; set; } = null!;
+
+    public string Value { get; set; } = null!;
+
+    public string AlternateValue { get; set; } = null!;
+
+    public bool Flashing { get; set; }
+
+    public string FlashingRate { get; set; } = null!;
 }

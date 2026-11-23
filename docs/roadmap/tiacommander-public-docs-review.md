@@ -71,7 +71,7 @@ nothing here claims Openness supports something unless such a source says so.
 | TiaCommander action | Idea | Status | Our coverage | Siemens source to check |
 | --- | --- | --- | --- | --- |
 | `add_entries` | add value-range/text entries to a text list | partial | [AT] entries change only as workbook cells (`update_text_list_cells`); typed entries left out (no documented entry type) | `tia-plc-operations/references/alarms.md` |
-| `create_textlist` | create a text list, optionally with entries | partial | [AT] only from a master copy (`library_write instantiate_master_copy` target `textLists`); no documented create member | `alarms.md` (`PlcAlarmUserTextlistComposition`) |
+| `create_textlist` | create a text list, optionally with entries | partial | [AT] only from a master copy (`tia_library_write instantiate_master_copy` target `textLists`); no documented create member | `alarms.md` (`PlcAlarmUserTextlistComposition`) |
 | `delete_entries` | delete entries by start value | missing | [AT] left out: import semantics for removed rows undocumented | `alarms.md`; Siemens skill `libraries-and-alarms` |
 | `delete_textlist` | delete a user text list | present | [AT] `delete_text_list` | — |
 | `export_alarm_classes` | export alarm classes to a file | present | [AT] `export_alarm_classes` | — |
@@ -218,8 +218,8 @@ nothing here claims Openness supports something unless such a source says so.
 | --- | --- | --- | --- | --- |
 | `add_to_multi_instance_fb` | add a library type as a multi-instance member | missing | left out in the library reference (interface editing, not a library API); see `add_multi_instance_member` | as `add_multi_instance_member` |
 | `archive_global_library` | archive a global library | missing | → row 3 | `tia-project-general/references/library-operations.md`; baseline `base.json` (`LibraryArchivationMode`) |
-| `close_global_library` | close | present | `library_write close_global_library` (refused with this server's unsaved changes) | — |
-| `compare_to_target` | compare two libraries | present | `library_read compare_libraries` (schema-free tree) | — |
+| `close_global_library` | close | present | `tia_library_write close_global_library` (refused with this server's unsaved changes) | — |
+| `compare_to_target` | compare two libraries | present | `tia_library_read compare_libraries` (schema-free tree) | — |
 | `create_global_library` | create | present | `create_global_library` | — |
 | `create_library_folder` | create a type or master-copy folder | missing | → row 3 | `library-operations.md`; Siemens skill `global-library` |
 | `delete_library_folder` | delete a folder | missing | → row 3 | as above |
@@ -316,7 +316,7 @@ S7-1500 Web API client instead (owner decision); that difference is not adopted.
 | `compile` | compile a TO, versions before/after | missing | left out: no TO compile member; `compile_check` compiles the PLC; version-change check → row 41 | `tia-plc-operations/references/technological-objects.md` |
 | `connect_hardware` | rewire a channel | present | `connect_technology_object_hardware` | — |
 | `create` | create with fixed family/version | present | `create_technology_object` | — |
-| `create_from_master_copy` | create from a master copy | present | `library_write instantiate_master_copy` (`technologyObjects`, root group) | — |
+| `create_from_master_copy` | create from a master copy | present | `tia_library_write instantiate_master_copy` (`technologyObjects`, root group) | — |
 | `delete` | delete | present | `delete_technology_object` | — |
 | `export` | SimaticML export | present | `export_technology_object`, `get_technology_object_content` | — |
 | `find_parameter` | one parameter with type and access | present | `get_technology_object_parameters parameterName` | — |

@@ -48,7 +48,7 @@ public class LibraryWriteTools
         + "full runs without prompts. Global library changes persist only through save_global_library; project changes through save_project. "
         + "Verification: open/retrieve/create/close are read back in list_libraries, create/copy/delete_master_copy in get_library_tree (masterCopies); "
         + "save_global_library stays trusted (no documented read shows a saved state); the other items are read back inside their worker call. "
-        + "Stops at the first failed item without rollback across items or automatic replay; inspect with library_read before retrying.")]
+        + "Stops at the first failed item without rollback across items or automatic replay; inspect with tia_library_read before retrying.")]
     public static Task<CallToolResult> LibraryWrite(OpennessWorkerClient workerClient, WriteExecution execution,
         [Description("Ordered library writes.")] LibraryOperationRequest[] operations,
         [Description("True previews without mutation or confirmation; omitted or false executes.")] bool dryRun = false,

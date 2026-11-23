@@ -6927,7 +6927,7 @@
     ],
     "additionalProperties": false
   },
-  "library_read": {
+  "tia_library_read": {
     "type": "object",
     "properties": {
       "tool": {
@@ -7328,7 +7328,7 @@
     ],
     "additionalProperties": false
   },
-  "library_write": {
+  "tia_library_write": {
     "type": "object",
     "properties": {
       "tool": {

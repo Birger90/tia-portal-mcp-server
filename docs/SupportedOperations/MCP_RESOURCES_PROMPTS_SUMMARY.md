@@ -31,7 +31,7 @@ catalogs; the prompts only produce text. The tool count (13/33/33) is unchanged.
   project). A new document in `docs/SupportedOperations/` becomes a resource with the next build; a test checks that every
   file is embedded in both languages with its exact text.
 - Operation tools: `plc_read`, `plc_write`, `network_read`, `network_write`, `hmi_read`, `hmi_write`, `vci_read`,
-  `vci_write`, `library_read`, `library_write`, `plcsim_read`, `plcsim_write`, `plc_online_read`, `plc_online_write`,
+  `vci_write`, `tia_library_read`, `tia_library_write`, `plcsim_read`, `plcsim_write`, `plc_online_read`, `plc_online_write`,
   `siemens_docs`, `tia_inbox`. A test pins this list against every production tool with an `operations` argument.
   Tools without an operations array (`bind_project`, `compile_check`, `plc_download`, `plc_tia_online`,
   `plc_station_upload`, `plcsim_test`, lifecycle tools) are described by their tool descriptions.

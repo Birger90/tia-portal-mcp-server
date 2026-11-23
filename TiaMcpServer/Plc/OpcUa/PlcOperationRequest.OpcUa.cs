@@ -46,7 +46,7 @@ public sealed partial class PlcOperationRequest
     [Description("set_opcua_role: the mapped project role (RoleMapping.SetProjectRole), e.g. a user management role of the project.")]
     public string? ProjectRole { get; set; }
 
-    [Description("compare_software with compareTarget secondary_plc (issue #20): the path of an open secondary project (library_read list_secondary_projects) whose PLC targetName is compared with.")]
+    [Description("compare_software with compareTarget secondary_plc (issue #20): the path of an open secondary project (tia_library_read list_secondary_projects) whose PLC targetName is compared with.")]
     public string? TargetProject { get; set; }
 
     [Description("set_opcua_namespace_permission: the permission name passed to NamespacePermission.SetPermission(String, Boolean); the documented boolean properties are Browse, Read, Write, Call, ReceiveEvents, ReadRolePermissions (read back when the name is one of them).")]

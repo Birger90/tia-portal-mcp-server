@@ -30,7 +30,7 @@ online/offline (`plc_tia_online`), station upload (`plc_station_upload`), watch/
 module plug/move/copy/delete/change type, hardware parameters, I/O addresses, address occupancy,
 next free address, tag move and I/O map export; block and PLC data type interface members, DB
 start values at any depth, instance DBs, block rename/renumber/copy/move and tag table move;
-project and global libraries (`library_read`/`library_write`: open/retrieve/create/save/close, tree,
+project and global libraries (`tia_library_read`/`tia_library_write`: open/retrieve/create/save/close, tree,
 types and versions, instances, update check, compare, master copy capture/copy/delete/rename/instantiate,
 type-version instantiate, update project, edit/release/discard/default/delete, renames);
 program analysis (call tree, call paths, unused blocks, orphaned instance DBs, change impact) and
@@ -43,7 +43,7 @@ local paths with import verification, `AssignedProDiagFB`, the ProDiag alarm inf
 
 - `feature/external-sources-folders` (rows 7–10, not live-tested): external sources (list, import,
   generate blocks, delete, export as a source file, instantiate an external-source master copy with
-  `library_write`), `find_objects` by glob with paging, block / PLC data type / tag-table / watch-table
+  `tia_library_write`), `find_objects` by glob with paging, block / PLC data type / tag-table / watch-table
   group renames, PLC data type and tag-table group create/delete, software unit create/delete/rename,
   tag/watch/force tables as CSV (tag comments per language, also readable with `read_tag_comments`),
   batch export of blocks and PLC data types to a directory, and `scan_accessible_devices`
@@ -52,7 +52,7 @@ local paths with import verification, `AssignedProDiagFB`, the ProDiag alarm inf
   left-out table names what is still open with the reason (group moves: no reference documents one;
   external-source groups: not supported by Openness; technology objects in `find_objects`: open
   follow-up (the merged technology-object operations bring their own group operations); alarm-text
-  CSV: open follow-up now that the alarm branch is merged; group master copies: `library_write`;
+  CSV: open follow-up now that the alarm branch is merged; group master copies: `tia_library_write`;
   XLSX: owner decision).
 
 ## Candidates to adopt next

@@ -14,8 +14,8 @@ namespace TiaMcpServer.Library;
 /// and fails <c>postcondition_failed</c> otherwise, so there is no separate verification read. When the worker could not
 /// read a postcondition back (its result carries <c>unverified</c>), the item's entry is <see cref="NotVerified"/> with
 /// success false (<see cref="WithWorkerEvidence"/>). Keys: the library, then the addressed object.
-/// K61 (live V21 2026-11-02: these said "trusted, nothing was read back" although library_read can read the result): the
-/// library lifecycle and master copy items are read back afterwards with the reads library_read uses
+/// K61 (live V21 2026-11-02: these said "trusted, nothing was read back" although tia_library_read can read the result): the
+/// library lifecycle and master copy items are read back afterwards with the reads tia_library_read uses
 /// (<see cref="ReadBackAsync"/>); save_global_library stays trusted because no documented read shows a saved state.
 /// </summary>
 public sealed class LibraryVerificationPolicy(IReadOnlyList<LibraryOperationRequest>? items = null,

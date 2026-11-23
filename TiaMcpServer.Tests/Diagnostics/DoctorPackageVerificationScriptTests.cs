@@ -7,6 +7,7 @@ using Xunit;
 namespace TiaMcpServer.Tests.Diagnostics;
 
 [Trait("Category", "Packaging")]
+[Collection(PackagingScriptProcessCollection.Name)]
 public class DoctorPackageVerificationScriptTests
 {
     private static readonly Lazy<string> GlobalPackagesDirectory = new(FindGlobalPackagesDirectory);
@@ -678,7 +679,7 @@ public class DoctorPackageVerificationScriptTests
         startInfo.ArgumentList.Add("/p:UseTiaPortalReferenceStubs=true");
         startInfo.ArgumentList.Add("/v:minimal");
 
-        return RunProcess(startInfo, 60_000, "Worker copy target");
+        return RunProcess(startInfo, IsolatedProcessTimeoutMilliseconds, "Worker copy target");
     }
 
     private static ScriptResult RunWorkerBuild(string outputPath)
@@ -700,7 +701,7 @@ public class DoctorPackageVerificationScriptTests
         startInfo.ArgumentList.Add($"/p:OutputPath={Path.TrimEndingDirectorySeparator(outputPath)}{Path.DirectorySeparatorChar}");
         startInfo.ArgumentList.Add("/p:UseTiaPortalReferenceStubs=true");
         startInfo.ArgumentList.Add("/v:minimal");
-        return RunProcess(startInfo, 60_000, "Isolated worker build");
+        return RunProcess(startInfo, IsolatedProcessTimeoutMilliseconds, "Isolated worker build");
     }
 
     private static ScriptResult RunBuild(string outputPath, string? workingDirectory = null)
@@ -719,7 +720,7 @@ public class DoctorPackageVerificationScriptTests
         startInfo.ArgumentList.Add($"/p:OutputPath={Path.TrimEndingDirectorySeparator(outputPath)}{Path.DirectorySeparatorChar}");
         startInfo.ArgumentList.Add("/p:UseTiaPortalReferenceStubs=true");
         startInfo.ArgumentList.Add("/v:minimal");
-        return RunProcess(startInfo, 60_000, "Isolated build");
+        return RunProcess(startInfo, IsolatedProcessTimeoutMilliseconds, "Isolated build");
     }
 
     private static ScriptResult RunWorkerRestore(string? workingDirectory = null)
@@ -842,6 +843,12 @@ public class DoctorPackageVerificationScriptTests
 
         return startInfo;
     }
+
+    /// <summary>
+    /// A cold isolated build of the host on the hosted Windows runner took longer than 60 s (packaging runs from
+    /// 2026-11-02 on, e.g. run 41606658086); 180 s keeps the hang guard without failing on runner speed.
+    /// </summary>
+    private const int IsolatedProcessTimeoutMilliseconds = 180_000;
 
     private static ScriptResult RunProcess(ProcessStartInfo startInfo, int timeoutMilliseconds, string operation)
     {

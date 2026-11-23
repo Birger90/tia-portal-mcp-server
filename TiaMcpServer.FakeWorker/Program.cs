@@ -94,6 +94,9 @@ var plcSecurityControlUnavailable = new PlcSecurityScenario(withUnprotect: true,
 var programAnalysis = new ProgramAnalysisScenario();
 var sourceFolders = new SourceFolderScenario();
 var plcWriteRoundtrip = new PlcWriteRoundtripScenario(format => CompletedBlockOutcome(format, "succeeded"));
+var plcWriteCompileFailed = new PlcWriteRoundtripScenario(
+    format => CompletedBlockOutcome(format, "failed") with { ImportResultState = "success" });
+var plcWriteCompileUnavailable = new PlcWriteRoundtripScenario(format => CompletedBlockOutcome(format, "unavailable"));
 var plcWriteIncomplete = new PlcWriteRoundtripScenario(format => CompletedBlockOutcome(format, "succeeded"), inventoryIncomplete: true);
 var plcWriteLateBlock = new PlcWriteRoundtripScenario(format => CompletedBlockOutcome(format, "succeeded"), incompleteAfterWrite: true);
 var plcWriteExportLost = new PlcWriteRoundtripScenario(format => CompletedBlockOutcome(format, "succeeded"), exportLostAfterWrite: true);
@@ -830,6 +833,12 @@ while ((line = Console.In.ReadLine()) is not null)
         case "plc-write-roundtrip":
             Respond(plcWriteRoundtrip.Handle(line, scenario));
             break;
+        case "plc-write-compile-failed":
+            Respond(plcWriteCompileFailed.Handle(line, scenario));
+            break;
+        case "plc-write-compile-unavailable":
+            Respond(plcWriteCompileUnavailable.Handle(line, scenario));
+            break;
         case "plc-write-incomplete":
             Respond(plcWriteIncomplete.Handle(line, scenario));
             break;
@@ -1300,6 +1309,16 @@ void Respond(string json, bool includeSessionIdentity = true)
                 var upgradeWarnings = response["warnings"] as JsonArray ?? new JsonArray();
                 upgradeWarnings.Add("FakeWorker: opened with ProjectComposition.OpenWithUpgrade.");
                 response["warnings"] = upgradeWarnings;
+            }
+
+            // A UMAC open reports the user, type and source kind it was sent (fixture shape only, no Siemens behavior; never a password).
+            if (successful && currentMethod == "open_project" && currentRequestLine is { } umacLine
+                && JsonNode.Parse(umacLine) is { } umacRequest && umacRequest["umacUserName"]?.GetValue<string>() is { } umacUser)
+            {
+                var umacWarnings = response["warnings"] as JsonArray ?? new JsonArray();
+                umacWarnings.Add($"FakeWorker: opened with ProjectComposition.Open(FileInfo, UmacDelegate) as '{umacUser}' "
+                    + $"({umacRequest["umacUserType"]?.GetValue<string>()}; {TiaMcpServer.Contracts.Shared.PasswordSources.KindName(umacRequest["umacPasswordSource"]?.GetValue<string>()) ?? "invalid"} source).");
+                response["warnings"] = umacWarnings;
             }
 
             response["sessionIdentity"] = JsonSerializer.SerializeToNode(new WorkerSessionIdentity

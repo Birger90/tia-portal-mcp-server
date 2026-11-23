@@ -31,7 +31,7 @@ eigenen Operationskataloge des Servers; die Prompts erzeugen nur Text. Die Werkz
   importiert). Ein neues Dokument in `docs/SupportedOperations/` wird mit dem nächsten Build zur Ressource; ein Test prüft,
   dass jede Datei in beiden Sprachen mit genau ihrem Text eingebettet ist.
 - Operationswerkzeuge: `plc_read`, `plc_write`, `network_read`, `network_write`, `hmi_read`, `hmi_write`, `vci_read`,
-  `vci_write`, `library_read`, `library_write`, `plcsim_read`, `plcsim_write`, `plc_online_read`, `plc_online_write`,
+  `vci_write`, `tia_library_read`, `tia_library_write`, `plcsim_read`, `plcsim_write`, `plc_online_read`, `plc_online_write`,
   `siemens_docs`, `tia_inbox`. Ein Test hält diese Liste gegen jedes Produktionswerkzeug mit einem Argument `operations`.
   Werkzeuge ohne Operations-Array (`bind_project`, `compile_check`, `plc_download`, `plc_tia_online`,
   `plc_station_upload`, `plcsim_test`, Lebenszyklus-Werkzeuge) beschreiben ihre Werkzeugbeschreibungen.

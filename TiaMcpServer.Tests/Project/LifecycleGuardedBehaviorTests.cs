@@ -163,6 +163,27 @@ public sealed class LifecycleGuardedBehaviorTests
     }
 
     [Fact]
+    public async Task OpenWithUmacLogin_SendsUserTypeAndSourceToTheWorker_AndNamesThemInThePreview()
+    {
+        using var fixture = new Fixture("success");
+        Environment.SetEnvironmentVariable("TIA_MCP_TEST_UMAC_PW", "x");
+        try
+        {
+            var item = UmacOpenItem.Build(fixture.Item("open_project"), "Engineer", "global", "TIA_MCP_TEST_UMAC_PW", Environment.GetEnvironmentVariable);
+            var applied = await ProjectWriteTools.ExecuteAsync(fixture.Client, fixture.Execution, item, new(null), dryRun: false);
+            using var document = JsonDocument.Parse(Assert.IsType<TextContentBlock>(Assert.Single(applied.Content)).Text);
+            var root = document.RootElement;
+            Assert.True(root.GetProperty("success").GetBoolean(), root.GetRawText());
+            Assert.Contains(root.GetProperty("warnings").EnumerateArray(),
+                w => w.GetString()!.Contains("UmacDelegate", StringComparison.Ordinal) && w.GetString()!.Contains("'Engineer' (global; environment source)", StringComparison.Ordinal));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("TIA_MCP_TEST_UMAC_PW", null);
+        }
+    }
+
+    [Fact]
     public void OpenWithUpgrade_OfALocalSession_IsAValidationError()
     {
         var path = Path.Combine(Path.GetTempPath(), "upgrade-" + Guid.NewGuid().ToString("N") + ".als21");

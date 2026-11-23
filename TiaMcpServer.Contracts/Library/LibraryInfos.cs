@@ -473,7 +473,7 @@ public class LibraryCompareInfo
     public string? Omission { get; set; }
 }
 
-/// <summary>Planning evidence of one <c>library_write</c> item (<c>library_plan</c>, no mutation).</summary>
+/// <summary>Planning evidence of one <c>tia_library_write</c> item (<c>library_plan</c>, no mutation).</summary>
 public class LibraryPlanInfo
 {
     public string Operation { get; set; } = string.Empty;
@@ -505,7 +505,7 @@ public class LibraryCreatedObjectInfo
     public string? RuntimeType { get; set; }
 }
 
-/// <summary>Result of every <c>library_write</c> mutation.</summary>
+/// <summary>Result of every <c>tia_library_write</c> mutation.</summary>
 public class LibraryWriteResultInfo
 {
     public string Operation { get; set; } = string.Empty;

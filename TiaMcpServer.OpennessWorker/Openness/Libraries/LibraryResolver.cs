@@ -41,7 +41,7 @@ internal static class LibraryResolver
         {
             1 => matches[0],
             0 => throw new WorkerOperationException(WorkerFailureCategories.TargetNotFound,
-                $"No open global library has the path '{selector}'. List the open libraries with library_read list_libraries, or open it with library_write open_global_library."),
+                $"No open global library has the path '{selector}'. List the open libraries with tia_library_read list_libraries, or open it with tia_library_write open_global_library."),
             _ => throw new WorkerOperationException(WorkerFailureCategories.TargetAmbiguous,
                 $"{matches.Length} open global libraries have the path '{selector}'."),
         };

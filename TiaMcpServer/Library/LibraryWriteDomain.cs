@@ -9,7 +9,7 @@ using TiaMcpServer.Worker;
 namespace TiaMcpServer.Library;
 
 /// <summary>
-/// library_write on the guarded single-call pipeline: validate, verified standalone binding, plan every item
+/// tia_library_write on the guarded single-call pipeline: validate, verified standalone binding, plan every item
 /// through the worker's non-mutating <c>library_plan</c> (an item on a library an earlier item of the call
 /// touches depends on it and is re-planned just before its mutation), informative guards, <c>dryRun</c>,
 /// mutate in order (stop at the first failure, no rollback), trusted/superseded verification (notVerified where the
@@ -72,7 +72,7 @@ public sealed class LibraryWriteDomain
     /// The read-write prompt: the effect first (what the call does to library files outside the project), then one line
     /// per lifecycle item (<see cref="LifecycleLine"/>) with its operation, its target and its operationId quoted and
     /// escaped (<see cref="ConfirmationText.Quote"/>: targets embed caller paths), the open mode it requests and its TIA
-    /// Portal dialog policy. The pipeline shows acknowledge guard lines before it; library_write has none (its guards are
+    /// Portal dialog policy. The pipeline shows acknowledge guard lines before it; tia_library_write has none (its guards are
     /// info and one block), so the prompt consists of this description only.
     /// </summary>
     public string DescribeForConfirmation(IReadOnlyList<LibraryOperationRequest> items, IReadOnlyList<ItemPlan<LibraryWriteEffect>> plans)
@@ -86,9 +86,9 @@ public sealed class LibraryWriteDomain
             .Select((pair, number) => $"S{number + 1}. set_portal_setting {ConfirmationText.Quote(pair.effect?.Target ?? $"{pair.item.SettingsFolderPath}/{pair.item.SettingName} -> {pair.item.SettingValue}")}; "
                 + $"operationId {ConfirmationText.Quote(pair.item.OperationId)}").ToArray();
         if (!lines.Any())
-            return "Confirm library_write: this call changes TIA Portal settings of this TIA Portal instance (not the project):\n" + string.Join("\n", settings)
+            return "Confirm tia_library_write: this call changes TIA Portal settings of this TIA Portal instance (not the project):\n" + string.Join("\n", settings)
                 + (content > settings.Length ? $"\nThe call also runs {content - settings.Length} library content item(s) in order; they stop at the first failure without rollback." : string.Empty);
-        return "Confirm library_write: this call opens, creates, retrieves, saves, archives or closes global library files or secondary projects outside the bound project:\n"
+        return "Confirm tia_library_write: this call opens, creates, retrieves, saves, archives or closes global library files or secondary projects outside the bound project:\n"
             + string.Join("\n", lines)
             + (settings.Length == 0 ? string.Empty : "\n" + string.Join("\n", settings))
             + (content == 0 ? string.Empty : $"\nThe call also runs {content} library content item(s) in order; they stop at the first failure without rollback.")

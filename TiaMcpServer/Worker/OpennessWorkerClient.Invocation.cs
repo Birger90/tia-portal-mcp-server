@@ -67,13 +67,57 @@ public partial class OpennessWorkerClient
         Action<WorkerRequest> configure,
         string emptyPayload,
         BindingTransition transition = BindingTransition.None)
-        => await ExecuteSerializedBindingOperationAsync(
+    {
+        var insideOperation = _bindingOperationContext.Value is not null || _reattaching.Value;
+        var before = _projectSessionBinding.CaptureSnapshot();
+        var result = await ExecuteSerializedBindingOperationAsync(
             () => SendBoundProjectRequestCoreAsync(
                 method,
                 projectPath,
                 configure,
                 emptyPayload,
                 transition)).ConfigureAwait(false);
+        if (transition != BindingTransition.None
+            || !ReadReattachPolicy.ShouldReattach(method, before, _projectSessionBinding.CaptureSnapshot(), result, insideOperation))
+            return result;
+        return await ReattachAndRetryAsync(method, projectPath, configure, emptyPayload, before, result).ConfigureAwait(false);
+    }
+
+    private readonly AsyncLocal<bool> _reattaching = new();
+
+    /// <summary>One re-bind to the same open project and one retry of the read (<see cref="ReadReattachPolicy"/>).</summary>
+    private async Task<WorkerCallResult> ReattachAndRetryAsync(
+        string method, string? projectPath, Action<WorkerRequest> configure, string emptyPayload,
+        ProjectBindingSnapshot before, WorkerCallResult lost)
+    {
+        _reattaching.Value = true;
+        try
+        {
+            var outcome = await BindOpenProjectAsync(before.ProjectPath, forceRebind: false).ConfigureAwait(false);
+            if (outcome.Failure is not null || !ReadReattachPolicy.SameProject(before, _projectSessionBinding.CaptureSnapshot()))
+            {
+                var reason = outcome.Failure?.Error ?? "a different project is bound now";
+                _logger?.LogWarning("Re-binding after a lost read binding failed ({Method}): {Reason}", method, reason);
+                return lost with
+                {
+                    Warnings = CapWarnings(lost.Warnings.Append(string.Format(
+                        System.Globalization.CultureInfo.InvariantCulture, ReadReattachPolicy.ReattachFailedWarning, before.ProjectPath, reason)).ToArray())
+                };
+            }
+
+            var retry = await ExecuteSerializedBindingOperationAsync(
+                () => SendBoundProjectRequestCoreAsync(method, projectPath, configure, emptyPayload, BindingTransition.None)).ConfigureAwait(false);
+            return retry with
+            {
+                Warnings = CapWarnings(new[] { string.Format(System.Globalization.CultureInfo.InvariantCulture, ReadReattachPolicy.ReattachedWarning, before.ProjectPath) }
+                    .Concat(outcome.Warnings).Concat(retry.Warnings).ToArray())
+            };
+        }
+        finally
+        {
+            _reattaching.Value = false;
+        }
+    }
 
     private async Task<WorkerCallResult> SendBoundProjectRequestCoreAsync(
         string method,

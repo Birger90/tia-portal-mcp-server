@@ -194,4 +194,28 @@ internal static class PlcTechnologyObjectPlanning
             return (null, new(WorkerFailureCategories.ProtocolError, "the planning read did not match its declared contract"));
         }
     }
+
+    /// <summary>
+    /// The technology-object type/version pairs whose create asckye/TIA_Portal_Openness_MCP (MIT, commit 93eeb016) reports as
+    /// verified on V21; it reports that another pair terminated TIA Portal V21 and lost unsaved work (not verified here).
+    /// </summary>
+    internal static IReadOnlyList<(string Type, string Version)> ReportedSafeCreatePairs { get; } = new[]
+    {
+        ("TO_PositioningAxis", "5.0"), ("TO_SpeedAxis", "5.0"), ("PID_Compact", "2.3"),
+    };
+
+    /// <summary>
+    /// The info text for a create whose pair is not one of <see cref="ReportedSafeCreatePairs"/>, or null. Never a refusal
+    /// (owner rule: never stricter than TIA Portal); the item runs and TIA Portal decides.
+    /// </summary>
+    internal static string? CreateMayTerminateNotice(string? technologyType, string? version, string plcName)
+    {
+        var type = technologyType?.Trim() ?? string.Empty;
+        var v = version?.Trim() ?? string.Empty;
+        if (ReportedSafeCreatePairs.Any(p => string.Equals(p.Type, type, StringComparison.Ordinal) && string.Equals(p.Version, v, StringComparison.Ordinal)))
+            return null;
+        return $"Creating technology object type '{type}' version '{v}' in PLC '{plcName}': asckye/TIA_Portal_Openness_MCP reports that on TIA Portal V21 "
+            + "a create with a type/version pair other than TO_PositioningAxis 5.0, TO_SpeedAxis 5.0 or PID_Compact 2.3 terminated TIA Portal and lost "
+            + "unsaved work (not verified here). Save the project before this call (save_project).";
+    }
 }

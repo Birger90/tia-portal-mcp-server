@@ -17,9 +17,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="ModelContextProtocol" Version="2.3.0" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.14" />
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.403" PrivateAssets="All" />
+    <PackageReference Include="ModelContextProtocol" Version="2.4.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.15" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="11.0.100" PrivateAssets="All" />
     <!-- Official SIMATIC S7-1500 Web API client (MIT, siemens/simatic-s7-webserver-api); a NuGet dependency of the host only. -->
     <PackageReference Include="Siemens.Simatic.S7.Webserver.API" Version="3.3.92" />
   </ItemGroup>

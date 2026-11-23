@@ -167,7 +167,7 @@ Station der PLC (`hardwareScope:"device"`, das `Device` über ihrem CPU-Gerätee
   die Kopiervorlage dieses Namens im Wurzelordner (`MasterCopyFolder.MasterCopies.Find`), verglichen, wenn die Kopiervorlage von TIA
   Portal die Schnittstelle umsetzt. Die Projektbibliothek selbst wird nicht angeboten (eine Bibliothek ist kein Hardwareobjekt). In einem
   Projekt mit nur einer PLC (K81, live am 2026-11-03) hat `plc` kein Ziel; der einzige Offline-Vergleich ist dann der mit einer
-  Kopiervorlage: die Station oder CPU zuerst in die Projektbibliothek legen (`library_write create_master_copy`) oder
+  Kopiervorlage: die Station oder CPU zuerst in die Projektbibliothek legen (`tia_library_write create_master_copy`) oder
   `compare_hardware_to_online` gegen das Gerät verwenden.
 - **Online-Ziel.** Der `OnlineProvider` der CPU (`GetService<OnlineProvider>()` am CPU-Geräteelement) wird nur dann als Ziel
   übergeben, wenn er `IHardwareCompareTarget` zur Laufzeit umsetzt; die Prüfung läuft, bevor der Legitimations-Handler angehängt

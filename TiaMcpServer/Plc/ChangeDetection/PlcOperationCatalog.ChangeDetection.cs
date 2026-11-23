@@ -11,6 +11,7 @@ public static partial class PlcOperationCatalog
         foreach (var entry in existing) specs[entry.Key] = entry.Value;
         specs[PlcChangeDetectionMethods.GetPlcChecksums] = Read(Array.Empty<string>(), new[] { "plcName" });
         specs[PlcChangeDetectionMethods.GetFingerprints] = Read(Array.Empty<string>(), new[] { "blockPath", "typePath" });
+        specs[PlcChangeDetectionMethods.CheckDownloadReadiness] = Read(Array.Empty<string>(), new[] { "plcName" });
         return specs;
     }
 

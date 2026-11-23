@@ -23,7 +23,7 @@ namespace TiaMcpServer.OpennessWorker.Openness.Multiuser;
 /// resolved exactly like the inventory reads (alias, then root or named group, then project name, then session id); a
 /// <c>MultiuserException</c> (the documented error of every Multiuser call) or an <c>EngineeringTargetInvocationException</c> is
 /// TIA Portal's refusal (<c>engineering_rejected</c>). TIA Portal confirmation dialogs are answered by the item's
-/// <c>portalConfirmations</c> policy and recorded (library_write's rule). No member takes credentials.
+/// <c>portalConfirmations</c> policy and recorded (tia_library_write's rule). No member takes credentials.
 /// </summary>
 internal static class ProjectServerWriteService
 {

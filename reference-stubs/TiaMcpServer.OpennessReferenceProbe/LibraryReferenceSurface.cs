@@ -8,7 +8,7 @@ using Siemens.Engineering.SW.Types;
 
 namespace TiaMcpServer.OpennessReferenceProbe
 {
-    // Compile-only signature checks for every Siemens member the library_read/library_write operations bind at
+    // Compile-only signature checks for every Siemens member the tia_library_read/tia_library_write operations bind at
     // compile time. Building this probe against the installed V21 PublicAPI is the mechanical check of the
     // stubs. Members whose return, declaring or collection parameter types the sources do not document
     // (GetGlobalLibraryInfos, Open, OpenWithUpgrade, Retrieve, Create<T>, Save, Close, UpdateCheck,

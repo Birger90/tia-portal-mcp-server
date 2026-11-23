@@ -22,7 +22,7 @@ using TiaMcpServer.OpennessWorker.Worker;
 namespace TiaMcpServer.OpennessWorker.Openness.Libraries;
 
 /// <summary>
-/// Planning (<c>library_plan</c>, no mutation) and the <c>library_write</c> mutations (the issue #17 additions in LibraryWriteService.Extended.cs). Planning resolves
+/// Planning (<c>library_plan</c>, no mutation) and the <c>tia_library_write</c> mutations (the issue #17 additions in LibraryWriteService.Extended.cs). Planning resolves
 /// every target the mutation will use and reports consequences; the mutation resolves them again on fresh
 /// state, calls the documented member and reads back what it can (renames, deletes, close, default version).
 /// </summary>
@@ -171,7 +171,7 @@ internal static partial class LibraryWriteService
                 plan.Target = $"update PLC '{plc.Software.Name}' from {description}";
                 plan.Consequences.Add(Modes(request) is { } modes ? $"UpdateProject with {modes}."
                     : "The two-argument UpdateProject applies TIA Portal's default force-update, unused-version and structure-conflict behavior.");
-                plan.Consequences.Add("Run library_read update_check first to see what is out of date.");
+                plan.Consequences.Add("Run tia_library_read update_check first to see what is out of date.");
                 break;
             }
             case LibraryMethods.RenameType:
@@ -399,7 +399,7 @@ internal static partial class LibraryWriteService
                         new IReadOnlyList<object>[] { new object[] { selection }, new object[] { Scope(plc) } },
                         "UpdateProject(<ILibraryTypeOrFolderSelection collection>, <IUpdateProjectScope collection>)");
                 result.ReturnedType = LibraryReflection.RuntimeType(returned);
-                result.Note = "Inspect the updated instances with library_read find_type_instances and run compile_check.";
+                result.Note = "Inspect the updated instances with tia_library_read find_type_instances and run compile_check.";
                 return result;
             }
             case LibraryMethods.RenameType:
@@ -469,7 +469,7 @@ internal static partial class LibraryWriteService
         result.ReturnedType = LibraryReflection.RuntimeType(returned);
         if (returned is not GlobalLibrary library)
             throw new WorkerOperationException(WorkerFailureCategories.PostconditionFailed,
-                $"{call} returned {(returned is null ? "nothing" : "a " + returned.GetType().FullName)}, not a global library; inspect library_read list_libraries.");
+                $"{call} returned {(returned is null ? "nothing" : "a " + returned.GetType().FullName)}, not a global library; inspect tia_library_read list_libraries.");
         var match = LibraryResolver.OpenGlobals(portal, new List<string>()).FirstOrDefault(g => g.Raw.Equals(library))
             ?? throw new WorkerOperationException(WorkerFailureCategories.PostconditionFailed,
                 $"{call} returned a library that is not listed among the open global libraries (or has no readable path).");
@@ -655,7 +655,7 @@ internal static partial class LibraryWriteService
         }
         catch (EngineeringException exception) when (OpennessExceptions.IsRecoverable(exception))
         {
-            Unverified(result, $"{call} returned, but the version could not be read afterwards; read the type again with library_read get_type.");
+            Unverified(result, $"{call} returned, but the version could not be read afterwards; read the type again with tia_library_read get_type.");
         }
     }
 

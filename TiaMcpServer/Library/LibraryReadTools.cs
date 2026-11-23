@@ -38,7 +38,7 @@ public class LibraryReadTools
         + "compare_master_copies (library, masterCopyName, masterCopyFolderPath, targetMasterCopyName, targetMasterCopyFolderPath, optional targetLibrary: "
         + "MasterCopy.CompareTo); each lists DetailedCompareResult.Properties (description, status, leftValue, rightValue; maxElements 1-5000). "
         + "get_type also reports doNotUse, setForUpdate, status, namespace, author and comment. "
-        + "library is 'project' or an open global library's path; open one with library_write open_global_library. "
+        + "library is 'project' or an open global library's path; open one with tia_library_write open_global_library. "
         + "get_library_tree lists master copies of the root master copy folder and its user folders (masterCopyFolder entries; masterCopyFolderPath starts "
         + "that walk). Reads never open, save or close libraries or projects.")]
     public static Task<CallToolResult> LibraryRead(
@@ -60,9 +60,9 @@ public class LibraryReadTools
     private static string RetryGuidance(StructuredOperationItem item)
         => item.Operation switch
         {
-            LibraryMethods.GetLibraryTree => "Lower limit, narrow folderPath or set includeVersions false, or re-run this operationId in its own library_read call.",
-            LibraryMethods.CompareLibraries => "Lower maxDepth or maxElements, or re-run this operationId in its own library_read call.",
-            _ => "Re-run this operationId in its own library_read call; for one value above the limit, raise --max-item-chars and --max-document-chars.",
+            LibraryMethods.GetLibraryTree => "Lower limit, narrow folderPath or set includeVersions false, or re-run this operationId in its own tia_library_read call.",
+            LibraryMethods.CompareLibraries => "Lower maxDepth or maxElements, or re-run this operationId in its own tia_library_read call.",
+            _ => "Re-run this operationId in its own tia_library_read call; for one value above the limit, raise --max-item-chars and --max-document-chars.",
         };
 
     internal static CallToolResult Error(string category, string message)

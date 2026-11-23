@@ -58,7 +58,7 @@ Brücke nehmen stattdessen `TIA_MCP_INBOX_ROOT` an (das Add-In nutzt immer `%APP
 Pfad), `typePath` (`PLC_1/Types/Ordner/Typ`), `tableName` + `folderPath` (`/`, `/Linie/Zelle`), `deviceName`,
 `deviceItemName`, `library` (`project` oder der Pfad der globalen Bibliothek), `libraryTypePath` (`/Ordner/Typ`),
 `masterCopyName` + `masterCopyFolderPath`. Es sind Hinweise: Claude bestätigt sie vor der Verwendung mit
-`browse_project_tree`, `plc_read`, `network_read` oder `library_read`. Ein Objekt anderer Art (HMI-Bilder, Technologieobjekte
+`browse_project_tree`, `plc_read`, `network_read` oder `tia_library_read`. Ein Objekt anderer Art (HMI-Bilder, Technologieobjekte
 …) ist `other` ohne Adresse; seine Kette nennt es trotzdem.
 
 ## MCP-Werkzeug `tia_inbox`

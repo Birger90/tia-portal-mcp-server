@@ -16,7 +16,7 @@ using TiaMcpServer.OpennessWorker.Worker;
 
 namespace TiaMcpServer.OpennessWorker.Openness.Libraries;
 
-/// <summary>The eight <c>library_read</c> operations; none changes a library or the project.</summary>
+/// <summary>The eight <c>tia_library_read</c> operations; none changes a library or the project.</summary>
 internal static partial class LibraryReadService
 {
     public static object Read(TiaPortal portal, ProjectBase project, string method, LibraryRequestInfo request)

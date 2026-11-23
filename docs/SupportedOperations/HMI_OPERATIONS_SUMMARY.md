@@ -163,8 +163,8 @@ stays fully supported; a call without `cursor` behaves as before and re-scans.
 Nine more operations for screens, screen items, properties, tag dynamizations, scripts and batch renames of screens
 and HMI tags were adopted from BetterTIA/writer; they are described, with the provenance and binding of
 every Siemens member, in the [BetterTIA operations reference](BETTERTIA_ADOPTED_OPERATIONS_SUMMARY.md#wincc-unified-screens-scripts-and-batch-renames-hmi_write).
-Two more, `export_text_lists` and `import_text_lists` (user text lists as SimaticML files; the members are not
-documented by Siemens for Unified and are bound at runtime), are described in the
+Two more, `export_text_lists` and `import_text_lists` (user text lists as SimaticML files, or as YAML through the
+composition route rickgaiser/TiaMcp uses on V21; the members are not documented by Siemens for Unified and are bound at runtime), are described in the
 [same reference](BETTERTIA_ADOPTED_OPERATIONS_SUMMARY.md#tag-tables-and-wincc-unified-text-lists-as-files-owner-additions); 20 in all.
 The rest of this section describes the nine tag-table, tag and alarm writes.
 

@@ -126,7 +126,7 @@ public static class LibraryPayloadContract
                 $"TIA Portal raised {outcome.PortalConfirmationsObserved} confirmation dialog(s) during {operation} and this tool answered each one No "
                 + $"(see this item's result.portalConfirmations{(outcome.PortalConfirmationsComplete ? string.Empty : $"; only the first {outcome.PortalConfirmations.Count} are listed")}). "
                 + "The Siemens call returned, but declining may have changed what it did (a declined save prompt during a close can discard changes), "
-                + "so the item is not reported as successful. Inspect with library_read before retrying; to answer such dialogs Yes, retry with "
+                + "so the item is not reported as successful. Inspect with tia_library_read before retrying; to answer such dialogs Yes, retry with "
                 + "portalConfirmations: \"accept\".");
 
     internal static string? AcceptedConfirmationsWarning(string operation, LibraryWriteResultInfo outcome)

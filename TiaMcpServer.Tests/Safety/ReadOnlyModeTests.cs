@@ -33,7 +33,7 @@ public class ReadOnlyModeTests
         var actual = OperationPolicyCatalog.AllOperationNames
             .Where(n => n.StartsWith("hmi_", StringComparison.Ordinal))
             .ToHashSet(StringComparer.Ordinal);
-        Assert.Equal(66, expected.Count); // package G: three hmi_write operations
+        Assert.Equal(67, expected.Count); // package G: three hmi_write operations; set_dynamization_value_converter
         Assert.True(expected.SetEquals(actual));
         foreach (var op in TiaMcpServer.Hmi.HmiWriteCatalog.OperationNames)
             Assert.Equal(OperationCapability.ProjectMutation,
@@ -606,8 +606,8 @@ public class ReadOnlyModeTests
             {
                 "archive_project", "bind_project", "browse_project_tree", "close_project",
                 "compile_check", "create_project", "get_project_status", "hmi_read", "hmi_write",
-                "library_read", "library_write", "network_read", "network_write", "open_project", "plc_download", "plc_online_read", "plc_online_write", "plc_read", "plc_station_upload", "plc_tia_online", "plc_write", "plcsim_read", "plcsim_test",
-                "plcsim_write", "project_server_write", "read_cross_references", "retrieve_project", "save_project", "save_project_as", "siemens_docs", "tia_inbox", "vci_read", "vci_write"
+                "network_read", "network_write", "open_project", "plc_download", "plc_online_read", "plc_online_write", "plc_read", "plc_station_upload", "plc_tia_online", "plc_write", "plcsim_read", "plcsim_test",
+                "plcsim_write", "project_server_write", "read_cross_references", "retrieve_project", "save_project", "save_project_as", "siemens_docs", "tia_inbox", "tia_library_read", "tia_library_write", "vci_read", "vci_write"
             },
             toolNames);
     }

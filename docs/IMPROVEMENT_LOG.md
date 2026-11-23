@@ -248,7 +248,7 @@ only. Open:
   the alarm-text and text-list workbook cells on the shared CSV writer, and technology objects/groups in
   `find_objects`. Technology-object group create/delete/rename are covered by the merged
   `create`/`delete`/`rename_technology_object_group` operations.
-- `library_write`: target kinds for user-group compositions (`CreateFrom(MasterCopy[, MasterCopyMode])` of
+- `tia_library_write`: target kinds for user-group compositions (`CreateFrom(MasterCopy[, MasterCopyMode])` of
   block, type, tag-table, watch-table and technology-object user groups), documented in the V21 API lists.
 
 ## Open: TLS certificate trust for online operations, live acceptance (2026-11-01)
@@ -305,7 +305,7 @@ Roadmap rows 21 and 22 are implemented and offline-qualified only; see
 
 ## Open: library tools live acceptance and follow-ups (2026-11-01)
 
-`library_read` and `library_write` are implemented and offline-qualified only; see the
+`tia_library_read` and `tia_library_write` are implemented and offline-qualified only; see the
 [library reference](SupportedOperations/LIBRARY_OPERATIONS_SUMMARY.md). Open:
 
 - Live acceptance following the reference's live steps; first build the worker and the reference probe
@@ -317,7 +317,7 @@ Roadmap rows 21 and 22 are implemented and offline-qualified only; see
   (type-version export, type publishing/creation from documents, `CleanUpLibrary`, `HarmonizeProject`,
   `UpdateLibrary`, library `Archive`/`SaveAs`, type-folder `Create`, folder deletion, the master-copy
   child-folder member, further `UpdateCheckMode`/`CreateOrReleaseDependenciesMode` members) before adding them.
-- Live: record which items raise TIA Portal confirmation dialogs (every `library_write` item now answers them
+- Live: record which items raise TIA Portal confirmation dialogs (every `tia_library_write` item now answers them
   by `portalConfirmations`, default `decline`, and records them; a declined dialog fails the item), notably
   `Close()` with unsaved changes, `OpenWithUpgrade` and `Release`; decide whether a default other than
   `decline` is warranted for any of them.
@@ -513,7 +513,7 @@ PR4's observed AMC paths and successful opens do not close this follow-up or Iss
 ## Open: totally-integrated-claude tia-portal-mcp skill migration
 
 Update the plugin's source `tia-portal-mcp` skill in a separately authorized plugin change to teach
-the current 11/29/29 tool counts (the PLCSIM tools `plcsim_read`, `plcsim_write` and `plcsim_test`, the S7-1500 Web API tools `plc_online_read`/`plc_online_write` and the library tools `library_read`/`library_write` included; `plc_read` and `read_cross_references` replace the retired `execute_read_batch`; `plc_download` (PLCSIM or real hardware, controlled by the access mode, with caller `decisions`, environment-variable `passwords` and `portalConfirmations`), `plc_tia_online` and `plc_station_upload` are further writable tools;
+the current 11/29/29 tool counts (the PLCSIM tools `plcsim_read`, `plcsim_write` and `plcsim_test`, the S7-1500 Web API tools `plc_online_read`/`plc_online_write` and the library tools `tia_library_read`/`tia_library_write` included; `plc_read` and `read_cross_references` replace the retired `execute_read_batch`; `plc_download` (PLCSIM or real hardware, controlled by the access mode, with caller `decisions`, environment-variable `passwords` and `portalConfirmations`), `plc_tia_online` and `plc_station_upload` are further writable tools;
 `plc_write` replaces `preview_write_batch`/`apply_write_batch`, with `content` plus
 `expectedContentHash` instead of `yamlContent`/`sourceContent` and no safety token; full adds no
 tools and PLC run/stop is gone), `bind_project` for already-open projects, no implicit opens, per-call

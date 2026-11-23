@@ -35,13 +35,13 @@ Konfiguriere deinen MCP-Client so, dass er den Werkzeugbefehl startet:
 Ohne explizite Zugriffsargumente startet der Server in `read-write` mit zweiunddreißig Werkzeugen: Änderungen (einschließlich Bibliotheksänderungen),
 Übersetzen, Simulationssteuerung für S7-PLCSIM Advanced, alle sieben Lifecycle-Werkzeuge, `plc_download` (in PLCSIM oder in echte Hardware),
 `plc_online_write` für konfigurierte S7-1500-CPUs, `plc_tia_online` und `plc_station_upload`. Jeder tatsächliche Lifecycle-, Lade-,
-Online-Schreib-, Online-Verbindungs- oder Upload-Aufruf jeder `library_write`-Aufruf mit einem Lifecycle-Element einer globalen Bibliothek und jeder `project_server_write`-Aufruf mit einem Lösch- oder Upload-Element fragt einmal über
+Online-Schreib-, Online-Verbindungs- oder Upload-Aufruf jeder `tia_library_write`-Aufruf mit einem Lifecycle-Element einer globalen Bibliothek und jeder `project_server_write`-Aufruf mit einem Lösch- oder Upload-Element fragt einmal über
 Form-Elicitation `accept` mit booleschem `confirm:true` nach, auch ohne Guards oder nur mit Info-Guards. Ein Client
 ohne diese Capability erhält `access_denied`; Ablehnen, Abbrechen, Timeout oder Transportfehler
 verweigern ebenfalls. Setze `"args": ["--access-mode", "full"]` für dieselben zweiunddreißig Werkzeuge mit Bestätigung per Richtlinie (policy) für Lifecycle, Laden, Online-Schreibvorgänge,
 Online-Verbindungen und Uploads
 und ohne Server-Elicitation; full fügt keine Werkzeuge oder Operationen hinzu.
-`tia-mcp install` verwendet davon unabhängig standardmäßig read-only mit dreizehn Werkzeugen, einschließlich `bind_project`, `plcsim_read`, `plc_online_read`, `library_read`, `siemens_docs` und `tia_inbox`.
+`tia-mcp install` verwendet davon unabhängig standardmäßig read-only mit dreizehn Werkzeugen, einschließlich `bind_project`, `plcsim_read`, `plc_online_read`, `tia_library_read`, `siemens_docs` und `tia_inbox`.
 Block-Guards stoppen den Aufruf in jedem Modus. Siehe [Installation](installation.md#access-modes).
 
 Der Zugriffsmodus kann auch ganz ohne `args` gewählt werden: in „TiaMcp Passwortverwaltung“ (`tia-mcp passwords`, Reiter

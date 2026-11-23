@@ -245,7 +245,7 @@ public sealed class McpResourcesAndPromptsTests
     [Fact]
     public void Operations_named_in_prompts_exist()
     {
-        var references = new Regex(@"\b(plc_read|plc_write|network_read|network_write|plcsim_read|plcsim_write|tia_inbox|library_read) ([a-z_]+)\b");
+        var references = new Regex(@"\b(plc_read|plc_write|network_read|network_write|plcsim_read|plcsim_write|tia_inbox|tia_library_read) ([a-z_]+)\b");
         var checkedCount = 0;
         foreach (var prompt in TiaMcpPrompts.All)
         {

@@ -105,7 +105,7 @@ public sealed class TiaInboxTools
         + "Operations (up to 50, independent): list_requests (optional includeAnswered; pending requests oldest first: id, createdUtc, source, action, text, projectPath, selectionCount, answered, bridgeState, error), "
         + "get_request (id: the whole request: action with its instruction, optional text, projectPath, and every selected object with kind, name, address hints (plcName, blockPath PLC_1/Blocks/Folder/Block, typePath, tableName+folderPath, deviceName, deviceItemName, library, libraryTypePath, masterCopyName+masterCopyFolderPath) and the raw parent chain of TIA Portal type names and names), "
         + "reply_request (id, text, optional status done|failed: writes the answer the user sees in TIA Portal under \"Claude-Antworten anzeigen\"; one reply per request, a second is refused already_answered). "
-        + "Work on a request with the other tools: bind_project to projectPath if needed, then confirm each address with browse_project_tree/plc_read/network_read/library_read before using it (the addresses are hints built from names). "
+        + "Work on a request with the other tools: bind_project to projectPath if needed, then confirm each address with browse_project_tree/plc_read/network_read/tia_library_read before using it (the addresses are hints built from names). "
         + "The request holds names only, never block content; the access mode still decides what may be changed. Finish every request with reply_request. Available in every mode; touches neither TIA Portal nor the project, only the reply file in %APPDATA%\\TiaMcpServer\\outbox.")]
     public static Task<CallToolResult> TiaInbox(
         ClaudeInboxLocation location,

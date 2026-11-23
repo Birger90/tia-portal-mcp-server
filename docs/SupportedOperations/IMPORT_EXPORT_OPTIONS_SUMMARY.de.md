@@ -67,6 +67,12 @@ betroffenen Umfang und prüft die Nachbedingung, indem er den Baustein frisch au
 Updates globaler DBs aus externen Quellen übersetzen auf diesem Pfad die PLC, weil eine Änderung der DB-Deklaration
 abhängige Bausteine betreffen kann.
 
+Der Erfolg des Imports hängt nicht von diesem anschließenden Übersetzen ab: Ein abgeschlossener erfolgreicher Import mit
+erfolgreichem abschließenden Lesen bleibt ein erfolgreiches Item, wenn das Übersetzen Fehler meldet oder nicht verfügbar ist.
+`result.importOutcome.compileStage` und `compileReport` behalten das getrennte Übersetzungsergebnis, und spätere Items des
+Aufrufs laufen weiter. Ein erfolgreicher Import bedeutet nicht, dass sich die PLC übersetzen lässt. Echte Fehler beim Import
+oder beim abschließenden Lesen lassen das Item weiter fehlschlagen; ein beobachteter Portal-Verlust bleibt `portal_lost`.
+
 ### Belege zum Ergebnis von Baustein-Updates
 
 `plc_write` meldet das nicht atomare Ergebnis jedes `update_block_logic`-Elements als

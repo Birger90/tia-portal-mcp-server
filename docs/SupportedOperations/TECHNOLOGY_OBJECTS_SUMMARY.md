@@ -20,7 +20,7 @@ and a group path (`folderPath`). The existing PLC tools already carry every mech
 single-call pipeline with dry run, info guards, read-back verification and audit; the PLC working state that lets a
 later item use an object an earlier item created; the content-hash round trip of the watch/force tables), so the
 operations were added there instead of a new tool pair. The tool surface stays **13 tools in read-only, 33 in
-read-write and 33 in full** (since `project_server_write`; 13/32/32 since `siemens_docs`; 12/31/31 since `tia_inbox`; 11/30/30 since `retrieve_project`) (`library_read`/`library_write` became a pair because a library selector is not a PLC).
+read-write and 33 in full** (since `project_server_write`; 13/32/32 since `siemens_docs`; 12/31/31 since `tia_inbox`; 11/30/30 since `retrieve_project`) (`tia_library_read`/`tia_library_write` became a pair because a library selector is not a PLC).
 The field set of `PlcOperationRequest` grows; every field is restricted per operation by the catalog
 (`PlcOperationCatalog.TechnologyObjects.cs`), so an unused field is a `validation_error`.
 
@@ -253,6 +253,7 @@ only sorts the staged and backup files next to the target; they are not hidden. 
 | `plc_technology_object_import_replaces` | info | `import_technology_object` with `overwrite:true`, every `update_technology_object_content` (`ImportOptions.Override` is expected to replace a same-name object; not verified live) |
 | `plc_overwrites_file` | info | `export_technology_object` with `overwrite:true` over an existing file |
 | `plc_technology_parameter_not_hardware_connection` | info | `set_technology_object_parameter` of an `Actor.*` parameter |
+| `plc_technology_object_create_may_terminate` | info | `create_technology_object` with a type/version pair other than `TO_PositioningAxis` 5.0, `TO_SpeedAxis` 5.0 or `PID_Compact` 2.3 (exact, case-sensitive). Reported by asckye/TIA_Portal_Openness_MCP (MIT, commit `93eeb016`), not verified here: such a create terminated TIA Portal V21 and lost unsaved work; asckye refuses it, this server only informs (never stricter than TIA Portal) and asks to save first ([V21 pitfalls](V21_PITFALLS.md) A5) |
 | `plc_replaces_hardware_connection` | info | `connect_technology_object_hardware` on an interface that reads as connected (ident: `ConnectedIdentDevice` reads a device); that `Connect` replaces the connection is an expectation (not documented), the read-back checks the requested target |
 | `plc_state_unverifiable` (existing) | **block** | an incomplete TO inventory, or a planning read of the parameter or connection that failed (other than not found or ambiguous): the only TO case that blocks, because planning cannot see what the item would change |
 
@@ -345,7 +346,7 @@ known well enough to compile against. `ref/*.dll` is unchanged.
 | --- | --- |
 | Family/version matrix read | No source provides one: the Siemens skill states that no known Openness API enumerates valid type/version combinations and that versions are installation-specific; its one V21 data point (`TO_PositioningAxis` → `10.0`) was contradicted live on 2026-11-02 for a CPU 1516-3 PN/DP FW V2.9 (`10.0` rejected, `6.0` accepted), so the tool description states that the version depends on the CPU firmware. The skill's cascade-probe (try versions until `Create` succeeds) is not implemented: it creates or fails objects by trial in the user's project and guesses versions. |
 | Compile a TO | No TO-level compile member is in the sources; compile the PLC software with `compile_check`. |
-| Place a TO or a TO user group from a master copy (`CreateFrom(MasterCopy[, MasterCopyMode])` on both compositions) | The root composition is already covered by `library_write instantiate_master_copy` (target `technologyObjects`); placement into a TO subgroup and TO group master copies belong to the library domain and are a follow-up there. |
+| Place a TO or a TO user group from a master copy (`CreateFrom(MasterCopy[, MasterCopyMode])` on both compositions) | The root composition is already covered by `tia_library_write instantiate_master_copy` (target `technologyObjects`); placement into a TO subgroup and TO group master copies belong to the library domain and are a follow-up there. |
 | `Export(FileInfo, ExportOptions, DocumentInfoOptions)` | The `DocumentInfoOptions` members are not in the sources; the two-argument export is used. |
 | Startdrive connection interfaces (`AxisHardwareConnectionSDRProvider`, `EncoderHardwareConnectionSDRProvider`, `*SDRInterface.Connect(Telegram[, ConnectOption])`) | They are in `Siemens.Engineering.Startdrive.dll`, which the worker does not reference, and take `Telegram` objects of Startdrive drive objects (drives are a separate, not yet designed domain). Address, module and DB-member connections cover the documented Step7 path. |
 | Disconnect of the ident interface; removing a `PlcTag` from a parameter | Not documented. |

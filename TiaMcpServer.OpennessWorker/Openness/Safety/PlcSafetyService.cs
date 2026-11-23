@@ -317,7 +317,7 @@ internal static class PlcSafetyService
     }
 
     /// <summary>Every block of the PLC: the program blocks with their user and system groups, the software units and the safety units.</summary>
-    private static IEnumerable<(string Path, PlcBlock Block)> Blocks(PlcSoftware software, List<string> messages)
+    internal static IEnumerable<(string Path, PlcBlock Block)> Blocks(PlcSoftware software, List<string> messages)
     {
         var roots = new List<(string, object)> { ($"{software.Name}/Blocks", software.BlockGroup) };
         try

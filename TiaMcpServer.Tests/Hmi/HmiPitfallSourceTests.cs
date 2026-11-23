@@ -14,6 +14,10 @@ public sealed class HmiPitfallSourceTests
 {
     [Theory]
     [InlineData("ScriptDiagnosisOverviewText")]
+    // Reported by rickgaiser/TiaMcp e495c87 (not verified): reading the script block of a System Diagnosis control's script
+    // columns terminates TIA Portal V21 too (V21_PITFALLS.md A7).
+    [InlineData("SystemDiagnosisControlScriptBlock")]
+    [InlineData("HmiSystemDiagnosisControlScriptColumnPart")]
     [InlineData(".Export(")]
     [InlineData("GetAttributeInfos")]
     public void HmiWorkerCode_HasNoReportedCrashingPath(string forbidden)

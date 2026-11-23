@@ -12,8 +12,11 @@ internal static partial class Program
     {
         var info = request.PlcChangeDetection ?? throw new WorkerOperationException(
             WorkerFailureCategories.ValidationError, $"{request.Method} requires the change-detection request.");
-        return WithEngineeringRoot(request, project => request.Method == PlcChangeDetectionMethods.GetPlcChecksums
-            ? Success(PlcChangeDetectionService.ReadChecksums(project, info))
-            : Success(PlcChangeDetectionService.ReadFingerprints(project, info)));
+        return WithEngineeringRoot(request, project => request.Method switch
+        {
+            PlcChangeDetectionMethods.GetPlcChecksums => Success(PlcChangeDetectionService.ReadChecksums(project, info)),
+            PlcChangeDetectionMethods.CheckDownloadReadiness => Success(PlcChangeDetectionService.ReadDownloadReadiness(project, info)),
+            _ => Success(PlcChangeDetectionService.ReadFingerprints(project, info)),
+        });
     }
 }

@@ -26,7 +26,7 @@ public sealed class ClaudeBridgeSettings
     public static readonly IReadOnlyList<string> TiaToolNames = new[]
     {
         "archive_project", "bind_project", "browse_project_tree", "close_project", "compile_check", "create_project", "get_project_status",
-        "hmi_read", "hmi_write", "library_read", "library_write", "network_read", "network_write", "open_project", "plc_download",
+        "hmi_read", "hmi_write", "tia_library_read", "tia_library_write", "network_read", "network_write", "open_project", "plc_download",
         "plc_online_read", "plc_online_write", "plc_read", "plc_station_upload", "plc_tia_online", "plc_write", "plcsim_read", "plcsim_test",
         "plcsim_write", "project_server_write", "read_cross_references", "retrieve_project", "save_project", "save_project_as", "siemens_docs", "tia_inbox", "vci_read", "vci_write",
     };

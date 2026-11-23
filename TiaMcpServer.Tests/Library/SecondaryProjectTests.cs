@@ -6,7 +6,7 @@ using Xunit;
 
 namespace TiaMcpServer.Tests.Library;
 
-/// <summary>Issue #20: read-only secondary projects (library_write lifecycle items, list_secondary_projects, compare_software secondary_plc).</summary>
+/// <summary>Issue #20: read-only secondary projects (tia_library_write lifecycle items, list_secondary_projects, compare_software secondary_plc).</summary>
 public sealed class SecondaryProjectTests
 {
     private const string Old = @"C:\Projects\Old\Old.ap21";

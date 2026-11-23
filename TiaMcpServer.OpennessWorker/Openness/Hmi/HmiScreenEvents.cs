@@ -41,6 +41,20 @@ internal static class HmiScreenEvents
 
     private static readonly string[] TriggerValueNames = { "Type", "Tags", "CustomDuration" };
 
+    /// <summary>The documented members of a mapping table entry (<c>MappingTableEntryBase</c> and its three entry types) a read reports.</summary>
+    internal static readonly string[] MappingEntryValueNames =
+    {
+        "From", "To", "RangeType", "Condition", "BitDynamizationType", "Relevant", "Value", "AlternateValue", "Flashing", "FlashingRate",
+    };
+
+    /// <summary>The documented entry types of <c>set_dynamization_value_converter</c> by request kind.</summary>
+    internal static readonly IReadOnlyDictionary<string, string> MappingEntryTypes = new Dictionary<string, string>(StringComparer.Ordinal)
+    {
+        ["range"] = "MappingTableEntryRange",
+        ["simple"] = "MappingTableEntrySimple",
+        ["bitmask"] = "MappingTableEntryBitmask",
+    };
+
     // ---- reads ---------------------------------------------------------------------------------------
 
     public static HmiScreenItemEventsInfo ListEvents(HmiSoftware software, HmiQueryInfo query)
@@ -74,6 +88,8 @@ internal static class HmiScreenEvents
                 foreach (var name in TriggerValueNames)
                     if (LibraryRuntimeBinding.Property(trigger.GetType(), name, out _) is not null)
                         row.Values.Add(new HmiNamedValueInfo { Name = "Trigger." + name, Value = ReadText(trigger, name, info.Messages) });
+            if (LibraryRuntimeBinding.Property(dynamization.GetType(), "ValueConverter", out _) is { } converterProperty && SafeGet(converterProperty, dynamization, info.Messages) is { } converter)
+                AddValueConverter(row, converter, info.Messages);
             info.Dynamizations.Add(row);
         }
 
@@ -215,6 +231,237 @@ internal static class HmiScreenEvents
             return outcome;
         }
         catch (Exception ex) when (ex is EngineeringException or WorkerOperationException) { throw Failure(ex, outcome); }
+    }
+
+    /// <summary>
+    /// The value converter of the property's tag or expression dynamization (origin: idea and call order from
+    /// jessenic/TIA-MCP-Server at e817033, MIT, Copyright (c) 2026 TIA Openness MCP Contributors; see THIRD_PARTY_NOTICES.md;
+    /// reimplemented on the documented V21 members, bound at runtime): <c>ValueConverter.IsFormulaSelected</c> and
+    /// <c>Formula</c>, then the <c>MappingTable</c>. Given entries replace every existing entry (each <c>Delete()</c>d first),
+    /// then <c>ConditionType</c> is set, then the entries are created: range and simple entries with
+    /// <c>Entries.Create&lt;T&gt;()</c>, bitmask entries with the one <c>Entries.Create(BitDynamizationType)</c>, which creates
+    /// the whole set (jessenic reports that TIA Portal may already create the Singlebit pair when the condition type is
+    /// assigned; then no Create is called; not verified). Without a dynamization on the property a formula creates an
+    /// <c>ExpressionDynamization</c>; anything else needs <c>set_dynamization_tag</c> first. Every value is read back.
+    /// </summary>
+    public static HmiWriteOutcomeInfo SetDynamizationValueConverter(HmiSoftware software, HmiWriteRequestInfo write)
+    {
+        var (_, target) = Target(software, write.ScreenName, write.GroupPath, write.ItemName);
+        var property = HmiScreenWriter.Required(write.PropertyName, "propertyName");
+        if (write.Formula is null && write.FormulaSelected is null && write.ConditionType is null && write.MappingEntries is null)
+            throw new WorkerOperationException(WorkerFailureCategories.ValidationError, "Give formula, formulaSelected, conditionType or mappingEntries; nothing was changed.");
+        var dynamizations = HmiScreenWriter.Composition(target, DynamizationsProperty, required: true)!;
+        var existing = Dynamization(dynamizations, property);
+        MethodInfo? create = null;
+        if (existing is null)
+        {
+            if (write.Formula is null)
+                throw new WorkerOperationException(WorkerFailureCategories.TargetNotFound,
+                    $"'{property}' of {Describe(write)} has no tag or expression dynamization; create one with set_dynamization_tag, or give a formula to create an expression dynamization. Nothing was changed.");
+            var type = HmiScreenWriter.TypeNamed(typeof(HmiSoftware).Assembly, "ExpressionDynamization", typeof(object));
+            create = LibraryRuntimeBinding.FindGeneric(dynamizations.GetType(), "Create", new[] { type }, new[] { typeof(string) }, out var error)
+                ?? throw HmiScreenWriter.Missing($"Dynamizations.Create<ExpressionDynamization>(String): {error}");
+        }
+        else if (!IsOfType(existing.GetType(), "TagDynamization") && !IsOfType(existing.GetType(), "ExpressionDynamization"))
+        {
+            throw new WorkerOperationException(WorkerFailureCategories.TargetKindUnsupported,
+                $"'{property}' of {Describe(write)} is dynamized by a {existing.GetType().Name}, which has no value converter; delete it with delete_dynamization first. Nothing was changed.");
+        }
+
+        var itemValue = ItemValue(target, property);
+        var outcome = new HmiWriteOutcomeInfo { ObjectName = Describe(write) };
+        try
+        {
+            var dynamization = existing ?? Created(dynamizations, create!, write, outcome);
+            var converter = Value(dynamization, "ValueConverter")
+                ?? throw new WorkerOperationException(WorkerFailureCategories.WorkerOperationFailed, $"The dynamization of {Describe(write)} has no ValueConverter.");
+            var selected = write.FormulaSelected ?? (write.Formula is null ? null : true);
+            if (write.Formula is { } formula)
+            {
+                // As jessenic does: select the formula before writing it.
+                Set(outcome, "ValueConverter.IsFormulaSelected", () => SetProperty(converter, "IsFormulaSelected", true));
+                Set(outcome, "ValueConverter.Formula", () => SetProperty(converter, "Formula", formula));
+            }
+
+            if (selected is { } flag && (write.Formula is null || !flag))
+                Set(outcome, "ValueConverter.IsFormulaSelected=" + (flag ? "true" : "false"), () => SetProperty(converter, "IsFormulaSelected", flag));
+            if (write.ConditionType is not null || write.MappingEntries is not null)
+                WriteMappingTable(converter, write, itemValue, outcome);
+            return outcome;
+        }
+        catch (Exception ex) when (ex is EngineeringException or WorkerOperationException) { throw Failure(ex, outcome); }
+    }
+
+    private static void WriteMappingTable(object converter, HmiWriteRequestInfo write, object? itemValue, HmiWriteOutcomeInfo outcome)
+    {
+        var table = Value(converter, "MappingTable")
+            ?? throw new WorkerOperationException(WorkerFailureCategories.WorkerOperationFailed, $"The value converter of {Describe(write)} has no MappingTable.");
+        var entries = Value(table, "Entries")
+            ?? throw new WorkerOperationException(WorkerFailureCategories.WorkerOperationFailed, $"The mapping table of {Describe(write)} has no Entries.");
+        var requested = write.MappingEntries;
+
+        // Bind every Create before the first change.
+        var bitmask = requested is { Count: > 0 } && requested.All(e => e.Kind == "bitmask");
+        if (requested is not null && requested.Any(e => e.Kind == "bitmask") && !bitmask)
+            throw new WorkerOperationException(WorkerFailureCategories.ValidationError, "Bitmask entries cannot be mixed with range or simple entries; nothing was changed.");
+        MethodInfo? createBits = null;
+        object? bitType = null;
+        var creates = new Dictionary<string, MethodInfo>(StringComparer.Ordinal);
+        if (bitmask)
+        {
+            var kinds = requested!.Select(e => e.BitDynamizationType).Distinct(StringComparer.Ordinal).ToList();
+            if (kinds.Count != 1 || kinds[0] is null)
+                throw new WorkerOperationException(WorkerFailureCategories.ValidationError, "Every bitmask entry needs the same bitDynamizationType (e.g. SingleBit); nothing was changed.");
+            createBits = EnumMethod(entries, "Create", 1);
+            var enumType = createBits.GetParameters()[0].ParameterType;
+            bitType = LibraryRuntimeBinding.EnumValue(enumType, kinds[0])
+                ?? throw new WorkerOperationException(WorkerFailureCategories.ValidationError,
+                    $"'{kinds[0]}' is not a member of {enumType.Name} ({LibraryRuntimeBinding.MemberList(enumType)}); nothing was changed.");
+        }
+        else if (requested is not null)
+        {
+            foreach (var kind in requested.Select(e => e.Kind).Distinct(StringComparer.Ordinal))
+            {
+                if (!MappingEntryTypes.TryGetValue(kind, out var typeName))
+                    throw new WorkerOperationException(WorkerFailureCategories.ValidationError, $"Mapping entry kind '{kind}' is not range, simple or bitmask; nothing was changed.");
+                var type = HmiScreenWriter.TypeNamed(typeof(HmiSoftware).Assembly, typeName, typeof(object));
+                creates[kind] = LibraryRuntimeBinding.FindGeneric(entries.GetType(), "Create", new[] { type }, Type.EmptyTypes, out var error)
+                    ?? throw HmiScreenWriter.Missing($"MappingTable.Entries.Create<{typeName}>(): {error}");
+            }
+        }
+
+        if (requested is not null)
+        {
+            Set(outcome, "MappingTable.Entries.Delete", () =>
+            {
+                foreach (var entry in Items(entries).ToList())
+                    HmiScreenWriter.Invoke(HmiScreenWriter.Bind(entry, "Delete", Type.EmptyTypes), entry);
+                if (Items(entries).Any())
+                    throw new WorkerOperationException(WorkerFailureCategories.PostconditionFailed, $"The mapping table of {Describe(write)} still holds entries after Delete().");
+            });
+        }
+
+        if (write.ConditionType is { } condition)
+            Set(outcome, "MappingTable.ConditionType", () => SetEnumOrText(table, "ConditionType", condition));
+        if (requested is null) return;
+
+        if (bitmask)
+        {
+            Set(outcome, "MappingTable.Entries.Create(" + write.MappingEntries![0].BitDynamizationType + ")", () =>
+            {
+                if (!Items(entries).Any()) HmiScreenWriter.Invoke(createBits!, entries, bitType!);
+            });
+            var created = Items(entries).ToList();
+            if (created.Count != requested.Count)
+                throw new WorkerOperationException(WorkerFailureCategories.PostconditionFailed,
+                    $"TIA Portal created {created.Count} {write.MappingEntries![0].BitDynamizationType} entries, the request has {requested.Count}; the mapping table keeps them.");
+            for (var i = 0; i < created.Count; i++)
+                WriteEntry(created[i], requested[i], i, itemValue, outcome);
+        }
+        else
+        {
+            for (var i = 0; i < requested.Count; i++)
+            {
+                object? entry = null;
+                var index = i;
+                Set(outcome, $"MappingTable.Entries[{index}].Create", () => entry = HmiScreenWriter.Invoke(creates[requested[index].Kind], entries));
+                if (entry is null)
+                    throw new WorkerOperationException(WorkerFailureCategories.PostconditionFailed, $"Entries.Create returned no {requested[i].Kind} entry.");
+                WriteEntry(entry, requested[i], i, itemValue, outcome);
+            }
+        }
+
+        var count = Items(entries).Count();
+        if (count != requested.Count)
+            throw new WorkerOperationException(WorkerFailureCategories.PostconditionFailed, $"The mapping table of {Describe(write)} reads back {count} entries, not {requested.Count}.");
+        outcome.AppliedProperties.Add($"readBack {count} entries");
+    }
+
+    private static void WriteEntry(object entry, HmiMappingEntryInfo requested, int index, object? itemValue, HmiWriteOutcomeInfo outcome)
+    {
+        var prefix = $"MappingTable.Entries[{index}].";
+        foreach (var (name, value, fallback) in new (string Name, string? Value, object? Fallback)[]
+        {
+            ("From", requested.From, null), ("To", requested.To, null), ("RangeType", requested.RangeType, null),
+            ("Condition", requested.Condition, null), ("Value", requested.Value, itemValue), ("AlternateValue", requested.AlternateValue, itemValue),
+            ("FlashingRate", requested.FlashingRate, null),
+        })
+        {
+            if (value is null) continue;
+            Set(outcome, prefix + name, () => SetConverted(entry, name, value, fallback));
+        }
+
+        if (requested.Flashing) Set(outcome, prefix + "Flashing", () => SetProperty(entry, "Flashing", true));
+    }
+
+    /// <summary>
+    /// A member set from text: an enum by member name; otherwise converted to the runtime type of its current value, of
+    /// <paramref name="fallback"/> (the item's own property value for Value/AlternateValue), or of the declared type
+    /// (string, number); a member declared <c>Object</c> with neither takes an integer, else a number, else the text.
+    /// </summary>
+    private static void SetConverted(object owner, string name, string text, object? fallback)
+    {
+        var property = LibraryRuntimeBinding.Property(owner.GetType(), name, out var error)
+            ?? throw HmiScreenWriter.Missing($"{owner.GetType().Name}.{name}: {error}");
+        var type = property.PropertyType;
+        object value;
+        if (type.IsEnum)
+        {
+            value = LibraryRuntimeBinding.EnumValue(type, text)
+                ?? throw new WorkerOperationException(WorkerFailureCategories.ValidationError, $"'{text}' is not a member of {type.Name} ({LibraryRuntimeBinding.MemberList(type)}).");
+        }
+        else
+        {
+            var current = property.GetValue(owner) ?? fallback;
+            if (current is not null && (type == typeof(object) || type.IsInstanceOfType(current))) value = HmiScreenWriter.Convert(current, text, name);
+            else if (type == typeof(string)) value = text;
+            else if (type.IsPrimitive || type == typeof(decimal)) value = HmiScreenWriter.Convert(System.Activator.CreateInstance(type), text, name);
+            else if (type == typeof(object)) value = LooseNumber(text);
+            else throw HmiScreenWriter.Missing($"{owner.GetType().Name}.{name} holds a {type.FullName}, which is not set from text here.");
+        }
+
+        SetProperty(owner, name, value);
+    }
+
+    private static object LooseNumber(string text)
+        => long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var integer) ? integer
+            : double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var number) ? number
+            : text;
+
+    /// <summary>The current value of the dynamized property on the screen or item (its type converts mapping values); null when unreadable.</summary>
+    private static object? ItemValue(IEngineeringObject target, string property)
+    {
+        if (string.Equals(property, HmiScreenWriter.ReportedCrashingProperty, StringComparison.Ordinal)) return null;
+        try
+        {
+            return target.GetAttribute(property);
+        }
+        catch (EngineeringException exception) when (OpennessExceptions.IsRecoverable(exception))
+        {
+            return null;
+        }
+    }
+
+    private static IEnumerable<object> Items(object composition) => composition is IEnumerable items ? items.Cast<object>() : Enumerable.Empty<object>();
+
+    private static void AddValueConverter(HmiDynamizationInfo row, object converter, List<string> messages)
+    {
+        foreach (var name in new[] { "IsFormulaSelected", "Formula" })
+            if (LibraryRuntimeBinding.Property(converter.GetType(), name, out _) is not null)
+                row.Values.Add(new HmiNamedValueInfo { Name = "ValueConverter." + name, Value = ReadText(converter, name, messages) });
+        if (LibraryRuntimeBinding.Property(converter.GetType(), "MappingTable", out _) is not { } tableProperty || SafeGet(tableProperty, converter, messages) is not { } table) return;
+        if (LibraryRuntimeBinding.Property(table.GetType(), "ConditionType", out _) is not null)
+            row.Values.Add(new HmiNamedValueInfo { Name = "MappingTable.ConditionType", Value = ReadText(table, "ConditionType", messages) });
+        if (LibraryRuntimeBinding.Property(table.GetType(), "Entries", out _) is not { } entriesProperty || SafeGet(entriesProperty, table, messages) is not { } entries) return;
+        var index = 0;
+        foreach (var entry in Items(entries))
+        {
+            var prefix = $"MappingTable.Entries[{index++}].";
+            row.Values.Add(new HmiNamedValueInfo { Name = prefix + "Kind", Value = entry.GetType().Name });
+            foreach (var name in MappingEntryValueNames)
+                if (LibraryRuntimeBinding.Property(entry.GetType(), name, out _) is not null)
+                    row.Values.Add(new HmiNamedValueInfo { Name = prefix + name, Value = ReadText(entry, name, messages) });
+        }
     }
 
     /// <summary>

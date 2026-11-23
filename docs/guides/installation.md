@@ -191,14 +191,14 @@ Exit codes: `0` (success), `1` (general failure), `2` (invalid arguments), `3` (
 
 The server supports three access modes, enforced at discovery, host dispatch, and worker dispatch:
 
-- **read-only** - thirteen tools: eleven observation tools (including `plcsim_read`, `plc_online_read`, `library_read` and `siemens_docs`, the Siemens documentation reader that needs no TIA Portal), `tia_inbox` ("Claude in TIA") plus `bind_project`; no
+- **read-only** - thirteen tools: eleven observation tools (including `plcsim_read`, `plc_online_read`, `tia_library_read` and `siemens_docs`, the Siemens documentation reader that needs no TIA Portal), `tia_inbox` ("Claude in TIA") plus `bind_project`; no
   compile, edits, simulation control, download, online changes, going online, station upload, or lifecycle. `plc_read`
   `compare_to_online` (an Openness online compare that changes nothing) and `scan_accessible_devices` (live network
   discovery through one explicitly named PC interface, changes nothing) are observation and work in every mode.
 - **read-write** (server startup default) - thirty-three tools: the read-only surface plus
-  `compile_check`, `network_write`, `plc_write`, `hmi_write`, `vci_write`, `library_write`, `plcsim_write`, `plcsim_test`, all seven lifecycle tools, `plc_download`
+  `compile_check`, `network_write`, `plc_write`, `hmi_write`, `vci_write`, `tia_library_write`, `plcsim_write`, `plcsim_test`, all seven lifecycle tools, `plc_download`
   (to PLCSIM or to real hardware), `plc_online_write` (configured S7-1500 CPUs), `plc_tia_online` (TIA Portal go online/offline),
-  `plc_station_upload` and `project_server_write` (Project Server connections, upload and local sessions of the TIA Portal instance; not live-tested). Every actual lifecycle, download, online-write, online-connection or upload call, and every `library_write`
+  `plc_station_upload` and `project_server_write` (Project Server connections, upload and local sessions of the TIA Portal instance; not live-tested). Every actual lifecycle, download, online-write, online-connection or upload call, and every `tia_library_write`
   call that opens, retrieves, creates, saves or closes a global library, and every `project_server_write` call that deletes a local session or a connection or uploads a project, requires one confirmation form; the download prompt states when
   the target is a real controller. The other domain write calls (library content items included) and the PLCSIM tools never prompt.
 - **full** - the same thirty-three tools and operations; lifecycle, download, online writes, online connections, uploads and global library lifecycle run without

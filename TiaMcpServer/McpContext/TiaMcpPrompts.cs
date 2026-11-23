@@ -139,7 +139,7 @@ public static class TiaMcpPrompts
             _ => """
                 Process the pending "Claude in TIA" requests.
                 1. tia_inbox list_requests; take the requests oldest first.
-                2. For each: tia_inbox get_request (id). Its addresses are hints built from names: bind_project to its projectPath if needed, then confirm each address with browse_project_tree, plc_read, network_read or library_read before using it.
+                2. For each: tia_inbox get_request (id). Its addresses are hints built from names: bind_project to its projectPath if needed, then confirm each address with browse_project_tree, plc_read, network_read or tia_library_read before using it.
                 3. Do what the request asks with the other tools, within the access mode; for changes follow the guarded write path (read with contentHash, dryRun, write with expectedContentHash, compile_check). Never save or download unless the request and the user explicitly ask for it.
                 4. Finish every request with tia_inbox reply_request (id, text in the user's language, status done or failed), one reply per request.
                 """),

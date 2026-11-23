@@ -19,7 +19,7 @@ internal static partial class Program
         if (request.Method == PlcAlarmMethods.Plan)
             return WithEngineeringRoot(request, project => Success(PlcAlarmService.Plan(project, info)));
 
-        // Like plc_download and library_write: until the item's evidence is collected every TIA Portal confirmation is
+        // Like plc_download and tia_library_write: until the item's evidence is collected every TIA Portal confirmation is
         // answered by its policy instead of the session-wide Yes and recorded. A workbook read always answers No (and fails
         // when it had to); a write answers by its portalConfirmations. The services close the scope before they copy the
         // evidence (it then lingers with the same answer until the next request starts); this using is the safety net.

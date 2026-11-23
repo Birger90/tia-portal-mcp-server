@@ -31,7 +31,7 @@ public sealed class PlcWriteDomain(OpennessWorkerClient client)
 
     /// <summary>
     /// True exactly when the call contains a fail-safe write (known from the validated items) or planning found an F-block
-    /// change (its items fired <see cref="PlcGuardDefinitions.SafetyAcceptance"/>), like library_write's lifecycle items:
+    /// change (its items fired <see cref="PlcGuardDefinitions.SafetyAcceptance"/>), like tia_library_write's lifecycle items:
     /// such a call confirms once in read-write, and the pipeline refuses unsafe operationIds before any prompt.
     /// </summary>
     public bool ConfirmsEveryCall

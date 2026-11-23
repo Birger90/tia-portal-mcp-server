@@ -75,6 +75,14 @@ public sealed class HmiWriteOperationRequest : IOperationBatchItem
     public string? FlashingCondition { get; set; }
     [Description("set_dynamization_flashing: Slow, Medium or Fast.")]
     public string? FlashingRate { get; set; }
+    [Description("set_dynamization_value_converter: ValueConverter.Formula of a tag or expression dynamization.")]
+    public string? Formula { get; set; }
+    [Description("set_dynamization_value_converter: ValueConverter.IsFormulaSelected (omitted: true with a formula).")]
+    public bool? FormulaSelected { get; set; }
+    [Description("set_dynamization_value_converter: MappingTable.ConditionType, e.g. Range, Simple, Bitmask or Singlebit.")]
+    public string? ConditionType { get; set; }
+    [Description("set_dynamization_value_converter: 1-100 entries { kind range|simple|bitmask, from, to, rangeType, condition, bitDynamizationType, value, alternateValue, flashing, flashingRate } that replace the mapping table's entries.")]
+    public List<TiaMcpServer.Contracts.Hmi.HmiMappingEntryInfo>? MappingEntries { get; set; }
 
     // WinCC Unified audit classes, runtime settings and plant objects (issue #29).
     public string? AuditClassName { get; set; }

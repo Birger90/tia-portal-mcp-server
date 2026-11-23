@@ -17,15 +17,15 @@ checked offline only (unit tests, FakeWorker).
 | `plc_read` operations | 3 | 63 |
 | `plc_write` operations | 14 | 212 |
 | `network_read` / `network_write` | 4 / 5 | 17 / 35 |
-| `hmi_read` / `hmi_write` | 20 / 9 | 24 / 42 |
-| `library_read` / `library_write` | – | 14 / 39 |
+| `hmi_read` / `hmi_write` | 20 / 9 | 24 / 43 |
+| `tia_library_read` / `tia_library_write` | – | 14 / 39 |
 | `plc_online_read` / `plc_online_write` (S7-1500 Web API) | – | 18 / 7 |
 | `vci_read` / `vci_write` | 3 / 6 | 3 / 6 |
 | `siemens_docs` (Siemens documentation) | – | 4 |
 | `project_server_write` (Project Server administration) | – | 6 |
 
 New tools: `retrieve_project` (retrieve a project archive; not live-tested), `project_server_write` (Project Server connections, uploads and local sessions; not live-tested), `plc_download`, `plc_tia_online`, `plc_station_upload`, `plcsim_read`, `plcsim_write`, `plcsim_test`,
-`plc_online_read`, `plc_online_write`, `library_read`, `library_write`, `tia_inbox` (Claude in TIA; not live-tested), `siemens_docs` (search and read the Siemens documentation without TIA Portal; own C# port of Czarnak/siemens-docs-mcp, MIT; not live-tested on the Windows PC).
+`plc_online_read`, `plc_online_write`, `tia_library_read`, `tia_library_write`, `tia_inbox` (Claude in TIA; not live-tested), `siemens_docs` (search and read the Siemens documentation without TIA Portal; own C# port of Czarnak/siemens-docs-mcp, MIT; not live-tested on the Windows PC).
 
 ## Features the original does not have
 

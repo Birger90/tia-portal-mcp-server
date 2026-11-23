@@ -90,7 +90,7 @@ ohne Groß-/Kleinschreibung); bei `tags` grenzt er die Variablentabellen auf die
 
 | Punkt | Warum |
 | --- | --- |
-| `CreateFrom(MasterCopy)` / `CreateFrom(…LibraryTypeVersion)` von Variablentabellen, Variablen, Bildern, Vorlagen, Pop-ups, VB-Skripten | Instanziieren aus der Bibliothek gehört zu `library_write`; dessen Ziele umfassen klassische HMI-Kompositionen noch nicht. Hier nicht gebaut. |
+| `CreateFrom(MasterCopy)` / `CreateFrom(…LibraryTypeVersion)` von Variablentabellen, Variablen, Bildern, Vorlagen, Pop-ups, VB-Skripten | Instanziieren aus der Bibliothek gehört zu `tia_library_write`; dessen Ziele umfassen klassische HMI-Kompositionen noch nicht. Hier nicht gebaut. |
 | Mehrsprachige Grafiken (`GraphicsProvider.Graphics`, `MultiLingualGraphicComposition`) | V21 dokumentiert den Provider, aber nicht, welches Objekt ihn als Dienst anbietet; nichts wird geraten. Audit N9 (2026-11-09) prüfte members.txt erneut: `MultiLingualGraphicComposition` hat `Import(FileInfo, ImportOptions)`, `Find(String)` und Enumeration, `MultiLingualGraphic` hat `Name`, `Export(FileInfo, ExportOptions)` und `Delete()`; Auflisten/Export/Import wären also zur Laufzeit bindbar, sobald der Besitzer bekannt ist (eine Suche über `GetServiceInfos()` von Projekt und TIA Portal wie bei `FingerprintDataProvider`). In diesem Paket nicht gebaut: Projektgrafiken sind projektweit (eine neue `plc_read`/`plc_write`-Familie mit den Regeln für Aufruferdateien und einem Rücklesen), und der Besitzer sollte zuerst live geprüft werden; Folgepunkt im [Improvement Log](../IMPROVEMENT_LOG.md). |
 | `Hmi.Alarm`, `Hmi.Recipe`, `Hmi.Logging`, `Hmi.Report`, `Hmi.Scheduler`, `Hmi.Faceplate` | V21 dokumentiert in diesen Namensräumen nur Enums (und Namen von Bibliothekstypen), keine Komposition, keinen Export oder Import. |
 | Inhalt klassischer Objekte (Eigenschaften einer Variable, Bildobjekte, Verbindungsparameter) | V21 dokumentiert keine typisierten Member; der Inhalt läuft über den SimaticML-Export/-Import oben. |
@@ -118,6 +118,7 @@ Compile-Stubs, daher werden sie zur Laufzeit am Live-Objekt gebunden; fehlt eine
 | `hmi_write` | `set_dynamization_script` | `screenName`, `propertyName`, `scriptCode` | `groupPath`, `itemName`, `globalDefinitionAreaScriptCode`, `async`, `triggerType`, `triggerTags` (1–50), `customDuration` | `DynamizationBaseComposition.Create<ScriptDynamization>(String)`, `ScriptCode`, `Trigger.Type/Tags/CustomDuration` |
 | `hmi_write` | `set_dynamization_flashing` | `screenName`, `propertyName` | `groupPath`, `itemName`, `color`, `alternateColor`, `flashingCondition`, `flashingRate` | `Create<FlashingDynamization>(String)`, `Color`, `AlternateColor`, `FlashingCondition`, `FlashingRate` |
 | `hmi_write` | `delete_dynamization` | `screenName`, `propertyName` | `groupPath`, `itemName` | `DynamizationBase.Delete()` |
+| `hmi_write` | `set_dynamization_value_converter` | `screenName`, `propertyName`, eines von `formula`, `formulaSelected`, `conditionType`, `mappingEntries` | `groupPath`, `itemName` | `TagDynamization`/`ExpressionDynamization.ValueConverter` (`Formula`, `IsFormulaSelected`, `MappingTable`), `MappingTable.ConditionType`/`Entries`, `MappingTableEntryBaseComposition.Create<T>()` und `Create(BitDynamizationType)`, `MappingTableEntryBase.Value`/`AlternateValue`/`Flashing`/`FlashingRate`/`Delete()`, `MappingTableEntryRange.From`/`To`/`RangeType`, `MappingTableEntrySimple.Condition`, `MappingTableEntryBitmask.Condition`; `Create<ExpressionDynamization>(String)` |
 
 - **Ereignistypen.** Jeder Bildobjekttyp hat eine eigene Ereignis-Enum (`HmiButtonEventType`, `HmiIOFieldEventType`, …
   und `HmiScreenEventType` für das Bild); der Worker bindet das einzige `Find`/`Create` der `EventHandlers` des Ziels, das
@@ -134,9 +135,29 @@ Compile-Stubs, daher werden sie zur Laufzeit am Live-Objekt gebunden; fehlt eine
   ablehnt. Trigger- und Blinkwerte werden genau in den Laufzeittyp des aktuellen Werts umgewandelt (Enum-Membernamen wie
   `T1s`, `CustomCycle`, `Tags`, `Always`, `Fast`; Farben `#RRGGBB`/`#AARRGGBB`); `triggerTags` ersetzt die Variablenliste
   des Triggers; jeder Wert wird zurückgelesen. `customDuration` gehört zu `triggerType:"CustomCycle"`.
+- **Wertumsetzer** (`set_dynamization_value_converter`; Idee aus jessenic/TIA-MCP-Server, MIT; nicht live getestet).
+  Die Eigenschaft braucht eine Variablendynamisierung (`set_dynamization_tag`) oder eine Ausdrucksdynamisierung; eine
+  `formula` ohne Dynamisierung legt eine `ExpressionDynamization` an, jede andere Art wird mit `target_kind_unsupported`
+  abgelehnt. Eine `formula` setzt zuerst `IsFormulaSelected` auf true, dann `Formula`; `formulaSelected` setzt nur den
+  Schalter. `mappingEntries` (1–100) ersetzen alle vorhandenen Einträge: Jeder Eintrag wird mit `Delete()` gelöscht,
+  dann wird `conditionType` gesetzt (ein Enum-Membername wie `Range`, `Simple`, `Bitmask`, `Singlebit`), dann werden die
+  Einträge der Reihe nach angelegt. Ein Eintrag ist `{ kind, from, to, rangeType, condition, bitDynamizationType, value,
+  alternateValue, flashing, flashingRate }`: `range` braucht `from` und `to`, `simple` braucht `condition`, `bitmask`
+  braucht `bitDynamizationType` (für alle Einträge gleich; Bitmasken-Einträge lassen sich nicht mit anderen mischen).
+  Bitmasken-Einträge entstehen über das eine `Entries.Create(BitDynamizationType)`, das den ganzen Satz anlegt (zwei
+  Einträge bei `SingleBit`); laut jessenic legt TIA Portal das Singlebit-Paar eventuell schon beim Setzen des
+  Bedingungstyps an (nicht verifiziert), dann wird nichts weiter angelegt. Die Zahl der von TIA Portal angelegten
+  Einträge muss der Anfrage entsprechen, sonst scheitert der Eintrag mit `postcondition_failed` und behält sie. Werte sind
+  Text: `value`/`alternateValue` nehmen den Laufzeittyp des aktuellen Eintragswerts oder sonst der dynamisierten
+  Eigenschaft an (z. B. eine Farbe `#AARRGGBB` für `BackColor`); `from`/`to`/`condition` nehmen den Typ ihres aktuellen
+  Werts an, und ein als `Object` deklariertes Member ohne Wert nimmt eine ganze Zahl, sonst eine Zahl, sonst den Text.
+  Jeder Wert und die Zahl der Einträge werden zurückgelesen. **Welche Umwandlungen TIA Portal V21 annimmt, ist nicht
+  verifiziert.**
 - **Lesevorgänge** melden nur die dokumentierten Eigenschaften, die eine Dynamisierung hat (`Tag`, `PlcTag`, `Address`,
   `DataType`, `ReadOnly`, `UseIndirectAddressing`, `ScriptCode`, `GlobalDefinitionAreaScriptCode`, `Async`, `Color`,
-  `AlternateColor`, `FlashingCondition`, `FlashingRate`, `ResourceList`, `DynamicTagName`, `Trigger.*`), als Text: Enums
+  `AlternateColor`, `FlashingCondition`, `FlashingRate`, `ResourceList`, `DynamicTagName`, `Trigger.*`, bei einem
+  Wertumsetzer `ValueConverter.IsFormulaSelected`, `ValueConverter.Formula`, `MappingTable.ConditionType` und je Eintrag
+  `MappingTable.Entries[i].Kind` mit seinen dokumentierten Membern), als Text: Enums
   per Name, Farben als `#AARRGGBB`, Listen mit ", " verbunden. Es gibt keine generische Aufzählung von Attributen
   (V21-Fallstrick 3).
 - **Löschvorgänge** werden zurückgelesen (`Find` findet danach nichts) und lösen den Info-Guard
@@ -193,7 +214,7 @@ Worker `Openness/HmiExtensions/HmiUnifiedConfiguration.cs` (außerhalb von `Open
 
 | Punkt | Warum |
 | --- | --- |
-| Unified-Bibliothek (`HmiUnified.Library.ScriptModuleType`) | V21 dokumentiert den Typ ohne eigene Member; Bibliothekstypen behandeln `library_read`/`library_write`. |
+| Unified-Bibliothek (`HmiUnified.Library.ScriptModuleType`) | V21 dokumentiert den Typ ohne eigene Member; Bibliothekstypen behandeln `tia_library_read`/`tia_library_write`. |
 | Schreiben von Audit-Trails (`HmiLogging.HmiAuditTrail`) | Nur `Name` ist dokumentiert, und die Komposition hat kein `Create`; `list_logs` liest sie bereits. |
 | Lesen von Eigenschaften der Audit-Klassen | Der Audit-/GMP-Absturzbefund des Spikes (siehe oben); `list_alarm_classes` listet weiter nur Namen. |
 | Anlegen von Ausdrucks-, Ressourcenlisten- und Variablenparameter-Dynamisierungen; Wertkonverter und Zuordnungstabellen von Variablen-Dynamisierungen (`UI.Dynamization.Tag.*`) | In diesem Paket nicht gebaut; `list_screen_item_dynamizations` meldet diese Dynamisierungen mit ihren dokumentierten Werten. |

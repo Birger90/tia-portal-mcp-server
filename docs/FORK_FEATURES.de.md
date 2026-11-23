@@ -17,15 +17,15 @@ den Testprojekten `MCP_Livetest_01`, `MCP_Safety_01`, `MCP_G2_Test` ausgeführt;
 | `plc_read`-Operationen | 3 | 63 |
 | `plc_write`-Operationen | 14 | 212 |
 | `network_read` / `network_write` | 4 / 5 | 17 / 35 |
-| `hmi_read` / `hmi_write` | 20 / 9 | 24 / 42 |
-| `library_read` / `library_write` | – | 14 / 39 |
+| `hmi_read` / `hmi_write` | 20 / 9 | 24 / 43 |
+| `tia_library_read` / `tia_library_write` | – | 14 / 39 |
 | `plc_online_read` / `plc_online_write` (S7-1500-Web-API) | – | 18 / 7 |
 | `vci_read` / `vci_write` | 3 / 6 | 3 / 6 |
 | `siemens_docs` (Siemens-Dokumentation) | – | 4 |
 | `project_server_write` (Project-Server-Verwaltung) | – | 6 |
 
 Neue Werkzeuge: `retrieve_project` (Projektarchiv dearchivieren; nicht live getestet), `project_server_write` (Project-Server-Verbindungen, Hochladen und lokale Sitzungen; nicht live getestet), `plc_download`, `plc_tia_online`, `plc_station_upload`, `plcsim_read`, `plcsim_write`, `plcsim_test`,
-`plc_online_read`, `plc_online_write`, `library_read`, `library_write`, `tia_inbox` (Claude in TIA; nicht live getestet), `siemens_docs` (die Siemens-Dokumentation ohne TIA Portal durchsuchen und lesen; eigene C#-Portierung von Czarnak/siemens-docs-mcp, MIT; auf dem Windows-PC nicht live getestet).
+`plc_online_read`, `plc_online_write`, `tia_library_read`, `tia_library_write`, `tia_inbox` (Claude in TIA; nicht live getestet), `siemens_docs` (die Siemens-Dokumentation ohne TIA Portal durchsuchen und lesen; eigene C#-Portierung von Czarnak/siemens-docs-mcp, MIT; auf dem Windows-PC nicht live getestet).
 
 ## Funktionen, die es im Original nicht gibt
 

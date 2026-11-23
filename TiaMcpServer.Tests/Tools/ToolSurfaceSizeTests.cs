@@ -22,7 +22,7 @@ public class ToolSurfaceSizeTests
     private static readonly IReadOnlyDictionary<string, int> DepthBefore = new Dictionary<string, int>(StringComparer.Ordinal)
     {
         ["plc_write"] = 11, ["plc_read"] = 10, ["network_write"] = 12, ["network_read"] = 12,
-        ["library_write"] = 13, ["library_read"] = 13, ["hmi_write"] = 9, ["hmi_read"] = 7,
+        ["tia_library_write"] = 13, ["tia_library_read"] = 13, ["hmi_write"] = 9, ["hmi_read"] = 7,
     };
 
     private static int Depth(JsonElement element) => element.ValueKind switch

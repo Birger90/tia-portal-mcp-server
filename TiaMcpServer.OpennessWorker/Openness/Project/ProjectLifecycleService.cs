@@ -83,12 +83,12 @@ public static partial class ProjectLifecycleService
         return GetBasicStatusReadOnly(session, projectPath);
     }
 
-    public static ProjectLifecycleResultInfo OpenProject(TiaPortalSession session, string projectPath, bool upgrade = false)
+    public static ProjectLifecycleResultInfo OpenProject(TiaPortalSession session, string projectPath, bool upgrade = false, UmacOpenRequest? umac = null)
     {
         RequireAbsoluteFile(projectPath, "ProjectPath");
 
         session.EnsureConnected(projectPath);
-        session.OpenProject(projectPath, upgrade);
+        session.OpenProject(projectPath, upgrade, umac);
 
         if (session.ActiveContext is { Owner: LocalSessionOwner } context)
             return LocalResult("open_project", context);

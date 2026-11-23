@@ -58,7 +58,7 @@ Every file is written through a temporary file and moved into place. A request h
 `typePath` (`PLC_1/Types/Folder/Type`), `tableName` + `folderPath` (`/`, `/Line/Cell`), `deviceName`, `deviceItemName`,
 `library` (`project` or the global library's path), `libraryTypePath` (`/Folder/Type`), `masterCopyName` +
 `masterCopyFolderPath`. They are hints: Claude confirms them with `browse_project_tree`, `plc_read`, `network_read` or
-`library_read` before use. An object of another kind (HMI screens, technology objects, ...) is `other` with no address;
+`tia_library_read` before use. An object of another kind (HMI screens, technology objects, ...) is `other` with no address;
 its chain still names it.
 
 ## MCP tool `tia_inbox`

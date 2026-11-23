@@ -134,10 +134,10 @@ public sealed class LibraryCatalogTests
 
     public static TheoryData<string, object, string> Invalid => new()
     {
-        { "read", new LibraryOperationRequest { OperationId = "a", Operation = "open_global_library", Path = Plant }, "use library_write" },
-        { "write", new LibraryOperationRequest { OperationId = "a", Operation = "get_type", Library = "project", TypePath = "X" }, "use library_read" },
-        { "read", new LibraryOperationRequest { OperationId = "a", Operation = "export_type_version" }, "use library_write" },
-        { "read", new LibraryOperationRequest { OperationId = "a", Operation = "export_type" }, "unknown library_read operation" },
+        { "read", new LibraryOperationRequest { OperationId = "a", Operation = "open_global_library", Path = Plant }, "use tia_library_write" },
+        { "write", new LibraryOperationRequest { OperationId = "a", Operation = "get_type", Library = "project", TypePath = "X" }, "use tia_library_read" },
+        { "read", new LibraryOperationRequest { OperationId = "a", Operation = "export_type_version" }, "use tia_library_write" },
+        { "read", new LibraryOperationRequest { OperationId = "a", Operation = "export_type" }, "unknown tia_library_read operation" },
         { "read", new LibraryOperationRequest { OperationId = "a", Operation = "get_type", Library = "project" }, "typePath or typeGuid" },
         { "read", new LibraryOperationRequest { OperationId = "a", Operation = "get_type", Library = "project", TypePath = "A", TypeGuid = Guid.NewGuid().ToString() }, "not both" },
         { "read", new LibraryOperationRequest { OperationId = "a", Operation = "get_type", Library = "Plant", TypePath = "A" }, "'project' or the absolute path" },

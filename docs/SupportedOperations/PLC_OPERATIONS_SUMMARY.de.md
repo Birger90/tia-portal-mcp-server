@@ -18,7 +18,7 @@
 | `plc_read` | `get_call_tree`, `find_call_paths`, `find_unused_blocks`, `find_orphaned_instance_dbs`, `analyze_change_impact` | Siehe [Programmanalyse](#programmanalyse-plc_read) | Im Host berechnete, nur lesende Analyse über das Bausteininventar und den Querverweisleser; nicht live getestet. |
 | `plc_read` | `list_external_sources`, `read_tag_comments`, `find_objects`, `scan_accessible_devices` | Siehe [PLC_SOURCES_FOLDERS_SUMMARY.md](PLC_SOURCES_FOLDERS_SUMMARY.de.md) | Externe Quellen der PLC und ihrer Software Units; mehrsprachige Kommentare von Variablen und Anwenderkonstanten; Objekte per Glob mit Seitenaufteilung; erreichbare Geräte an einer ausdrücklich benannten PC-Schnittstelle (`OnlineObserve`, jeder Modus); nicht live getestet. |
 | `plc_read` | `list_text_lists`, `read_text_list_workbook`, `read_alarm_text_workbook`, `read_supervision_workbook`, `get_prodiag_fb`, `get_prodiag_assignment` | Siehe die [Referenz PLC-Meldungen und Textlisten](PLC_ALARMS_TEXTLISTS_SUMMARY.de.md) | Anwender- und System-Textlisten mit ID, Bereich und Kommentar je Kultur; Textlisteneinträge, Instanztexte von Meldungen und ProDiag-Überwachungen als uninterpretierte Zellen des XLSX-Exports von TIA Portal mit einem `workbookHash`, seitenweise innerhalb des Wertbudgets; ProDiag-FB-Nachweise und `AssignedProDiagFB`; die passenden Schreibzugriffe (`update_text_list`, `delete_text_list`, `update_*_cells`, `export_*`, `import_*`, `set_prodiag_assignment`, `export_prodiag_info`) stehen in derselben Referenz; nicht live getestet. |
-| `plc_read` | `get_plc_checksums`, `get_fingerprints` | Optional `plcName`; genau eines von `blockPath` oder `typePath` | Offline-Änderungserkennung: die Prüfsummen von Software und Textlisten der PLC und die Fingerprints eines Bausteins oder PLC-Datentyps, als Text; siehe [Offline-Änderungserkennung](#offline-änderungserkennung-plc_read); nicht live getestet. |
+| `plc_read` | `get_plc_checksums`, `get_fingerprints`, `check_download_readiness` | Optional `plcName`; genau eines von `blockPath` oder `typePath` (Fingerprints) | Offline-Änderungserkennung: die Prüfsummen von Software und Textlisten der PLC, die Fingerprints eines Bausteins oder PLC-Datentyps, als Text, und ein Urteil zur Download-Bereitschaft je PLC; siehe [Offline-Änderungserkennung](#offline-änderungserkennung-plc_read); nicht live getestet. |
 | `plc_read` | `get_block_protection` | Pflicht `blockPath` | Know-how- und Schreibschutzzustand eines Bausteins und welche Schutz-Member binden; siehe [Know-how-Schutz und Schreibschutz von Bausteinen](#know-how-schutz-und-schreibschutz-von-bausteinen-plc_readplc_write). Nicht live getestet. |
 | `plc_read` | `get_project_languages` | Keine | Aktive, Bearbeitungs-, Referenz- und unterstützte Projektsprachen und die Textkategorien; siehe [Projektsprachen und Projekttexte](#projektsprachen-und-projekttexte-plc_readplc_write). Nicht live getestet. |
 | `plc_read` | `describe_operations` | Optional `operationNames` (1–3 Namen von PLC-Lese- oder Schreiboperationen) | Die Operationsreferenz: Pflicht- und optionale Felder, die vollständigen Feldregeln und der Referenztext jeder genannten Operation, ohne Namen der Index aller Operationen mit ihren Feldern; kein gebundenes Projekt nötig. Siehe [Operationsreferenz](#operationsreferenz-describe_operations). |
@@ -346,6 +346,11 @@ vor der Ausführung. Die Schritte laufen in einer ExclusiveAccess-Transaktion, d
 
 `create_block` akzeptiert `FB`, `FC`, `OB` oder `GlobalDB`. Passende Bausteintypen unterstützen `LAD`, `FBD`, `STL`, `SCL` und `GRAPH`. `GRAPH` wird für `OB` nicht unterstützt. Das Erstellen von `STL`-FB, -FC und -OB funktioniert.
 
+Das Erstellen eines GlobalDB überlässt das Speicherlayout dem Standard von TIA Portal am Ziel. Das erzeugte XML
+lässt die schreibbare Zuweisung `MemoryLayout` weg, sodass dasselbe Dokument im Bausteinordner der PLC und in Software-Units
+funktioniert; Software-Units verlangen optimierten Zugriff. Upstream hat das auf V21 qualifiziert (Czarnak/tia-portal-mcp PR #228,
+Issue #221); in diesem Fork nicht live getestet.
+
 Das Erstellen eines OB nimmt `obEventClass`, eine abgeschlossene Menge von 15 Namen; weggelassen bedeutet `ProgramCycle`:
 `ProgramCycle`, `Startup`, `TimeOfDay`, `TimeDelayInterrupt`, `CyclicInterrupt`,
 `HardwareInterrupt`, `Status`, `Update`, `Profile`, `TimeErrorInterrupt`, `DiagnosticErrorInterrupt`,
@@ -376,8 +381,12 @@ Wenn sich das Objekt seit diesem Lesezugriff geändert hat, schlägt der Aufruf 
 Änderung zwischen Planung und Import lässt diesen Eintrag mit `state_changed` fehlschlagen. Ein Dokument über dem
 Wertbudget (standardmäßig 60.000 Zeichen) wird in `plc_read` weggelassen, hat keinen Hash und kann nicht über
 `plc_write` aktualisiert werden. Eine Quelle, die mehr als ein Objekt deklariert (ein `withDependencies`-Lesezugriff), wird abgelehnt.
-Bausteinaktualisierungen importieren in den vorhandenen Baustein, übersetzen den betroffenen PLC-Bereich und verifizieren das Ergebnis
-durch erneuten Export (die Verifikation `contentHash`, unten); Typaktualisierungen erfordern eine Deklaration, deren Name dem Ziel entspricht. Import/Aktualisierung
+Bausteinaktualisierungen importieren in den vorhandenen Baustein, übersetzen danach den betroffenen Bereich und verifizieren das Ergebnis
+durch erneuten Export (die Verifikation `contentHash`, unten). Das Übersetzen wird getrennt in
+`result.importOutcome.compileStage` und `compileReport` gemeldet: Übersetzungsfehler oder fehlende Übersetzungsbelege allein lassen
+einen abgeschlossenen, verifizierten Import nicht fehlschlagen und überspringen keine späteren Items. Ein erfolgreicher Import
+bescheinigt nicht, dass sich die PLC übersetzen lässt. Fehler beim Import, bei der abschließenden Verifikation und ein Portal-Verlust
+lassen das Item weiter fehlschlagen. Typaktualisierungen erfordern eine Deklaration, deren Name dem Ziel entspricht. Import/Aktualisierung
 erstellt, benennt um, löscht oder legt das adressierte Objekt nie per Upsert an. Eine Vorschau kann ein begrenztes
 `contentDiff` von aktuellem gegenüber angefordertem Text tragen (siehe die
 [Import-/Exportoptionen](IMPORT_EXPORT_OPTIONS_SUMMARY.de.md)). Ein fehlgeschlagener `update_block_logic`-Import
@@ -617,6 +626,19 @@ Zwei `plc_read`-Operationen (jeder Modus; `Observe`; eigenständige Projekte und
   `Code`, `Comments`, `Interface`, `LibraryType`, `Texts`, `Alarms`, `Supervisions`, `TechnologyObject`, `Events`,
   `TextualInterface`, `Properties`, `ProgramCode` auf, nennt aber den Typ von `Fingerprint.Id` nicht, daher wird nichts
   angenommen).
+- **`check_download_readiness`** (optional `plcName`; Idee aus 1748477582/tia-portal-openness-mcp `CheckDownloadReadiness`,
+  MIT, neu implementiert; nicht live getestet): liest offline und **übersetzt nie**. Je PLC liest es `PlcBlock.IsConsistent`
+  (Eigenschaft oder Attribut) jedes Bausteins, den der Walker findet (Programmbausteine mit Benutzer- und Systemgruppen,
+  Software- und Safety-Units), und die Werte von `get_plc_checksums`; der Siemens-freie `PlcDownloadReadiness` fällt das Urteil:
+  - `ready`: jeder Baustein liest sich konsistent und die Software-Prüfsumme hat einen Wert;
+  - `notReady`: ein Baustein liest sich inkonsistent, oder die Software-Prüfsumme ist leer oder null (laut Siemens-V21-Skill
+    change-detection nicht übersetzt oder seit dem letzten Übersetzen geändert);
+  - `unknown`: nichts spricht gegen einen Download, aber ein Baustein oder die Prüfsumme war nicht lesbar, oder die PLC bietet
+    keinen `PlcChecksumProvider`.
+
+  Das Ergebnis je PLC ist `{ plcName, deviceName, verdict, reasons[], blockCount, inconsistentCount, unreadableCount,
+  inconsistentBlocks[] (höchstens 200), inconsistentBlocksOmitted, checksums, messages[] }`. Es entscheiden weiter die eigenen
+  Prüfungen von TIA Portal bei `plc_download`; inkonsistente Bausteine macht `compile_check` wieder konsistent.
 - **Kein Stub-Member** wurde ergänzt: jedes Member wird zur Laufzeit vom Siemens-freien `PlcChangeDetectionRun` und
   `RuntimeServiceValues` (Contracts `Shared`) gebunden, die der FakeWorker mitbenutzt.
 - **Online-Gegenstück:** der Online-`Siemens.Engineering.FingerprintData.FingerprintDataProvider`
@@ -643,7 +665,10 @@ Worker `Openness/Plc/Loadable/PlcLoadableService.cs`, Host `TiaMcpServer/Plc/Loa
 `plc-write-roundtrip` (PLC_2 bietet keinen Provider).
 
 - **Provider und Bindung.** Die XML sagt nicht, welches Objekt den `LoadableProvider` anbietet; der Worker holt ihn über die
-  `GetServiceInfos()` der `PlcSoftware` mit exaktem vollem Namen (nicht gelistet oder nicht geliefert: `unsupported_capability`).
+  `GetServiceInfos()` der `PlcSoftware` mit exaktem vollem Namen, sonst vom CPU-Geräteelement, jedem übergeordneten
+  Geräteelement und dem Gerät, in dieser Reihenfolge (der Siemens-freie `ServiceOwnerChain`; Idee aus
+  asckye/TIA_Portal_Openness_MCP, MIT; ein Provider, der nicht an der PLC-Software gefunden wurde, steht in
+  `result.messages`). Liefert ihn keines: `unsupported_capability` mit allen durchsuchten Objekten.
   Zuerst werden die Bausteine (`BlockTargetResolver`) oder Software Units aufgelöst (`target_not_found`); dann bindet der
   Siemens-freie `PlcLoadableRun` (Contracts) die eine `GenerateLoadable`-Überladung mit den Parametern `FileInfo`,
   `IEnumerable<T>` mit genau dem vollen Namen des Elementtyps und der Aufzählung mit genau dem vollen Namen von `TargetOption`,

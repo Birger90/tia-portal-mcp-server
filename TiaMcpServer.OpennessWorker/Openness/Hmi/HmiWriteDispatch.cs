@@ -40,6 +40,7 @@ public static class HmiWriteDispatch
                 HmiScreenEventMethods.SetDynamizationScript => HmiScreenEvents.SetDynamizationScript(software, write),
                 HmiScreenEventMethods.SetDynamizationFlashing => HmiScreenEvents.SetDynamizationFlashing(software, write),
                 HmiScreenEventMethods.DeleteDynamization => HmiScreenEvents.DeleteDynamization(software, write),
+                HmiScreenEventMethods.SetDynamizationValueConverter => HmiScreenEvents.SetDynamizationValueConverter(software, write),
                 var batch when HmiScreenMethods.IsBatch(batch) => HmiScreenWriter.RenameBatch(
                     portal ?? throw new WorkerOperationException(WorkerFailureCategories.WorkerOperationFailed, $"{batch} needs the TIA Portal handle for its transaction."),
                     project, software, batch, write),

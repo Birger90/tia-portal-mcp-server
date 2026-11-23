@@ -46,6 +46,46 @@ internal static class PlcChangeDetectionService
         return result;
     }
 
+    /// <summary>
+    /// check_download_readiness: <c>PlcBlock.IsConsistent</c> (property or attribute, read like the K20 export evidence) of every
+    /// block the safety walker finds (program blocks with user and system groups, software and safety units), plus the software
+    /// checksum. Nothing is compiled; an unreadable block is counted, never guessed.
+    /// </summary>
+    public static PlcDownloadReadinessReadInfo ReadDownloadReadiness(ProjectBase project, PlcChangeDetectionRequestInfo info)
+    {
+        var checksums = ReadChecksums(project, info);
+        var failures = new List<string>();
+        var plcs = PlcSoftwareLocator.FindEveryPlc(project, info.PlcName, failures).ToList();
+        var result = new PlcDownloadReadinessReadInfo();
+        foreach (var plc in plcs)
+        {
+            var software = plc.Software;
+            var entry = new PlcDownloadReadinessPlcInfo
+            {
+                PlcName = software.Name, DeviceName = plc.DeviceName,
+                Checksums = checksums.Plcs.First(c => string.Equals(c.PlcName, software.Name, StringComparison.Ordinal)),
+            };
+            foreach (var (path, block) in Openness.Safety.PlcSafetyService.Blocks(software, entry.Messages))
+            {
+                string? consistent;
+                try
+                {
+                    consistent = OpennessReflection.ReadPropertyOrAttribute(block, "IsConsistent");
+                }
+                catch (EngineeringException exception) when (Recoverable(exception))
+                {
+                    consistent = null;
+                }
+
+                PlcDownloadReadiness.Count(entry, path, consistent);
+            }
+
+            result.Plcs.Add(PlcDownloadReadiness.Evaluate(entry));
+        }
+
+        return result;
+    }
+
     public static PlcFingerprintReadInfo ReadFingerprints(ProjectBase project, PlcChangeDetectionRequestInfo info)
     {
         object target;

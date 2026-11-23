@@ -73,6 +73,18 @@ public sealed class HmiWriteRequestInfo
     public string? FlashingCondition { get; set; }
     public string? FlashingRate { get; set; }
 
+    /// <summary>set_dynamization_value_converter: <c>ValueConverter.Formula</c>.</summary>
+    public string? Formula { get; set; }
+
+    /// <summary>set_dynamization_value_converter: <c>ValueConverter.IsFormulaSelected</c> (omitted: true when a formula is given).</summary>
+    public bool? FormulaSelected { get; set; }
+
+    /// <summary>set_dynamization_value_converter: <c>MappingTable.ConditionType</c> (an enum member name).</summary>
+    public string? ConditionType { get; set; }
+
+    /// <summary>set_dynamization_value_converter: the new mapping table entries; they replace every existing entry.</summary>
+    public List<HmiMappingEntryInfo>? MappingEntries { get; set; }
+
     // WinCC Unified audit classes, runtime settings and plant objects (issue #29).
     public string? AuditClassName { get; set; }
     public string? SettingsSection { get; set; }

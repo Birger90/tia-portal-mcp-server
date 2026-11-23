@@ -34,6 +34,27 @@ public sealed class PlcTechnologyObjectPlanningTests
         Assert.Equal(new[] { @"C:\Exports\Existing.xml", @"C:\Exports\Existing.xml", @"C:\Exports\New.xml" }, probed);
     }
 
+    /// <summary>V21 pitfall reported by asckye/TIA_Portal_Openness_MCP (not verified): informs, never refuses.</summary>
+    [Theory]
+    [InlineData("TO_PositioningAxis", "5.0", false)]
+    [InlineData("TO_SpeedAxis", " 5.0 ", false)]
+    [InlineData("PID_Compact", "2.3", false)]
+    [InlineData("TO_PositioningAxis", "6.0", true)]
+    [InlineData("TO_CamTrack", "5.0", true)]
+    [InlineData("to_speedaxis", "5.0", true)]
+    [InlineData(null, null, true)]
+    public void ACreateOutsideTheReportedV21PairsGetsTheTerminationNotice(string? type, string? version, bool notice)
+    {
+        var text = PlcTechnologyObjectPlanning.CreateMayTerminateNotice(type, version, "PLC_1");
+        Assert.Equal(notice, text is not null);
+        if (text is not null)
+        {
+            Assert.Contains("not verified here", text, StringComparison.Ordinal);
+            Assert.Contains("save_project", text, StringComparison.Ordinal);
+            Assert.Contains("PLC 'PLC_1'", text, StringComparison.Ordinal);
+        }
+    }
+
     private static PlcOperationRequest Set(string value) => new()
     {
         OperationId = "p", Operation = TechnologyObjectMethods.SetParameter, Name = "Axis_1", ParameterName = "Axis.Mode", Value = value,

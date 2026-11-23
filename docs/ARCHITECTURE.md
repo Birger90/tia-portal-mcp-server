@@ -149,18 +149,18 @@ for client limits and mutation recovery.
 
 ### Read-write mode
 
-Read-write exposes thirty-two tools: eleven observation tools (including `plcsim_read`, `plc_online_read`, `library_read` and `siemens_docs`), `tia_inbox`, `bind_project`,
-`compile_check`, `network_write`, `plc_write`, `hmi_write`, `vci_write`, `library_write`, `plcsim_write`, `plcsim_test`, seven
+Read-write exposes thirty-two tools: eleven observation tools (including `plcsim_read`, `plc_online_read`, `tia_library_read` and `siemens_docs`), `tia_inbox`, `bind_project`,
+`compile_check`, `network_write`, `plc_write`, `hmi_write`, `vci_write`, `tia_library_write`, `plcsim_write`, `plcsim_test`, seven
 lifecycle tools, `plc_download`, `plc_online_write`, `plc_tia_online` and `plc_station_upload`. It permits `Observe`, `TemporaryExport`, `SessionSelection`, `Compile`,
 `ProjectMutation`, `ProjectLifecycle`, `OnlineControl`, `SimulationControl` and `OnlineObserve`. The four domain write tools and the
 PLCSIM tools never elicit; every actual lifecycle, `plc_download`, `plc_online_write`, `plc_tia_online` and `plc_station_upload` call asks once through client form elicitation,
-and so does every actual `library_write` call that contains a global-library lifecycle item (its content items never prompt).
+and so does every actual `tia_library_write` call that contains a global-library lifecycle item (its content items never prompt).
 Reads never bind, switch, or open; `bind_project` selects an already-open project.
 
 ### Full mode
 
 Full exposes the same thirty-two tools and permits the same capabilities; it adds no tools or
-operations. Lifecycle, `plc_download`, `plc_online_write`, `plc_tia_online`, `plc_station_upload` and global-library lifecycle items of `library_write` run under policy without server elicitation. Block guards stop the call in
+operations. Lifecycle, `plc_download`, `plc_online_write`, `plc_tia_online`, `plc_station_upload` and global-library lifecycle items of `tia_library_write` run under policy without server elicitation. Block guards stop the call in
 every mode. The Openness PLC run/stop (`start_plc`/`stop_plc`) was removed. `OperationCapability.OnlineControl`
 classifies `plc_download` (PLCSIM or real hardware; the access mode is the only control) and the seven `webapi_*` control
 methods of `plc_online_write` (real controllers the user configured) and `plc_go_online`/`plc_go_offline` (`plc_tia_online`), permitted in
@@ -189,7 +189,7 @@ and never performs project-data mutations. It operates only on a project that
 is already open in the attached TIA Portal instance.
 
 The read-only surface contains thirteen tools: eleven observations (including `plcsim_read`,
-`plc_online_read`, `library_read` and `siemens_docs`), `tia_inbox` and `bind_project` for explicit session selection. Binding can switch the selected Portal/project without project mutation.
+`plc_online_read`, `tia_library_read` and `siemens_docs`), `tia_inbox` and `bind_project` for explicit session selection. Binding can switch the selected Portal/project without project mutation.
 
 Content tools act on the bound project only; with no verified binding (a configured `--project` is grounded by status first) they fail closed with `binding_conflict`; call `bind_project` first.
 Only `bind_project` and `open_project` accept a public `projectPath`; ordinary observation/read tools reject it as an unknown member and never use a path to open or switch projects.
@@ -245,7 +245,7 @@ preview-only live V21 evidence are recorded in the
 | `vci_read` | Inspect standalone VCI workspaces, mappings and supported leaf formats. |
 | `plcsim_read` | Up to 50 S7-PLCSIM Advanced reads (`probe_api`, instances, tags) in the separate PLCSIM worker. |
 | `plc_online_read` | Up to 50 independent S7-1500 Web API observations of configured PLCs (state, tags, diagnostics, alarms, modules, syslog) from the host. |
-| `library_read` | Up to 50 independent reads of the project library and the open global libraries (tree, types, versions, instances, update check, compare). |
+| `tia_library_read` | Up to 50 independent reads of the project library and the open global libraries (tree, types, versions, instances, update check, compare). |
 
 `execute_read_batch` was retired; its four operations moved to `plc_read` (`get_block_content`,
 `get_type_content`, `list_tag_tables`) and the standalone `read_cross_references`. See the
@@ -298,7 +298,7 @@ A deeper direct-Openness selector resolver and depth-pruned traversal remains a 
 | `plc_write` | Preview or apply up to 50 ordered PLC software writes (blocks, types, block groups, tag tables, tags, user constants) through the guarded pipeline. |
 | `hmi_write` | Preview or apply ordered Unified HMI tag and alarm writes. |
 | `vci_write` | Preview or apply ordered standalone VCI workspace, export, sync and mapping writes. |
-| `library_write` | Preview or apply up to 50 ordered library writes (global library lifecycle, master copies, type versions, renames); a call with a global-library lifecycle item is confirmed once in read-write (see §8). |
+| `tia_library_write` | Preview or apply up to 50 ordered library writes (global library lifecycle, master copies, type versions, renames); a call with a global-library lifecycle item is confirmed once in read-write (see §8). |
 | `plc_download` | Guarded single-call download of the bound standalone PLC to PLCSIM or real hardware, confirmed per call in read-write (see §8). |
 | `plc_tia_online` | Guarded single-call TIA Portal `go_online`/`go_offline` on the exact download path, confirmed per call in read-write (see §8). |
 | `plc_station_upload` | Guarded single-call station upload into the offline project with caller callback decisions, confirmed per call in read-write (see §8). |
@@ -565,7 +565,9 @@ Broad Network recovery, XML-bundle export, cached HMI liveness and
 Multiuser inventory catches exclude it through `OpennessExceptions.IsRecoverable`;
 Multiuser final identity checks preserve an original fatal body exception. The
 host invalidates verified binding evidence and cursors on this category and
-requires explicit recovery without replay. Strict HMI discovery preserves the
+requires explicit recovery without replay; the one exception is a plain Observe/TemporaryExport content
+read outside a pinned lease, which re-binds once to the same open project path and runs once more (`ReadReattachPolicy`,
+owner decision 2026-11-09; see the Multiuser reference). Strict HMI discovery preserves the
 original engineering exception; lenient inventory diagnostics remain unchanged.
 The HMI locator evicts entries on a different managed engineering-root handle
 without calling native equality on its previous proxy. This is conservative cache
@@ -1459,7 +1461,7 @@ entries are read by reflection and `GetAttribute` (no entry type is documented) 
 export/import round trip behind `expectedContentHash`. Not live-tested; see the
 [PLC online reference](SupportedOperations/PLC_ONLINE_OPENNESS_SUMMARY.md) for operations, caps and member provenance.
 
-### Libraries (`library_read`, `library_write`)
+### Libraries (`tia_library_read`, `tia_library_write`)
 
 `TiaMcpServer/Library/` holds the catalog (`LibraryCatalog`: field specifications, selector, path, name and enum-name
 validation; one item type for both tools like VCI), the read tool on `BatchReadTool` with one result type per
@@ -1646,7 +1648,7 @@ Pipeline stages, in order:
    escapes every guard line and every such character in the description except its own line feeds,
    and an `operationId` containing them is refused as `validation_error`
    (`WriteExecution.UnsafeOperationIdMessage`) before `Validate` when the domain confirms every call,
-   right after `Validate` (a domain such as `library_write` knows `ConfirmsEveryCall` only from its
+   right after `Validate` (a domain such as `tia_library_write` knows `ConfirmsEveryCall` only from its
    validated items) and immediately before any prompt, whatever made the call ask, so no domain
    prompts without the check.
 6. **Mutate** sequentially. The first item that does not succeed stops the call; later items are

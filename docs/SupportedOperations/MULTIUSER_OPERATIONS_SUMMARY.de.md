@@ -94,6 +94,16 @@ Timeout des Workers macht Binding-Belege und Cursor ungültig. Das gilt auch fü
 Ein fehlgeschlagenes Inventar wird nie automatisch wiederholt.
 Explizites `bind` mit seinen bestehenden Guards verwenden, um eine andere Instanz auszuwählen.
 
+**Neu binden nach einem wieder geöffneten Projekt (Owner-Entscheidung 2026-11-09; Idee aus rickgaiser/TiaMcp `38e63db`, neu
+implementiert; nicht live getestet).** Schließt TIA Portal das gebundene Projekt und öffnet es wieder (Multiuser-Einchecken oder
+-Aktualisieren, ein anderer Openness-Client, ein neu gestartetes Portal), und verliert ein reiner Inhaltslesezugriff des gebundenen
+Projekts (Capability `Observe` oder `TemporaryExport`; keine Statusabfrage) dabei das verifizierte Binding mit `portal_lost`, bindet der Host einmal an **denselben** bereits geöffneten
+Projektpfad (`select_portal_project`, das nie ein Projekt öffnet) und führt diesen Lesezugriff noch einmal aus; das Ergebnis trägt
+eine Warnung dazu. Scheitert das Neubinden oder endet es auf einem anderen Pfad, kommt der ursprüngliche Fehler mit einer Warnung
+und dem Grund zurück, und `bind_project` ist wie bisher nötig. Schreibvorgänge, Lifecycle, Online, Simulation, Sitzungsauswahl und
+Inventar werden nie wiederholt, und innerhalb einer gepinnten Schreib-Lease wird nichts wiederholt (`ReadReattachPolicy`,
+`OpennessWorkerClient.SendBoundProjectRequestAsync`).
+
 Eine fatale `NonRecoverableException` aus dem Inventar gelangt zur gemeinsamen
 `portal_lost`-Zuordnung des Workers; abschließende Attachment-Prüfungen können die ursprüngliche fatale
 Ausnahme des Rumpfs nicht ersetzen. Gewöhnliche Serverfehler erhalten weiterhin ein gesundes Binding, und

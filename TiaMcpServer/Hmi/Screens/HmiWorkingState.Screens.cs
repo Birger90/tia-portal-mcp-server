@@ -51,13 +51,15 @@ internal sealed partial class HmiWorkingState
                 target = Identity("TextLists", r.TextListNames is null ? "*" : string.Join(",", r.TextListNames));
                 foreach (var name in r.TextListNames ?? new List<string> { "*" })
                     Change($"file {name}", null, $"{r.DirectoryPath!.Replace('/', '\\').TrimEnd('\\')}\\{(name == "*" ? "<name>" : name)}.xml");
-                guards.Add(Fire(TextListFileUnverified, r, "export_text_lists calls HmiTextList.Export(FileInfo, ExportOptions), a member no Siemens document describes for WinCC Unified text lists; it is bound at runtime and fails api_member_missing when absent."
+                guards.Add(Fire(TextListFileUnverified, r, "export_text_lists calls HmiTextList.Export(FileInfo, ExportOptions), a member no Siemens document describes for WinCC Unified text lists; when it is absent, every list is exported at once with HmiTextListComposition.Export(DirectoryInfo, String) as textlists.hmi.yml and textlists.TextLibrary.hmi.yml (the route rickgaiser/TiaMcp uses on V21, not verified here; textListNames is then refused); both are bound at runtime and fail api_member_missing when absent."
                     + (r.Overwrite == true ? " overwrite:true replaces existing files." : string.Empty)));
                 break;
             case "import_text_lists":
                 target = Identity("TextLists", "*");
                 Change("import", null, r.FilePath);
-                guards.Add(Fire(TextListFileUnverified, r, "import_text_lists calls HmiTextListComposition.Import(FileInfo, ImportOptions), a member no Siemens document describes for WinCC Unified text lists; it is bound at runtime and fails api_member_missing when absent. TIA Portal decides what the import creates"
+                guards.Add(Fire(TextListFileUnverified, r, r.FilePath!.EndsWith(".hmi.yml", StringComparison.OrdinalIgnoreCase)
+                    ? "import_text_lists of a .hmi.yml file calls HmiTextListComposition.Import(DirectoryInfo, String) with the file and its .TextLibrary.hmi.yml sibling (the route rickgaiser/TiaMcp uses on V21, not verified here); it is bound at runtime and fails api_member_missing when absent. Whether TIA Portal merges or replaces lists and entries is undocumented; the result lists the text lists after the import."
+                    : "import_text_lists calls HmiTextListComposition.Import(FileInfo, ImportOptions), a member no Siemens document describes for WinCC Unified text lists; it is bound at runtime and fails api_member_missing when absent. TIA Portal decides what the import creates"
                     + (r.Overwrite == true ? " or replaces (ImportOptions.Override)." : " (ImportOptions.None).")));
                 break;
             case "replace_in_scripts":

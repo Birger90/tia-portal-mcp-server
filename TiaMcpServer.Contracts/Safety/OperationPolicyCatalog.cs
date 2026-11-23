@@ -244,7 +244,7 @@ public static class OperationPolicyCatalog
         // Host-computed plc_read operations over list_tag_tables and read_hardware_config.
         dict[PlcTagMoveMethods.ReadAddressOccupancy] = OperationCapability.Observe;
         dict[PlcTagMoveMethods.FindFreeAddress] = OperationCapability.Observe;
-        // Project and global libraries: reads and write planning observe; every library_write method changes the
+        // Project and global libraries: reads and write planning observe; every tia_library_write method changes the
         // project, a library or library files (global-library lifecycle items are confirmed by the write domain).
         foreach (var method in LibraryMethods.Read)
             dict[method] = OperationCapability.Observe;

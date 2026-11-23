@@ -40,10 +40,12 @@ This fork is based on [Czarnak/tia-portal-mcp](https://github.com/Czarnak/tia-po
 | --- | --- | --- |
 | `TiaMcpServer.Contracts/Plc/Interface/S7dclImportHazards.cs` | `src/TiaMcp.Formats/S7dclSource.cs` | The system type list, the declaration, network and language patterns, the nested-index scan and the SimaticML AT-overlay query (`FindWriteProblems`, `NestedIndexLine`, `AtOverlays`, the line pattern of `WithAtMarkers`) and the content of its finding texts, reworded as reported behaviour. Typed findings, the declared-overlay check, the textual-interface check and the re-export comparison are this fork's. |
 | `TiaMcpServer.Tests/Plc/S7dclImportHazardsTests.cs` | `tests/TiaMcp.Tests/S7dclSourceTests.cs` | The sample block, the declaration and parameter cases and the AT overlay sample. |
+| `TiaMcpServer.OpennessWorker/Openness/Hmi/HmiTextListFiles.cs` (`ExportYaml`, `ImportYaml`; upstream at `5bcb2ab`, 2026-11-12) | `src/TiaMcp.Openness/TiaConnection.HmiTextLists.cs` (`ExportHmiTextLists`, `WriteHmiTextLists`) | The V21 members `HmiTextListComposition.Export(DirectoryInfo, String)` (returns the written files) and `Import(DirectoryInfo, String)` (returns a Boolean), the base file name `textlists` with the suffixes `.hmi.yml`/`.TextLibrary.hmi.yml` TIA Portal adds, the check that both files came back and the failure on a false import. Runtime binding, the fallback order after the SimaticML route, file placement with hashes, the sibling check of an import and the tests are this fork's. The entry-level read and write of Unified text lists (YAML parser and patcher) is not adopted yet. |
 
 Ideas only (no code): the export-counting rules of `src/TiaMcp.Openness/TiaConnection.cs`
 (`ExportsSinceImport`) behind `BlockExportLedger`, and the no-`Attach()` listing of
-`ListRunningInstances` behind `otherClientCount` of `list_portals`.
+`ListRunningInstances` behind `otherClientCount` of `list_portals`, and the re-attach after TIA Portal reopened the project of commit `38e63db` ("Attach again by itself when TIA Portal
+reopened the project") behind `ReadReattachPolicy` (reads only, the same open project, once; reimplemented).
 
 ## BetterTIA (MIT)
 
@@ -71,6 +73,7 @@ Ideas only (no code): the export-counting rules of `src/TiaMcp.Openness/TiaConne
 | `TiaMcpServer.OpennessWorker/Openness/Hmi/HmiScreenWriter.cs` | writer `src/TiaMcpServer/Siemens/Portal.AnetFork.HmiScreens.cs`, `Portal.AnetFork.Hmi.cs` (screen and item create/delete, `SetHmiItemAttribute`, `SetHmiDynamizationTag`, `ReplaceInHmiScripts`, `RenameHmiTags`, `RenameHmiScreens`, the `Children`/`Spots` screen walk) | The call sequences and the script walk (dynamizations, event and property-event handlers, four item levels); re-written with runtime binding, exact type names, read-back and one transaction for batches. |
 | `TiaMcpServer.OpennessWorker/Openness/Block/PlcBlockEditService.Snapshot.cs` | watch `src/BtiaWatch/OpennessPortal.cs` (`ExportDbSnapshot`) | The call sequence `Interface` → `ValueService.CreateSnapshot()`, block → `InterfaceSnapshot.Export(FileInfo, ExportOptions.WithReadOnly)` and the offline-refusal rule; re-written with runtime binding. |
 | `TiaMcpServer.FakeWorker/Plc/SimaticSdFixtures.cs` (`BetterTiaFbSafety`, `BetterTiaFcBranches`; test data only) | editor `tests/samples/Demo_Line/20261012-120000/PLC_1/Blocks/Safety/FB_Safety.s7dcl`/`.s7res`, `Conveyor/FC_Branches.s7dcl`/`.s7res` at `3d115b3` | The two V21 SIMATIC SD exports, byte for byte (fail-safe FBD with `S7_Safety`, LAD branches and an FBD network), as fixtures of the SIMATIC SD parser and the FakeWorker; no code was adopted. |
+| `TiaMcpServer.Contracts/Plc/ChangeDetection/PlcChangeDetection.cs` (`PlcDownloadReadiness`), `TiaMcpServer.OpennessWorker/Openness/Plc/ChangeDetection/PlcChangeDetectionService.cs` (`plc_read check_download_readiness`) | `CheckDownloadReadiness` (CHANGELOG 2.5.3) | The idea only: a download readiness check before a download. Reimplemented from `PlcBlock.IsConsistent` and `PlcChecksumProvider.Software` (Siemens.Engineering.Step7.xml, V21); it never compiles, unlike a compile-based check. |
 
 ### Notices
 
@@ -106,7 +109,7 @@ adopted from `writer`.
 - Source: <https://github.com/1748477582/tia-portal-openness-mcp> at `8e7ca425d5d257132ac8cd5ed9cbc318a7c340e2`, cloned
   read-only and never built or run (owner request 2026-11-01). Its `LICENSE` was read before anything was copied: MIT,
   `Copyright (c) 2026 1748477582`.
-- Only test data was taken; its skill text (`tools/tiaportal-mcp/skill/SKILL.md` §9a) is cited as reported V21 behaviour,
+- Test data and one feature idea were taken (no code); its skill text (`tools/tiaportal-mcp/skill/SKILL.md` §9a) is cited as reported V21 behaviour,
   "reported, not verified", in the [SIMATIC SD reference](docs/SupportedOperations/PLC_SIMATIC_SD_SUMMARY.md).
 
 ### Adopted so far
@@ -153,6 +156,48 @@ SOFTWARE.
 | Fork file | Idea from | What was adopted |
 | --- | --- | --- |
 | `TiaMcpServer.Contracts/Plc/PlcOpcUaExport.cs`, `TiaMcpServer.OpennessWorker/Openness/Plc/OpcUaExportService.cs` (`plc_write export_opcua_xml`) | commit `f4eb4d7` "feat: add ExportOpcUaXml tool" (`src/TiaMcpServer/Siemens/Portal.OpcUa.cs`) | The feature: export the OPC UA data of one PLC as XML. Reimplemented from `Project.HwUtilities.Find("OPCUAExportProvider")` and `OpcUaExportProvider.Export(DeviceItem, FileInfo)` as documented in `totally-integrated-claude` `skills/tia-import-export/references/plc-blocks.md` §13 and `skills/tia-devices-general/references/device-item-operations.md` (type listed in `api-baselines/v21/base.json`), bound at runtime; the guarded `plc_write` pipeline, file placement and tests are this fork's. |
+
+## asckye/TIA_Portal_Openness_MCP (MIT)
+
+- Source: <https://github.com/asckye/TIA_Portal_Openness_MCP> at `4a0592e8` (2026-11-05), cloned read-only and never
+  built or run. Its `LICENSE` was read first: MIT, `Copyright (c) 2026 bulaofen0036-coder`.
+- Only feature ideas were taken; no code was copied. Every Siemens member is taken from the Siemens V21 reference.
+
+### Adopted so far
+
+| Fork file | Idea from | What was adopted |
+| --- | --- | --- |
+| `TiaMcpServer.Contracts/Shared/ServiceOwnerChain.cs`, `TiaMcpServer.OpennessWorker/Openness/Plc/Loadable/PlcLoadableService.cs` (`plc_write generate_loadable`) | commit `93eeb016` (VMFIX-5b, "PLC service lookup", `src/Adapters/Native/Plc/PlcOrganisationWorker.cs`) | The idea: look for a service that V21 does not attach to a documented owner on the PLC software, then on the CPU device item and its ancestors, then on the device. Reimplemented as a Siemens-free ordered search over `GetServiceInfos()`, applied to `LoadableProvider`. |
+| `TiaMcpServer/Plc/TechnologyObjects/` (info guard `plc_technology_object_create_may_terminate`) | commit `93eeb016` (`src/Adapters.Contracts/PlcB4Capabilities.cs`) | The observation reported there (not verified here): on V21 a technology-object create with a type/version pair outside TO_PositioningAxis 5.0, TO_SpeedAxis 5.0 and PID_Compact 2.3 terminated TIA Portal. asckye refuses such creates; this fork only informs (owner rule: never stricter than TIA Portal). |
+
+## jessenic/TIA-MCP-Server (MIT)
+
+- Source: <https://github.com/jessenic/TIA-MCP-Server> at `e817033` (2026-11-13), cloned read-only and never built or run.
+  Its `LICENSE` was read first: MIT, `Copyright (c) 2026 TIA Openness MCP Contributors`.
+- Only the feature and its call order were taken; no code was copied. Every Siemens member is taken from the V21 member
+  list in `totally-integrated-claude` `skills/tia-hmi-operations/references/unified-dynamization.md` and bound at runtime.
+  TIA Portal behaviour jessenic reports (the Singlebit pair created on `ConditionType` assignment) is "reported by
+  jessenic, not verified".
+
+### Adopted so far
+
+| Fork file | Idea from | What was adopted |
+| --- | --- | --- |
+| `TiaMcpServer.OpennessWorker/Openness/Hmi/HmiScreenEvents.cs` (`hmi_write set_dynamization_value_converter`, value converter rows of `list_screen_item_dynamizations`) | `src/Tia/TiaManager.Hmi.cs` (`SetHmiTagDynamization`, mapping table part), `src/Tia/TiaManager.HmiJson.cs` (`ApplyValueConverter`, `SetExpressionDynamization`) | The feature (mapping tables with range, simple and bitmask entries, formulas of expression dynamizations) and the order: select the formula before writing it; delete every entry, set `ConditionType`, then create; bitmask entries through the one `Entries.Create(BitDynamizationType)` unless TIA Portal already created them. Runtime binding, value conversion by the live type, the read-back of every value and of the entry count, the guarded `hmi_write` pipeline and the tests are this fork's. |
+
+## Sparkz400/TIA_MCP (Apache-2.0)
+
+- Source: <https://github.com/Sparkz400/TIA_MCP> at `5cb6722` (2026-11-20), cloned read-only and never built or run. Its
+  `LICENSE` (Apache License 2.0) and `NOTICE` were read first: "TIA MCP, Copyright 2026 Nico Schürmann. This product includes
+  software developed by Nico Schürmann (https://github.com/Sparkz400/TIA_MCP)." Apache-2.0 is compatible with this fork's
+  AGPL-3.0-only (GPLv3 §7); the notice is kept here.
+- Only the design was taken; no code was copied. Every Siemens member comes from the Siemens V21 documentation named below.
+
+### Adopted so far
+
+| Fork file | Idea from | What was adopted |
+| --- | --- | --- |
+| `TiaMcpServer.Contracts/Project/UmacProjectLogin.cs`, `TiaMcpServer/ProjectLifecycle/UmacOpenItem.cs`, `TiaPortalSession.OpenProject` (`open_project` `umacUserName`) | commit `315493b` "Name other Openness clients on attach and open UMAC-protected projects" (`src/TiaMcp.Openness.V21/OpennessSession.Projects.cs`) | Opening a UMAC-protected project with `ProjectComposition.Open(FileInfo, UmacDelegate)`: answer TIA Portal's login callback once, refuse a second one so a refused password is never resent, and report how often TIA Portal asked. Reimplemented with runtime binding and the fork's password sources (no credential envelope); members from Siemens "TIA Portal Openness V21 - Functions for Projects and Project Data" as quoted in `totally-integrated-claude` `skills/tia-project-general/references/umac-and-auth.md`. |
 
 ## Czarnak/siemens-docs-mcp (MIT)
 

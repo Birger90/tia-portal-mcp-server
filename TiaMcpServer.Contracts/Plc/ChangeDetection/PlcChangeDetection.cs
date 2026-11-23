@@ -20,7 +20,14 @@ public static class PlcChangeDetectionMethods
     /// <summary>plc_read, Observe: <c>FingerprintProvider.GetFingerprints()</c> of one block or PLC data type.</summary>
     public const string GetFingerprints = "get_fingerprints";
 
-    public static IReadOnlyList<string> Read { get; } = Array.AsReadOnly(new[] { GetPlcChecksums, GetFingerprints });
+    /// <summary>
+    /// plc_read, Observe: whether each PLC looks ready to download, read offline without compiling: <c>PlcBlock.IsConsistent</c>
+    /// of every block and the <c>PlcChecksumProvider.Software</c> checksum (idea from 1748477582/tia-portal-openness-mcp
+    /// <c>CheckDownloadReadiness</c>, MIT; reimplemented).
+    /// </summary>
+    public const string CheckDownloadReadiness = "check_download_readiness";
+
+    public static IReadOnlyList<string> Read { get; } = Array.AsReadOnly(new[] { GetPlcChecksums, GetFingerprints, CheckDownloadReadiness });
 
     public static bool IsRead(string? method) => method is not null && Read.Contains(method, StringComparer.Ordinal);
 
@@ -171,5 +178,124 @@ public static class PlcChangeDetectionRun
         }
 
         return result;
+    }
+}
+
+/// <summary>The result of check_download_readiness: one entry per PLC in project order. Nothing is compiled or downloaded.</summary>
+public sealed class PlcDownloadReadinessReadInfo
+{
+    public string Operation { get; set; } = PlcChangeDetectionMethods.CheckDownloadReadiness;
+
+    public List<PlcDownloadReadinessPlcInfo> Plcs { get; set; } = new();
+
+    public string Note { get; set; } = PlcDownloadReadiness.Note;
+}
+
+public sealed class PlcDownloadReadinessPlcInfo
+{
+    public string PlcName { get; set; } = string.Empty;
+
+    public string DeviceName { get; set; } = string.Empty;
+
+    /// <summary><see cref="PlcDownloadReadiness.Ready"/>, <see cref="PlcDownloadReadiness.NotReady"/> or <see cref="PlcDownloadReadiness.Unknown"/>.</summary>
+    public string Verdict { get; set; } = PlcDownloadReadiness.Unknown;
+
+    /// <summary>Why the verdict is not ready, one plain sentence each; empty when ready.</summary>
+    public List<string> Reasons { get; set; } = new();
+
+    /// <summary>Blocks whose <c>IsConsistent</c> was read (program blocks, system groups, software and safety units).</summary>
+    public int BlockCount { get; set; }
+
+    public int InconsistentCount { get; set; }
+
+    /// <summary>Blocks whose <c>IsConsistent</c> could not be read.</summary>
+    public int UnreadableCount { get; set; }
+
+    /// <summary>Paths of the inconsistent blocks, at most <see cref="PlcDownloadReadiness.MaxListedBlocks"/>.</summary>
+    public List<string> InconsistentBlocks { get; set; } = new();
+
+    /// <summary>Inconsistent blocks not listed because of the cap.</summary>
+    public int InconsistentBlocksOmitted { get; set; }
+
+    /// <summary>The software and text list checksums, as get_plc_checksums reads them.</summary>
+    public PlcChecksumPlcInfo Checksums { get; set; } = new();
+
+    /// <summary>Read problems that did not stop the check (e.g. software units that could not be read).</summary>
+    public List<string> Messages { get; set; } = new();
+}
+
+/// <summary>
+/// The Siemens-free verdict of check_download_readiness, shared by the worker and the FakeWorker. Ready: every block reads
+/// consistent and the software checksum has a value. Not ready: a block reads inconsistent, or the checksum reads empty or null
+/// (per the Siemens V21 skill change-detection: not compiled or changed since the last compile). Unknown: nothing contradicts a
+/// download, but a block or the checksum could not be read, or the PLC offers no checksum provider. The check reads only: it
+/// never compiles, and TIA Portal's own download checks still decide (plc_download).
+/// </summary>
+public static class PlcDownloadReadiness
+{
+    public const string Ready = "ready";
+    public const string NotReady = "notReady";
+    public const string Unknown = "unknown";
+
+    public const int MaxListedBlocks = 200;
+
+    public const string Note =
+        "Offline check without compiling: IsConsistent of every block and the software checksum. TIA Portal's own checks during plc_download still decide; "
+        + "compile with compile_check to make inconsistent blocks consistent.";
+
+    /// <summary>Fills <see cref="PlcDownloadReadinessPlcInfo.Verdict"/> and <see cref="PlcDownloadReadinessPlcInfo.Reasons"/> from the counts and the checksum.</summary>
+    public static PlcDownloadReadinessPlcInfo Evaluate(PlcDownloadReadinessPlcInfo entry)
+    {
+        if (entry is null) throw new ArgumentNullException(nameof(entry));
+        entry.Reasons.Clear();
+        var notReady = false;
+        var unknown = false;
+        if (entry.InconsistentCount > 0)
+        {
+            notReady = true;
+            entry.Reasons.Add($"{entry.InconsistentCount} block(s) are not consistent (changed since their last compile); run compile_check for PLC '{entry.PlcName}'.");
+        }
+
+        if (entry.UnreadableCount > 0)
+        {
+            unknown = true;
+            entry.Reasons.Add($"The consistency of {entry.UnreadableCount} block(s) could not be read.");
+        }
+
+        var software = entry.Checksums.Software;
+        if (!entry.Checksums.Available)
+        {
+            unknown = true;
+            entry.Reasons.Add("The PLC offers no software checksum (PlcChecksumProvider); compile state cannot be confirmed from it.");
+        }
+        else if (software is null || software.State is RuntimeValueStates.Empty or RuntimeValueStates.Null)
+        {
+            notReady = true;
+            entry.Reasons.Add("The software checksum is empty: the software was not compiled or was changed since the last compile; run compile_check.");
+        }
+        else if (software.State != RuntimeValueStates.Value)
+        {
+            unknown = true;
+            entry.Reasons.Add("The software checksum could not be read.");
+        }
+
+        entry.Verdict = notReady ? NotReady : unknown ? Unknown : Ready;
+        return entry;
+    }
+
+    /// <summary>Counts one block's <c>IsConsistent</c> text (<c>True</c>/<c>False</c>, or null when unreadable) into the entry.</summary>
+    public static void Count(PlcDownloadReadinessPlcInfo entry, string path, string? isConsistent)
+    {
+        entry.BlockCount++;
+        if (!bool.TryParse(isConsistent, out var consistent))
+        {
+            entry.UnreadableCount++;
+            return;
+        }
+
+        if (consistent) return;
+        entry.InconsistentCount++;
+        if (entry.InconsistentBlocks.Count < MaxListedBlocks) entry.InconsistentBlocks.Add(path);
+        else entry.InconsistentBlocksOmitted++;
     }
 }

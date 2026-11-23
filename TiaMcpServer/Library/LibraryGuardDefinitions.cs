@@ -3,7 +3,7 @@ using TiaMcpServer.Safety.Pipeline;
 namespace TiaMcpServer.Library;
 
 /// <summary>
-/// library_write guards. All are informative (owner decision: the access mode is the control; only invalid or
+/// tia_library_write guards. All are informative (owner decision: the access mode is the control; only invalid or
 /// ambiguous input refuses; and 2026-11-01: never stricter than TIA Portal), and none needs acknowledgement.
 /// <see cref="CloseUnsavedChanges"/> names a close_global_library that discards unsaved changes this server made: the
 /// documented <c>Close()</c> offers no save-or-discard choice (see <see cref="LibraryUnsavedChanges"/>), TIA Portal lets

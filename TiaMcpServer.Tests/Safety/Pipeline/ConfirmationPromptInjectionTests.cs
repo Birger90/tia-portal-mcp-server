@@ -19,7 +19,7 @@ namespace TiaMcpServer.Tests.Safety.Pipeline;
 /// <summary>
 /// Caller-supplied text in a confirmation prompt can neither add lines (a probe hid "request operating
 /// mode STOP" below 120 line feeds) nor reorder text with bidirectional controls: every confirming
-/// domain (library_write included) quotes and escapes it, the pipeline escapes guard lines and puts them
+/// domain (tia_library_write included) quotes and escapes it, the pipeline escapes guard lines and puts them
 /// first, and a confirmed write refuses such characters in its operationIds.
 /// </summary>
 public sealed class ConfirmationPromptInjectionTests
@@ -153,7 +153,7 @@ public sealed class ConfirmationPromptInjectionTests
     [Fact]
     public void DomainsThatDoNotConfirmEveryCall_DefineNoAcknowledgeGuard()
     {
-        // Network, HMI and VCI never confirm every call, and library_write confirms only calls with a lifecycle item:
+        // Network, HMI and VCI never confirm every call, and tia_library_write confirms only calls with a lifecycle item:
         // none of them may define a guard that prompts on its own (the pipeline would refuse unsafe operationIds there).
         foreach (var definitions in new[]
                  {
@@ -161,7 +161,7 @@ public sealed class ConfirmationPromptInjectionTests
                      TiaMcpServer.Hmi.HmiGuardDefinitions.Definitions, TiaMcpServer.Vci.VciGuardDefinitions.Definitions,
                  })
             Assert.DoesNotContain(definitions, definition => definition.Severity == WriteGuardSeverities.Acknowledge);
-        // library_write has exactly one (issue #27, a security-relevant TIA Portal setting) and confirms every call containing
+        // tia_library_write has exactly one (issue #27, a security-relevant TIA Portal setting) and confirms every call containing
         // such an item (ConfirmsEveryCall), so unsafe operationIds are refused for those calls.
         Assert.Equal(new[] { LibraryGuardDefinitions.PortalSecuritySetting },
             LibraryGuardDefinitions.Definitions.Where(definition => definition.Severity == WriteGuardSeverities.Acknowledge).Select(definition => definition.Id));
@@ -174,7 +174,7 @@ public sealed class ConfirmationPromptInjectionTests
         Assert.True(plain.ConfirmsEveryCall);
         // plc_write has two, the fail-safe acceptance guard and the online master secret (issue #16), and confirms every call that
         // fires one (ConfirmsEveryCall is true for a call with a fail-safe or online master secret item), so unsafe operationIds are
-        // refused for those calls as for library_write.
+        // refused for those calls as for tia_library_write.
         // Security review F8 added the third: automatic acceptance of syslog client certificates.
         // Package G added the online actual-value loads and the project protection.
         Assert.Equal(new[] { TiaMcpServer.Plc.PlcGuardDefinitions.SafetyAcceptance, TiaMcpServer.Plc.PlcGuardDefinitions.MasterSecretOnline, TiaMcpServer.Plc.PlcGuardDefinitions.LoadsActualValuesOnline, TiaMcpServer.Plc.PlcGuardDefinitions.ProtectsProject, TiaMcpServer.Plc.PlcGuardDefinitions.SyslogAutoAcceptsCertificates },
@@ -281,7 +281,7 @@ public sealed class ConfirmationPromptInjectionTests
         Assert.All(message.Split('\n'), line => Assert.False(ConfirmationText.ContainsUnsafeCharacters(line), line));
         Assert.DoesNotContain("PLC_1\n", message, StringComparison.Ordinal);
         Assert.Contains("PLC_1\\n\\n", message, StringComparison.Ordinal);
-        Assert.StartsWith("Confirm library_write: this call opens, creates, retrieves, saves, archives or closes global library files or secondary projects outside the bound project:\n", message);
+        Assert.StartsWith("Confirm tia_library_write: this call opens, creates, retrieves, saves, archives or closes global library files or secondary projects outside the bound project:\n", message);
         var lines = message.Split('\n');
         Assert.StartsWith("1. open_global_library \"global library file PLC_1\\n", lines[1]);
         Assert.EndsWith($"; TIA Portal dialogs: decline; operationId {ConfirmationText.Quote(Probe)}", lines[1]);

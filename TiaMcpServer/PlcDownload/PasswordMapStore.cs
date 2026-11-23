@@ -76,7 +76,8 @@ public static class PasswordMapStore
         // names are answers here.
         foreach (var purpose in Entries.Select(e => e.Purpose)
                      .Where(p => p != PasswordMapFile.SafetyPurpose && !Contracts.Plc.Security.PlcSecurityPolicy.PasswordLevels.Contains(p, StringComparer.Ordinal)
-                         && p is not (Contracts.Plc.BlockProtection.PlcBlockProtectionNames.KnowHowPurpose or Contracts.Plc.BlockProtection.PlcBlockProtectionNames.WriteProtectionPurpose)
+                         && p is not (Contracts.Plc.BlockProtection.PlcBlockProtectionNames.KnowHowPurpose or Contracts.Plc.BlockProtection.PlcBlockProtectionNames.WriteProtectionPurpose
+                             or Contracts.Project.UmacProjectLoginNames.PasswordPurpose)
                          && !given.Contains(p))
                      .Distinct(StringComparer.Ordinal))
             if (PasswordMapFile.Lookup(Entries, project, plc, purpose) is { } source)

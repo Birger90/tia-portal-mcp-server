@@ -83,6 +83,32 @@ namespace TiaMcpServer.FakeWorker.Plc
                     return Ok(WorkerJson.SerializePayload(result));
                 }
 
+                if (request.Method == PlcChangeDetectionMethods.CheckDownloadReadiness)
+                {
+                    // PLC_1: Main and FC_Calc consistent, FB_Motor changed since its last compile; PLC_2: OB1 consistent, Motion unreadable, no checksum provider.
+                    var readiness = new PlcDownloadReadinessReadInfo();
+                    foreach (var (plc, device, provider, blocks) in new (string, string, object?, (string, string?)[])[]
+                    {
+                        ("PLC_1", "Station_1", _checksums, new[] { ("PLC_1/Blocks/Main", (string?)"True"), ("PLC_1/Blocks/FB_Motor", "False"), ("PLC_1/Blocks/FC_Calc", "True") }),
+                        ("PLC_2", "Station_2", null, new[] { ("PLC_2/Blocks/OB1", (string?)"True"), ("PLC_2/Blocks/Motion", null) }),
+                    })
+                    {
+                        if (info.PlcName is not null && !Same(info.PlcName, plc) && !Same(info.PlcName, device)) continue;
+                        var offered = provider is null ? new List<Type>() : new List<Type> { provider.GetType() };
+                        var entry = new PlcDownloadReadinessPlcInfo
+                        {
+                            PlcName = plc, DeviceName = device,
+                            Checksums = PlcChangeDetectionRun.ReadChecksums(plc, device, offered, _ => provider, _ => false),
+                        };
+                        foreach (var (path, consistent) in blocks) PlcDownloadReadiness.Count(entry, path, consistent);
+                        readiness.Plcs.Add(PlcDownloadReadiness.Evaluate(entry));
+                    }
+
+                    if (readiness.Plcs.Count == 0)
+                        throw new RuntimeBindingException(WorkerFailureCategories.TargetNotFound, $"No PLC software named '{info.PlcName}' was found in the project.");
+                    return Ok(WorkerJson.SerializePayload(readiness));
+                }
+
                 if (request.Method != PlcChangeDetectionMethods.GetFingerprints)
                     throw new RuntimeBindingException(WorkerFailureCategories.ValidationError, $"plc-change-detection scenario does not script '{request.Method}'.");
                 if (info.BlockPath is not null)

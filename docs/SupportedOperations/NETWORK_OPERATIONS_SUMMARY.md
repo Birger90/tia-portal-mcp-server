@@ -31,7 +31,8 @@ See [../roadmap/network-operations.md](../roadmap/network-operations.md) for lat
 Fatal Portal loss escaping Network discovery, selection, connection/attribute reads
 or mutation propagates to the worker's shared `portal_lost` mapping.
 Ordinary unreadable evidence and optional-property failures retain their existing
-behavior. The host invalidates verified binding/cursors without replay; inspect
+behavior. The host invalidates verified binding/cursors without replay (only a plain read re-binds once to the same
+open project and runs once more; see the Multiuser reference); inspect
 any attempted mutation and explicitly bind again before retrying. Existing typed
 post-mutation outcomes and cleanup warnings retain their established contracts. The
 [B-16/Q3 record](../superpowers/acceptance/reports/2026-10-20-b16-q3-worker-portal-loss-live-verification.md) distinguishes

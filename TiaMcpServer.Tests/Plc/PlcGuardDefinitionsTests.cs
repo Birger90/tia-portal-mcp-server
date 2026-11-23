@@ -45,6 +45,7 @@ public class PlcGuardDefinitionsTests
             [PlcGuardDefinitions.BatchRenameRuns] = WriteGuardSeverities.Info,
             [PlcGuardDefinitions.ImportReplacesTagTable] = WriteGuardSeverities.Info,
             [PlcGuardDefinitions.ReplacesHardwareConnection] = WriteGuardSeverities.Info,
+            [PlcGuardDefinitions.TechnologyObjectCreateMayTerminate] = WriteGuardSeverities.Info,
             [PlcGuardDefinitions.S7dclImportMayAlter] = WriteGuardSeverities.Info,
             [PlcGuardDefinitions.TextualInterfaceOverwrite] = WriteGuardSeverities.Info,
             [PlcGuardDefinitions.SaveBeforeWrite] = WriteGuardSeverities.Info,

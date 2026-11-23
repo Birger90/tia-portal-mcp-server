@@ -402,14 +402,35 @@ attempted-operation failures, so inspect state before a new call.
 - `open_project` (and the open inside `bind_project`/rebind): `ProjectComposition.Open(FileInfo)` documents
   `MissingProductsException`; it now fails `worker_operation_failed` with a text that names the missing products,
   optional packages or support packages and says nothing was opened, plus the Siemens message in `engineeringError`
-  (matched by exact full name, `EngineeringFailureHints`). The UMAC open (`UmacDelegate`) and the `Authentication` event stay
-  out of this package.
+  (matched by exact full name, `EngineeringFailureHints`). The UMAC open (`UmacDelegate`) is described
+  below; the `Authentication` event stays out.
 - Any `EngineeringSecurityException` keeps its category and gets a text that names a security refusal and, for
   UMAC-protected projects, the Openness function right (name from a third-party guide, not verified).
 - `portal_lost` (a `NonRecoverableException` or a lost Portal) and a worker that stopped during a read no longer say a
   retry is safe: the text says not to repeat the same call unattended and to check TIA Portal and its crash report first
   (the diagnostics folder is named from a third-party guide, not verified). A read timeout says a retry changes nothing in
   the project but may hang TIA Portal again.
+
+### Opening a UMAC-protected project (`open_project` `umacUserName`)
+
+> **Not live-tested.** Evidence: Siemens "TIA Portal Openness V21 - Functions for Projects and Project Data" (03/2026), as quoted by
+> Czarnak/totally-integrated-claude `skills/tia-project-general/references/umac-and-auth.md` (MIT):
+> `tiaPortal.Projects.Open(new FileInfo(path), umacDelegate)`, the delegate sets `UmacCredentials.Type` (`UmacUserType.Project` or
+> `.Global`), `.Name` and calls `.SetPassword(SecureString)`. Sparkz400/TIA_MCP (Apache-2.0, commit `315493b`) compiles the same call
+> against the V21 assemblies; the fork adopted the idea (answer once, never resend) and reimplemented it with its password sources.
+
+`open_project` takes `umacUserName`, `umacUserType` (`project`, the default, or `global` for a UMC user) and `umacPassword` (a password
+source: an environment variable NAME or `credential:<target>`, never the password; omitted, the password map entry of purpose
+`UmacProjectLogin` for the project's file name is used). The source is redacted while binding exactly like the `plc_download`
+passwords. The worker binds `ProjectComposition.Open(FileInfo, UmacDelegate)`, the delegate's single `UmacCredentials` parameter, its
+writable `Name` and `Type` properties, `SetPassword(SecureString)` and the `UmacUserType` member at runtime (none is in the compile
+stubs; `api_member_missing`, nothing opened or closed) and resolves the password before anything is closed or opened. The first login
+callback is answered (Type, Name, SetPassword); a second one is refused, so a wrong password is never resent: the call fails
+`access_denied` with the Siemens message in `engineeringError`. A refused open after one callback fails `worker_operation_failed` naming
+the user (Sparkz400 reports that TIA Portal V21 words a wrong password as a deactivated account; not verified). A warning reports how
+often TIA Portal asked; an unprotected project is opened without asking. Not offered for `.als21` local sessions or together with
+`upgrade` (`validation_error`). The read-write prompt names the user, its type and the source kind. **Risk, not verified:** refusing
+the second callback throws inside TIA Portal's callback; a throwing callback terminated TIA Portal in another case (K27).
 
 ### Opening with upgrade (`open_project` `upgrade`)
 
@@ -457,8 +478,8 @@ is open.
 
 ### Secondary projects (issue #20)
 
-A second project can be opened read-only next to the bound one (`ProjectOpenMode.Secondary`) through `library_write`
-`open_secondary_project` / `retrieve_secondary_project` / `close_secondary_project`, listed by `library_read` `list_secondary_projects`,
+A second project can be opened read-only next to the bound one (`ProjectOpenMode.Secondary`) through `tia_library_write`
+`open_secondary_project` / `retrieve_secondary_project` / `close_secondary_project`, listed by `tia_library_read` `list_secondary_projects`,
 copied from with `create_master_copy` `source.project` and compared with `plc_read` `compare_software` `compareTarget: secondary_plc`
 ([library reference](LIBRARY_OPERATIONS_SUMMARY.md#secondary-read-only-reference-projects-issue-20)). The binding rules do not change: a
 project whose `ProjectBase.IsPrimary` reads false is never a binding candidate, and content tools act only on the bound project.
@@ -585,7 +606,7 @@ The current project surface does not provide:
 - `OpenWithUpgrade`, `Retrieve`, `RetrieveWithUpgrade`, or project deletion.
 - Project language settings and multilingual text import/export (reading is exposed through `get_project_status` metadata; editing is not).
 - Full project attribute editing (copyright, family, comment, and language settings are read-only today).
-- UMAC delegates, authentication events, or explicit primary/secondary `ProjectOpenMode` selection.
+- Authentication events or explicit primary/secondary `ProjectOpenMode` selection (the UMAC delegate of `open_project` is described above).
 - Portal settings, diagnostics settings, or search-index administration.
 - VCI library scopes, connecting unlinked files, workspace groups and VCI settings. Standalone
   workspace, mapping, export and sync operations are in the [VCI reference](VCI_OPERATIONS_SUMMARY.md).
